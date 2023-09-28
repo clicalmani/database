@@ -1,7 +1,7 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Flesco\Database\Factory\DataTypes\DataType;
+use Clicalmani\Database\Factory\DataTypes\DataType;
 
 class Column extends DataType 
 {

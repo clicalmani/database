@@ -1,13 +1,27 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Faker;
 
 trait NumberGenerator
 {
+    /**
+     * Integer generator
+     * 
+     * @param int $min
+     * @param int $max
+     * @return int
+     */
     static function integer(int $min = 0, int $max = 1) : int
     {
         return random_int($min, $max);
     }
 
+    /**
+     * Float generator
+     * 
+     * @param int $min
+     * @param int $max
+     * @return float
+     */
     static function float(int $min = 0, int $max = 1, int $decimal = 2) : float
     {
         $number = self::integer($min, $max) . '.' . self::integer();

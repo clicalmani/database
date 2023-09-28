@@ -1,9 +1,9 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
 
-class Delete extends DBQueryBuilder implements \IteratorAggregate {
-	
-	function __construct(
+class Delete extends DBQueryBuilder implements \IteratorAggregate 
+{
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -23,7 +23,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate {
 				 */
 
 				$prefix = $this->db->getPrefix();
-				$tables = new \Clicalmani\Flesco\Collection\Collection;
+				$tables = new \Clicalmani\Collection\Collection;
 				$tables->exchange($this->params['tables'])->map(function($val) use($prefix) {
 					return $prefix . $val;
 				})->toArray();
@@ -87,19 +87,19 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate {
 		}
 	}
 	
-	function query() { 
-		
-	    $statement = $this->db->query($this->bindVars($this->sql), $this->options, $this->params['options']);
+	public function query() : void 
+	{
+		$this->bindVars();
+	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
     	
 		$this->status     = $statement ? true: false;
 	    $this->error_code = $this->db->errno();
 	    $this->error_msg  = $this->db->error();
 	}
 	
-	function getIterator() : \Traversable {
+	public function getIterator() : \Traversable 
+	{
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }
 ?>

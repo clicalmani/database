@@ -1,10 +1,9 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
 
 class Select extends DBQueryBuilder implements \IteratorAggregate 
 {
-	
-	function __construct(
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -66,9 +65,10 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		if ( isset($this->params['limit']) ) $this->sql .= ' LIMIT ' . $this->params['offset'] . ', ' . $this->params['limit'];
 	}
 	
-	function query() { 
-		
-	    $statement = $this->db->query($this->bindVars($this->sql), $this->options, $this->params['options']);
+	public function query() :void
+	{ 
+		$this->bindVars();
+	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
     	
 		$this->status     = $statement ? true: false;
 	    $this->error_code = $this->db->errno();
@@ -83,7 +83,4 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	function getIterator() : \Traversable {
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }
-?>

@@ -1,5 +1,5 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory\Indexes;
+namespace Clicalmani\Database\Factory\Indexes;
 
 class Index extends IndexType
 {

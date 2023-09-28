@@ -1,5 +1,5 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory\DataTypes;
+namespace Clicalmani\Database\Factory\DataTypes;
 
 trait Numeric
 {

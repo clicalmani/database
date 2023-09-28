@@ -1,10 +1,10 @@
 <?php 
-namespace Clicalmani\Flesco\Database\Seeders;
+namespace Clicalmani\Database\Seeders;
 
 /**
  * Database seeder class
  * 
- * @package Clicalmani\Flesco
+ * @package Clicalmani
  * @author clicalmani
  */
 abstract class Seeder 

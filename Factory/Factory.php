@@ -1,14 +1,8 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
-
-use Clicalmani\Flesco\TestUnits\Benchmark;
+namespace Clicalmani\Database\Factory;
 
 class Factory
 {
-    use NumberGenerator, 
-        StringGenerator, 
-        DateGenerator;
-
     /**
      * The name of the factory corresponding model.
      *
@@ -29,42 +23,7 @@ class Factory
      * @var array Attributes to override
      */
     private $attributes_override = [];
-
-    static function randomInt(int $min = 0, int $max = 1) : int 
-    {
-        return self::integer($min, $max);
-    }
-
-    static function randomFloat(int $min = 0, int $max = 1, int $decimal = 2) : float
-    {
-        return self::float($min, $max, $decimal);
-    }
-
-    static function randomName() : string
-    {
-        return self::name();
-    }
-
-    static function randomAlpha($length = 10) : string
-    {
-        return self::alpha($length);
-    }
-
-    static function randomAlphaNum($length = 10) : string
-    {
-        return self::alphaNum($length);
-    }
-
-    static function randomNum($length = 10) : string
-    {
-        return self::num($length);
-    }
-
-    static function randomDate(int $min_year = 1900, int $max_year = 2000) : string
-    {
-        return self::date($min_year, $max_year);
-    }
-
+    
     /**
      * Merges attributes
      * 
@@ -79,7 +38,7 @@ class Factory
     /**
      * Override attributes in the seed
      * 
-     * @param array $attributes Only specified attributes will be overrided
+     * @param array $attributes Only specified attributes will be overriden
      * @return array New seed
      */
     private function override($attributes = [])
@@ -88,7 +47,7 @@ class Factory
         $seed = $this->definition();
         
         foreach ($this->attributes_override as $attribute => $value) {
-            $seed[$attribute] = $value;
+            $seed[$attribute] = ($value instanceof Sequence) ? call( $value ): $value;
         }
 
         return array_unique( $seed );
@@ -130,7 +89,7 @@ class Factory
     }
 
     /**
-     * Allows to manipulate factory states
+     * Manipulate factory states
      * 
      * @param callable $callback A callable function that receive default attributes and return the 
      * attributes to override.
@@ -145,13 +104,13 @@ class Factory
     /**
      * Manipulate multiple states at the same time
      * 
-     * @param array $states Default []
+     * @param Sequence $states
      * @return static
      */
-    public function states(array $states = []) : static
+    public function states(Sequence $states) : static
     {
-        foreach ($states as $state) {
-            $this->state($state);
+        foreach (range(1, $states->count) as $num) {  
+            $this->state($states());
         }
 
         return $this;
@@ -187,7 +146,7 @@ class Factory
      * 
      * @return void
      */
-    public function start($attributes = []) : void
+    public function make($attributes = []) : void
     {
         $seeds = [];
 
@@ -196,5 +155,10 @@ class Factory
         }
         
         with (new $this->model)->insert($seeds);
+    }
+
+    public function faker()
+    {
+        return new \Clicalmani\Database\Faker\Faker;
     }
 }

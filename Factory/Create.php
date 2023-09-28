@@ -1,15 +1,16 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Flesco\Database\DBQueryBuilder;
-use Clicalmani\Flesco\Database\Factory\DataTypes\DataType;
-use Clicalmani\Flesco\Exceptions\DataTypeException;
+use Clicalmani\Database\DBQueryBuilder;
+use Clicalmani\Database\DBQueryIterator;
+use Clicalmani\Database\Factory\DataTypes\DataType;
+use Clicalmani\Exceptions\DataTypeException;
 
 class Create extends DBQueryBuilder implements \IteratorAggregate 
 {
 	private $dataType;
 
-	function __construct(
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -29,7 +30,7 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
         if (isset($this->params['charset'])) $this->sql .= 'DEFAULT CHARACTER SET = ' . $this->params['charset'];
 	}
 
-	function query() 
+	public function query() : void
 	{
 	    $result = $this->db->query($this->sql);
     		
@@ -38,10 +39,8 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
 	    $this->error_msg  = $this->db->error();
 	}
 	
-	function getIterator() : \Traversable
+	public function getIterator() : \Traversable
 	{
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }

@@ -1,11 +1,11 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
 
-use Clicalmani\Flesco\Database\DBQueryBuilder;
+use Clicalmani\Database\DBQueryBuilder;
 
-class Update extends DBQueryBuilder implements \IteratorAggregate {
-	
-	function __construct(
+class Update extends DBQueryBuilder implements \IteratorAggregate 
+{
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -45,8 +45,9 @@ class Update extends DBQueryBuilder implements \IteratorAggregate {
 		}
 	}
 	
-	function query() 
+	public function query() : void
 	{ 
+		$this->bindVars();
 		$statement = $this->db->prepare($this->sql, $this->params['options']);
 
 		foreach ($this->params['values'] as $i => $value) {
@@ -66,10 +67,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate {
 		$statement = null;
 	}
 	
-	function getIterator() : \Traversable {
+	public function getIterator() : \Traversable {
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }
-?>

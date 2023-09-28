@@ -1,5 +1,5 @@
 <?php 
-namespace Clicalmani\Flesco\Database\Seeders;
+namespace Clicalmani\Database\Seeders;
 
 trait DisableEventsTrigger 
 {

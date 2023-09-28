@@ -1,11 +1,9 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
+
+use Clicalmani\Collection\Collection;
 
 /**
- * |-----------------------------------------------------------------
- * |              ***** DBQueryBuilder Class *****
- * |-----------------------------------------------------------------
- * 
  * Database Query Builder
  * 
  * Builds a SQL query to be executed in a database statement.
@@ -13,33 +11,103 @@ namespace Clicalmani\Flesco\Database;
  * @package Flesco\Database
  * @author @clicalmani
  */
-
-use Clicalmani\Flesco\Collection\Collection;
-
 abstract class DBQueryBuilder 
 {
-	
+	/**
+	 * Holds the generated SQL statement to be executed.
+	 * 
+	 * @var string 
+	 */
 	protected $sql;
+
+	/**
+	 * DBQuery object
+	 * 
+	 * @var Cicalmani\Database\DBQuery
+	 */
 	protected $db;
+
+	/**
+	 * Pagination range
+	 * 
+	 * @var int Default 5
+	 */
 	protected $range;
+
+	/**
+	 * Number of rows to be returns while executing the current SQL statement.
+	 * 
+	 * @var int Default 25
+	 */
 	protected $limit;
+
+	/**
+	 * SQL error message
+	 * 
+	 * @var string 
+	 */
 	protected $error_msg;
+
+	/**
+	 * SQL error code
+	 * 
+	 * @var int
+	 */
 	protected $error_code;
+
+	/**
+	 * Last insert ID
+	 * 
+	 * @var int
+	 */
 	protected $insert_id = 0;
+
+	/**
+	 * Number of rows returned while executing the current SQL statement.
+	 * 
+	 * @var int Default 0
+	 */
 	protected $num_rows = 0;
+
+	/**
+	 * Human understandable status result
+	 * 
+	 * @var string Possible values are success or failure
+	 */
 	protected $status;
+
+	/**
+	 * SQL result
+	 * 
+	 * @var \Clicalmani\Collection\Collection
+	 */
 	protected $result; 
+
+	/**
+	 * Iterator index
+	 * 
+	 * @var int Default 0
+	 */
 	protected $key = 0;
 
+	/**
+	 * Different types of tables joins supported
+	 * 
+	 * @var array
+	 */
 	protected const JOIN_TYPES = [
 		'left'  => 'LEFT JOIN',
 		'right' => 'RIGHT JOIN',
 		'inner' => 'INNER JOIN'
 	];
 
-	public $table;
-	
-	function __construct(
+	/**
+	 * Constructor
+	 * 
+	 * @param array $param [Optional]
+	 * @param array $option [Optional]
+	 */
+	public function __construct(
 		protected $params = [],
 		protected $options = []
 	)
@@ -62,72 +130,119 @@ abstract class DBQueryBuilder
 		$this->result = new Collection;
 	}
 	
-	abstract function query();
+	/**
+	 * Execute as SQL statement
+	 * 
+	 * @return void
+	 */
+	public abstract function query() : void;
 	
 	function execSQL(string $sql) : int|false
 	{
-		return $this->bd->exec($this->bindVars($sql));
+		return $this->db->execute($this->bindVars($sql));
 	}
 	
-	function bindVars($str) 
+	/**
+	 * Bind vars
+	 * 
+	 * @return void
+	 */
+	public function bindVars() : void
 	{
 		$bindings = array(
-			'%PREFIX%'=>$this->db->getPrefix(),
-			'%APP_KEY%'=>'vie',
-			'%APP_CFG%'=>'SECURITE'
+			'%PREFIX%'=>$this->db->getPrefix()
 		);
 		
 		foreach ($bindings as $key => $value) {
 			
-			$str = str_replace($key, $value, $str);
+			$this->sql = str_replace($key, $value, $this->sql);
 		}
-		
-		return $str;
 	}
 	
-	function getRow(){ return $this->result[$this->key]; }
+	/**
+	 * Fetch a single row from the SQL query result.
+	 * 
+	 * @return array
+	 */
+	public function getRow() : array { return $this->result->get($this->key); }
 	
-	function hasResult(){ return $this->num_rows > 0; }
+	/**
+	 * Check wether the last SQL statement has a result
+	 * 
+	 * @return bool True on success, false on failure
+	 */
+	public function hasResult() : bool { return $this->num_rows > 0; }
 	
-	function result(){ return $this->result; }
+	/**
+	 * Gets the SQL result
+	 * 
+	 * @return \Clicalmani\Collection\Collection
+	 */
+	public function result() : Collection { return $this->result; }
 	
-	function numRows(){ return $this->num_rows; }
+	/**
+	 * Returns the number of rows returned by the last SQL statement.
+	 * 
+	 * @return int
+	 */
+	public function numRows() : int { return $this->num_rows; }
 	
-	function status(){ return $this->status ? 'success': 'failure'; }
+	/**
+	 * Returns human understandable word to show wether the execution of the
+	 * SQL statement has succed or not.
+	 * 
+	 * @return string
+	 */
+	public function status() : string { return $this->status ? 'success': 'failure'; }
 	
-	function insertId(){ return $this->insert_id; }
+	/**
+	 * Last insert ID
+	 * 
+	 * @return int
+	 */
+	public function insertId() : int { return $this->insert_id; }
 	
-	function key(){ return $this->key; }
+	/**
+	 * Returns the iterator key
+	 * 
+	 * @return int
+	 */
+	public function key() : int { return $this->key; }
 	
-	function setKey($new_key) { $this->key = $new_key; }
+	/**
+	 * Sets the iterator key
+	 * 
+	 * @param int $new_key
+	 * @return void
+	 */
+	public function setKey(int $new_key) : void { $this->key = $new_key; }
 	
-	function close() { $this->db->close(); }
+	/**
+	 * Close the database connection
+	 * 
+	 * @return void
+	 */
+	public function close() : void { $this->db->close(); }
 	
-	function getSQL() { return $this->bindVars($this->sql); }
-
-	function isBoolValue($value)
-	{
-		return is_bool($value);
+	/**
+	 * Returns the generated SQL 
+	 * 
+	 * @return string 
+	 */
+	public function getSQL() : string { 
+		$this->bindVars();
+		return $this->sql; 
 	}
-
-	function isNullValue($value) 
-	{
-		return ($value === 'NULL' || is_null($value));
-	}
-
-	function isDefaultValue($value)
-	{
-		return $value === 'DEFAULT';
-	}
-
-	function isExpression($value)
-	{
-		if (preg_match('/^exp:/i', $value)) return true;
-
-		return false;
-	}
-
-	function sanitizeTables(array $tables, bool $prefix = true, bool $alias = true) : array
+	
+	/**
+	 * Sanitize tables
+	 * 
+	 * @param array $tables
+	 * @param bool $prefix
+	 * @param bool $alias
+	 * @return array
+	 */
+	public function sanitizeTables(array $tables, bool $prefix = true, bool $alias = true) : array
 	{
 		$ret = [];
 
@@ -148,7 +263,13 @@ abstract class DBQueryBuilder
 		return $ret;
 	}
 
-	function addJoint($joint)
+	/**
+	 * Adds joint in the SQL statement
+	 * 
+	 * @param array $joint
+	 * @return string
+	 */
+	public function addJoint(array $joint) : string
 	{
 		$ret = '';
 
@@ -175,28 +296,28 @@ abstract class DBQueryBuilder
 		return $ret;
 	}
 
-	function sanitizeValue($value)
+	/**
+	 * Sanitize a value
+	 * 
+	 * @param string $value
+	 * @return string
+	 */
+	public function sanitizeValue(string $value) : string
 	{
-		if ($this->isBoolValue($value)) {
+		if (is_bool($value)) {
 			return (int) $value;
 		}
 		
-		// if ($this->isNullValue($value)) {
-		// 	return 'NULL';
-		// }
-
-		// if ($this->isDefaultValue($value)) {
-		// 	return 'DEFAULT';
-		// }
-
-		// if ($this->isExpression($value)) {
-		// 	return preg_replace('/^exp:/i', '', $value);
-		// }
-
 		return $value;
 	}
 
-	public function getDataType($data)
+	/**
+	 * Gets the corresponding PDO data type from the supplied data.
+	 * 
+	 * @param mixed $data
+	 * @return int
+	 */
+	public function getDataType(mixed $data) : int
 	{
 		if ( is_int($data) ) return \PDO::PARAM_INT;
 		if ( is_bool($data) ) return \PDO::PARAM_BOOL;
@@ -205,16 +326,13 @@ abstract class DBQueryBuilder
 		return \PDO::PARAM_STR;
 	}
 
-	function select($raw_sql)
-	{
-		if ( null != $this->table ) {
-			
-		}
-	}
-	
-	protected function error(){ 
-		if ($this->error_code > 0)
-		 echo '';
-		else echo "";
+	/**
+	 * Error
+	 * 
+	 * @return string
+	 */
+	protected function error() : string
+	{ 
+		return $this->error_msg;
 	}
 }

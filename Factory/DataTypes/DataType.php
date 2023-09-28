@@ -1,5 +1,5 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory\DataTypes;
+namespace Clicalmani\Database\Factory\DataTypes;
 
 class DataType
 {
@@ -62,6 +62,6 @@ class DataType
     function __call($method, $params)
     {
         if (method_exists($this, $method)) $this->{$method}(...$params);
-        else throw new \Clicalmani\Flesco\Exceptions\DataTypeException("The method $method is not associated to any data type.");
+        else throw new \Clicalmani\Exceptions\DataTypeException("The method $method is not associated to any data type.");
     }
 }

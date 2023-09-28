@@ -1,9 +1,9 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
 
-class Insert extends DBQueryBuilder implements \IteratorAggregate {
-	
-	function __construct(
+class Insert extends DBQueryBuilder implements \IteratorAggregate 
+{
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -24,9 +24,10 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate {
 		}
 	}
 	
-	function query() 
+	public function query() : void
 	{
-		$statement = $this->db->prepare($this->bindVars($this->sql), $this->params['options']);
+		$this->bindVars();
+		$statement = $this->db->prepare($this->sql, $this->params['options']);
 
 		foreach ($this->params['values'] as $row) {
 			foreach ($row as $i => $value) {
@@ -48,7 +49,4 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate {
 	{
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }
-?>

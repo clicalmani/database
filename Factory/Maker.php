@@ -1,10 +1,10 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Flesco\Database\DBQuery;
-use Clicalmani\Flesco\Database\Factory\Column;
-use Clicalmani\Flesco\Database\Factory\Indexes\Index;
-use Clicalmani\Flesco\Database\Factory\AlterOption;
+use Clicalmani\Database\DBQuery;
+use Clicalmani\Database\Factory\Column;
+use Clicalmani\Database\Factory\Indexes\Index;
+use Clicalmani\Database\Factory\AlterOption;
 
 class Maker
 {

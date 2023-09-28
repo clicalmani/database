@@ -1,53 +1,94 @@
 <?php
-namespace Clicalmani\Flesco\Database;
+namespace Clicalmani\Database;
+
+use Clicalmani\Collection\Collection;
+use Clicalmani\Database\Factory\Create;
+use Clicalmani\Database\Factory\Drop;
+use Clicalmani\Database\Factory\Alter;
 
 /**
- * |------------------------------------------------------------
- * |             ***** DBQuery Class *****
- * |------------------------------------------------------------
+ * Database query
  * 
- * Database query builder initialiser
+ * Generate the SQL statement to be executed for the requested query.
  * 
- * This class prepare a database query builder depending on a specific SQL command
+ * @package Clicalmani\Database
+ * @author clicalmani
  */
-
-use Clicalmani\Flesco\Collection\Collection;
-use Clicalmani\Flesco\Database\Factory\Create;
-use Clicalmani\Flesco\Database\Factory\Drop;
-use Clicalmani\Flesco\Database\Factory\Alter;
-
-define('DB_QUERY_SELECT', 0);
-define('DB_QUERY_INSERT', 1);
-define('DB_QUERY_DELETE', 2);
-define('DB_QUERY_UPDATE', 3);
-define('DB_QUERY_CREATE', 4);
-define('DB_QUERY_DROP_TABLE', 5);
-define('DB_QUERY_DROP_TABLE_IF_EXISTS', 6);
-define('DB_QUERY_ALTER_TABLE', 7);
-
 class DBQuery extends DB
 {
 	/**
-	 * Query flag
+	 * Query builder parameters
 	 * 
-	 * Among the following constants: DB_QUERY_SELECT, DB_QUERY_INSERT, DB_QUERY_UPDATE, DB_QUERY_CREATE
+	 * @var array $params
 	 */
-	private $query;
+	public $params;
 
-	const SELECT = DB_QUERY_SELECT;
-	const INSERT = DB_QUERY_INSERT;
-	const DELETE = DB_QUERY_DELETE;
-	const UPDATE = DB_QUERY_UPDATE;
-	const CREATE = DB_QUERY_CREATE;
-	const ALTER  = DB_QUERY_ALTER_TABLE;
+	/**
+	 * Select flag
+	 * 
+	 * @var int 0
+	 */
+	const SELECT = 0;
 
-	const DROP_TABLE           = DB_QUERY_DROP_TABLE;
-	const DROP_TABLE_IF_EXISTS = DB_QUERY_DROP_TABLE_IF_EXISTS;
+	/**
+	 * Insert flag
+	 * 
+	 * @var int 1
+	 */
+	const INSERT = 1;
+
+	/**
+	 * Delete flag
+	 * 
+	 * @var int 2
+	 */
+	const DELETE = 2;
+
+	/**
+	 * Update flag
+	 * 
+	 * @var int 3
+	 */
+	const UPDATE = 3;
+
+	/**
+	 * Create flag
+	 * 
+	 * @var int 4
+	 */
+	const CREATE = 4;
+
+	/**
+	 * Alter flag
+	 * 
+	 * @var int 7
+	 */
+	const ALTER  = 7;
+
+	/**
+	 * Drop table flag
+	 * 
+	 * @var int 5
+	 */
+	const DROP_TABLE = 5;
+
+	/**
+	 * Dropt table if exists flag
+	 * 
+	 * @var int 6
+	 */
+	const DROP_TABLE_IF_EXISTS = 6;
 	
-	function __construct($query = null, $params = [], private $options = [])
+	/**
+	 * Constructor
+	 * 
+	 * @param int|null $query [Optional] DBQuery flag
+	 * @param array $params [Optional] Query parameters
+	 * @param array $options [Optional] 
+	 */
+	public function __construct(private int|null $query = null, array $params = [], private array $options = [])
 	{ 
 		$this->params = isset($params)? $params: [];
-		
 		$this->query = $query;
 	}
 	
@@ -55,17 +96,15 @@ class DBQuery extends DB
 	 * Sets query parameter
 	 * 
 	 * @param string $param parameter name
-	 * @param string $value parameter value
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @param mixed $value parameter value
+	 * @return static
 	 */
-	function set($param, $value) 
+	public function set(string $param, mixed $value) : static
 	{ 
 		if ($param == 'type') {
 			$this->query = $value;
-			return;
-		}
+		} else $this->params[$param] = $value;
 
-		$this->params[$param] = $value;
 		return $this;
 	}
 
@@ -73,20 +112,21 @@ class DBQuery extends DB
 	 * Unset a query parameter
 	 * 
 	 * @param string $param Parameter name
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function unset($param)
+	public function unset(string $param) : static
 	{
 		unset($this->params[$param]);
 		return $this;
 	}
 
 	/**
-	 * Bounds query parameters.
+	 * Binds query parameters.
 	 * 
-	 * @param array $options Bound parameters in the SQL statement being executed. All values are treated as PDO::PARAM_STR.
+	 * @param array $options 
+	 * @return void
 	 */
-	function setOptions($options)
+	public function setOptions(array $options) : void
 	{
 		$this->options = $options;
 	}
@@ -95,9 +135,9 @@ class DBQuery extends DB
 	 * Gets query the specified parameter value
 	 * 
 	 * @param string $param Parameter name
-	 * @return string Parameter value, or null on failure.
+	 * @return mixed Parameter value, or null on failure.
 	 */
-	function getParam($param)
+	public function getParam(string $param)
 	{
 		if (isset($this->params[$param])) {
 			return $this->params[$param];
@@ -109,65 +149,66 @@ class DBQuery extends DB
 	/**
 	 * Execute a SQL query command
 	 * 
-	 * @return \Clicalmani\Flesco\Database\DBQueryBuilder Object
+	 * @return mixed
 	 */
-	function exec()
+	public function exec() : mixed
 	{ 
-		
 		$this->query = isset($this->params['query'])? $this->params['query']: $this->query;
 		
 		switch ($this->query){
 			
-			case DB_QUERY_SELECT:
+			case static::SELECT:
 				$obj = new Select($this->params, $this->options);
 				$obj->query();
 				return $obj;
 			
-			case DB_QUERY_INSERT:
+			case static::INSERT:
 				$obj = new Insert($this->params, $this->options);
 				$obj->query();
 				return $obj;
 				
-			case DB_QUERY_DELETE:
+			case static::DELETE:
 				$obj = new Delete($this->params, $this->options);
 				$obj->query();
 				return $obj;
 				
-			case DB_QUERY_UPDATE:
+			case static::UPDATE:
 				$obj = new Update($this->params, $this->options);
 				$obj->query();
 				return $obj;
 
-			case DB_QUERY_CREATE:
+			case static::CREATE:
 				$obj = new Create($this->params, $this->options);
 				$obj->query();
 				return $obj;
 
-			case DB_QUERY_DROP_TABLE:
+			case static::DROP_TABLE:
 				$obj = new Drop($this->params, $this->options);
 				$obj->query();
 				return $obj;
 
-			case DB_QUERY_DROP_TABLE_IF_EXISTS:
+			case static::DROP_TABLE_IF_EXISTS:
 				$this->params['exists'] = true;
 				$obj = new Drop($this->params, $this->options);
 				$obj->query();
 				return $obj;
 
-			case DB_QUERY_ALTER_TABLE:
+			case static::ALTER:
 				$obj = new Alter($this->params, $this->options);
 				$obj->query();
 				return $obj;
 		}
+
+		return null;
 	}
 
 	/**
 	 * Alias of get
 	 * 
 	 * @see DBQuery::get() method
-	 * @return \Clicalmani\Flesco\Collection\Collection Object
+	 * @return \Clicalmani\Collection\Collection
 	 */
-	function select($fields = '*') 
+	public function select(string $fields = '*') : Collection
 	{
 		return $this->get($fields);
 	}
@@ -175,11 +216,11 @@ class DBQuery extends DB
 	/**
 	 * Performs a delete request.
 	 * 
-	 * @return \Clicalmani\Flesco\Database\DBQueryBuilder Object
+	 * @return static
 	 */
-	function delete()
+	public function delete() : static
 	{
-		$this->query = DB_QUERY_DELETE;
+		$this->query = static::DELETE;
 		return $this;
 	}
 
@@ -187,11 +228,11 @@ class DBQuery extends DB
 	 * Perform an update request.
 	 * 
 	 * @param array $option [optional] New attribute values
-	 * @return \Clicalmani\Flesco\Database\DBQueryBuilder Object
+	 * @return bool true on success, false on failure
 	 */
-	function update($options = [])
+	public function update(array $options = []) : bool
 	{
-		$this->set('query', DB_QUERY_UPDATE);
+		$this->set('query', DBQuery::UPDATE);
 
 		$fields = array_keys( $options );
 		$values = array_values( $options );
@@ -206,9 +247,9 @@ class DBQuery extends DB
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return bool true on success, false on failure
 	 */
-	function insert($options = [])
+	public function insert(array $options = []) : bool
 	{
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
 
@@ -227,12 +268,17 @@ class DBQuery extends DB
 			$this->params['values'][] = $values;
 		}
 
-		$this->set('query', DB_QUERY_INSERT); 
+		$this->set('query', self::INSERT); 
 		
 		return $this->exec()->status() === 'success';
 	}
 
-	function insertOrFaile($options = [])
+	/**
+	 * Insert new record to the selected table or fail.
+	 * 
+	 * @return bool true on success, false on failure
+	 */
+	public function insertOrFaile(array $options = []) : bool
 	{
 		$this->params['ignore'] = true;
 		return $this->insert($options);
@@ -241,11 +287,10 @@ class DBQuery extends DB
 	/**
 	 * Specify the query where condition. 
 	 * 
-	 * @param string $criteria a SQL query where condition
-	 * @param string $operator [optional] An optional where condition operator. Default is AND
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @param array ...$args Takes one, two or three parameters
+	 * @return static
 	 */
-	function where( ...$args )
+	public function where( ...$args ) : static
 	{
 		switch(count($args)) {
 			case 1:
@@ -284,9 +329,9 @@ class DBQuery extends DB
 	 * Specify the query having condition
 	 * 
 	 * @param string $criteria a SQL query having condition
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function having($criteria)
+	public function having(string $criteria) : static
 	{
 		if ( !isset($this->params['having']) ) {
 			$this->params['having'] = $criteria;
@@ -301,9 +346,9 @@ class DBQuery extends DB
 	 * Orders the query result set.
 	 * 
 	 * @param string $order_by a SQL query order by statement
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function orderBy($order_by) 
+	public function orderBy(string $order_by) : static
 	{
 		$this->params['order_by'] = $order_by;
 		return $this;
@@ -313,9 +358,9 @@ class DBQuery extends DB
 	 * Group the query result set by a specified parameter
 	 * 
 	 * @param string $group_by a SQL query group by statement
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function groupBy($group_by)
+	public function groupBy(string $group_by) : static
 	{
 		$this->params['group_by'] = $group_by;
 		return $this;
@@ -325,15 +370,21 @@ class DBQuery extends DB
 	 * Wheter to return a distinct result set.
 	 * 
 	 * @param bool $distinct [optional] default true
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function distinct($distinct = true)
+	public function distinct($distinct = true) : static
 	{
 		$this->params['distinct'] = $distinct;
 		return $this;
 	}
 
-	function from(string $fields) : DBQuery
+	/**
+	 * SQL from statement when deleting from joined tables.
+	 * 
+	 * @param string $fields 
+	 * @return static
+	 */
+	public function from(string $fields) : static
 	{
 		$this->params['fields'] = $fields;
 		return $this;
@@ -343,11 +394,11 @@ class DBQuery extends DB
 	 * Gets a database query result set. An optional comma separated list of request fields can be specified as 
 	 * the unique argument.
 	 * 
-	 * @see DBQuery::select() method
+	 * @see Clicalmani\Database\DBQuery::select() method
 	 * @param string $fields a list of request fields separated by comma.
-	 * @return \Clicalmani\Flesco\Collection\Collection Object
+	 * @return \Clicalmani\Collection\Collection
 	 */
-	function get($fields = '*')
+	public function get(string $fields = '*') : Collection
 	{
 		$this->params['fields'] = $fields;
 		$result = $this->exec();
@@ -363,9 +414,9 @@ class DBQuery extends DB
 	/**
 	 * Fetch all rows in a query result set.
 	 * 
-	 * @return \Clicalmani\Flesco\Collection\Collection Object
+	 * @return \Clicalmani\Collection\Collection
 	 */
-	function all()
+	public function all() : Collection
 	{
 		$this->params['where'] = 'TRUE';
 		$result = $this->exec();
@@ -381,11 +432,11 @@ class DBQuery extends DB
 	/**
 	 * Limit the number of rows to be returned in a query result set.
 	 * 
-	 * @param int $offset the starting index to fetch from
-	 * @param int $limit The number of result to be returned
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @param int $offset [Optional] the starting index to fetch from. Default is 0
+	 * @param int $limit [Optional] The number of result to be returned. Default is 1
+	 * @return static
 	 */
-	function limit($offset, $limit)
+	public function limit(int $offset = 0, int $limit = 1) : static
 	{
 		$this->params['calc'] = true;
 		$this->params['offset'] = $offset;
@@ -398,9 +449,9 @@ class DBQuery extends DB
 	 * Joins a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function join($table)
+	public function join(array $table) : static
 	{
 		$this->params['tables'][] = $table;
 		return $this;
@@ -412,9 +463,9 @@ class DBQuery extends DB
 	 * @param string $table Table name
 	 * @param string $parent_id Parent key
 	 * @param string $child_id Foreign key
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function joinLeft($table, $parent_id, $child_id)
+	public function joinLeft(string $table, string $parent_id, string $child_id) : static
 	{
 		$joint = [
 			'table'    => $table,
@@ -438,9 +489,9 @@ class DBQuery extends DB
 	 * @param string $table Table name
 	 * @param string $parent_id Parent key
 	 * @param string $child_id Foreign key
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function joinRight($table, $parent_id, $child_id)
+	public function joinRight(string $table, string $parent_id, string $child_id) : static
 	{
 		$joint = [
 			'table'    => $table,
@@ -464,9 +515,9 @@ class DBQuery extends DB
 	 * @param string $table Table name
 	 * @param string $parent_id Parent key
 	 * @param string $child_id Foreign key
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return static
 	 */
-	function joinInner($table, $parent_id, $child_id)
+	public function joinInner(string $table, string $parent_id, string $child_id) : static
 	{
 		$joint = [
 			'table'    => $table,

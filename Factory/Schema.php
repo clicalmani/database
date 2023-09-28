@@ -1,5 +1,5 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Factory;
 
 class Schema
 {

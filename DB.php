@@ -1,22 +1,5 @@
 <?php
-namespace Clicalmani\Flesco\Database;
-
-/**
- * |--------------------------------------------------------------------------------
- * |                            ***** DB Class *****
- * |--------------------------------------------------------------------------------
- * 
- * Database abstraction class
- * 
- * DB class use PHP Data Objects (PDO) extension interface for accessing database.
- * It uses MySQL database driver as its default driver. Other databases can be used 
- * by specifing the corresponding specific PDO driver.
- * 
- * @package Flesco\Database
- * @author Abdoul-Madjid
- * @version 3.0.1
- * @since 2015
- */
+namespace Clicalmani\Database;
 
 use PDO;
 use \PDOStatement;
@@ -28,6 +11,18 @@ global $db_config, $root_path;
  */
 $db_config = require config_path( '/database.php' );
 
+/**
+ * Database abstraction class
+ * 
+ * DB class use PHP Data Objects (PDO) extension interface for accessing database.
+ * It uses MySQL database driver as its default driver. Other databases can be used 
+ * by specifing the corresponding specific PDO driver.
+ * 
+ * @package Flesco\Database
+ * @author Abdoul-Madjid
+ * @version 3.0.1
+ * @since 2015
+ */
 abstract class DB 
 {
 	/**
@@ -77,13 +72,13 @@ abstract class DB
 	/**
 	 * Returns a single database instance.
 	 * 
-	 * @return \Clicalmani\Flesco\Database\DB object
+	 * @return \Clicalmani\Database\DB object
 	 */
-	static function getInstance() 
+	public static function getInstance() 
 	{
 	    if ( ! static::$instance ) {
 			self::getPdo();
-			return new DBQuery;
+			static::$instance = new DBQuery;
 		}
 
 		return static::$instance;
@@ -94,7 +89,7 @@ abstract class DB
 	 * 
 	 * @return \PDO instance
 	 */
-	static function getPdo() {
+	public static function getPdo() {
 		if ( isset(static::$pdo) ) return static::$pdo;
 
 		global $db_config;
@@ -129,7 +124,7 @@ abstract class DB
 	 * @param string $sql SQL command structure
 	 * @return \PDO::Statement
 	 */
-	public function query($sql, $options = [], $flags = []) 
+	public function query(string $sql, array $options = [], array $flags = []) 
 	{ 
 		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
@@ -149,11 +144,9 @@ abstract class DB
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.
 	 */
-	public function fetch($statement, $flag = PDO::FETCH_BOTH) 
+	public function fetch($statement, int $flag = PDO::FETCH_BOTH) : mixed
 	{ 
-	    
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
-		
 		return null;
 	}
 	
@@ -163,11 +156,9 @@ abstract class DB
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.
 	 */
-	public function getRow($statement, $flag = PDO::FETCH_NUM) 
+	public function getRow($statement, int $flag = PDO::FETCH_NUM) : mixed
 	{
-		
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
-		
 		return [];
 	}
 	
@@ -177,11 +168,9 @@ abstract class DB
 	 * @param \PDO::Stattement $statement
 	 * @return int the number of rows, or 0 otherwise.
 	 */
-	public function numRows($statement) 
+	public function numRows($statement) : int
 	{ 
-	    
 		if ($statement instanceof PDOStatement) return $statement->rowCount(); 
-		
 		return 0;
 	}
 
@@ -196,7 +185,7 @@ abstract class DB
 	 * @see \PDO::prepare() method
 	 * @return \PDO::Statement
 	 */
-	public function prepare($sql, $options = [])
+	public function prepare(string $sql, array $options = [])
 	{
 		return static::$pdo->prepare($sql, $options);
 	}
@@ -222,7 +211,7 @@ abstract class DB
 	 * @param string [optional] $name name of the sequence object from which the ID should be returned.
 	 * @return string|false 
 	 */
-	public function insertId(?string $name = null) { return static::$pdo->lastInsertId(); }
+	public function insertId() : string|false { return static::$pdo->lastInsertId(); }
 	
 	/**
 	 * Destroy a statement
@@ -230,21 +219,25 @@ abstract class DB
 	 * @param \PDO::Statement $statement the statement to destroy.
 	 * @return bool|null null on success or false on failure.
 	 */
-	public function free($statement) 
+	public function free($statement) : bool|null
 	{ 
-	    
 		if ($statement instanceof PDOStatement) return $statement = null; 
-		
 		return false;
 	}
 	
-	public function beginTransaction(\Closure $callable = null) 
+	/**
+	 * Begins a database transaction
+	 * 
+	 * @param callable $callback A callback function
+	 * @return bool true on success, false on failure
+	 */
+	public function beginTransaction(?callable $callback = null) : bool
 	{ 
 		if ( !isset($callable) ) return static::$pdo->beginTransaction(); 
 
-		if ( $callable instanceof \Closure ) {
+		if ( is_callable($callback) ) {
 			static::$pdo->beginTransaction();
-			$success = $callable();
+			$success = $callback();
 			if ( $success ) {
 				$this->commit();
 				return true;
@@ -257,29 +250,35 @@ abstract class DB
 
 	/**
 	 * Validate a transaction
+	 * 
+	 * @return bool
 	 */
-	public function commit() { return static::$pdo->commit(); }
+	public function commit() : bool { return static::$pdo->commit(); }
 
 	/**
 	 * Abort a transaction
+	 * 
+	 * @return bool
 	 */
-	public function rollback() { return static::$pdo->rollback(); }
+	public function rollback() : bool { return static::$pdo->rollback(); }
 	
 	/**
 	 * Destroy the database connection
+	 * 
+	 * @return void
 	 */
-	public function close() { return static::$pdo = null; }
+	public function close() : void { static::$pdo = null; }
 
 	/**
 	 * Select a database table on which to execute a SQL query.
 	 * 
 	 * @param array|string $tables Database table(s) name(s)
-	 * @return \Clicalmani\Flesco\Database\DBQuery Object
+	 * @return \Clicalmani\Database\DBQuery Object
 	 */
-	static function table($tables)
+	static function table(array|string $tables) : DBQuery
 	{
 		$builder = new DBQuery;
-		$builder->set('query', DB_QUERY_SELECT);
+		$builder->set('query', DBQuery::SELECT);
 		
 		if ( is_string( $tables ) ) {
 			$builder->set('tables', [$tables]);

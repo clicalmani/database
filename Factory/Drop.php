@@ -1,11 +1,12 @@
 <?php
-namespace Clicalmani\Flesco\Database\Factory;
+namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Flesco\Database\DBQueryBuilder;
+use Clicalmani\Database\DBQueryBuilder;
+use Clicalmani\Database\DBQueryIterator;
 
 class Drop extends DBQueryBuilder implements \IteratorAggregate 
 {
-	function __construct(
+	public function __construct(
 		protected $params = array(), 
 		protected $options = []
 	) 
@@ -15,7 +16,7 @@ class Drop extends DBQueryBuilder implements \IteratorAggregate
 		$this->sql .= 'DROP TABLE ' . (isset($this->params['exists']) ? 'IF EXISTS ': '') . $this->db->getPrefix() . $this->params['table'];
 	}
 
-	function query() 
+	public function query() : void
 	{
 	    $result = $this->db->query($this->sql);
     		
@@ -24,10 +25,8 @@ class Drop extends DBQueryBuilder implements \IteratorAggregate
 	    $this->error_msg  = $this->db->error();
 	}
 	
-	function getIterator() : \Traversable
+	public function getIterator() : \Traversable
 	{
 		return new DBQueryIterator($this);
 	}
-	
-	function error() { parent::error(); }
 }
