@@ -96,7 +96,7 @@ abstract class DB
 
 		try {
 			$db_default = $db_config['connections'][$db_config['default']];
-
+			
 			static::$pdo = new PDO(
 				$db_default['driver'] . ':host=' . $db_default['host'] . ':' . $db_default['port'] . ';dbname=' . $db_default['name'],
 				$db_default['user'],
@@ -232,8 +232,11 @@ abstract class DB
 	 * @return bool true on success, false on failure
 	 */
 	public function beginTransaction(?callable $callback = null) : bool
-	{ 
-		if ( !isset($callable) ) return static::$pdo->beginTransaction(); 
+	{
+		if ( !isset($callback) ) {
+			static::$pdo->beginTransaction(); 
+			return static::$pdo;
+		}
 
 		if ( is_callable($callback) ) {
 			static::$pdo->beginTransaction();

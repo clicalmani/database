@@ -6,6 +6,12 @@ class IndexType
     function __construct(private $data = '')
     {}
 
+    function index()
+    {
+        $this->data .= ' INDEX';
+        return $this;
+    }
+
     function unique()
     {
         $this->data .= ' UNIQUE';
@@ -18,9 +24,9 @@ class IndexType
         return $this;
     }
 
-    function foreignKey()
+    function foreignKey(string $key)
     {
-        $this->data .= ' FOREIGN KEY';
+        $this->data .= ' FOREIGN KEY (`' . $key . '`)';
         return $this;
     }
 

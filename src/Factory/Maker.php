@@ -6,6 +6,12 @@ use Clicalmani\Database\Factory\Column;
 use Clicalmani\Database\Factory\Indexes\Index;
 use Clicalmani\Database\Factory\AlterOption;
 
+/**
+ * Maker
+ * 
+ * @package Clicalmani\Database
+ * @author clicalmani
+ */
 class Maker
 {
     private $query;
@@ -21,14 +27,20 @@ class Maker
 
     static $current_alter_option;
 
-    function __construct($table, $flag = self::CREATE_TABLE) 
+    public function __construct(string $table, int $flag = self::CREATE_TABLE) 
     {
         $this->query = new DBQuery;
         $this->query->set('type', $flag);
         $this->query->set('table', $table);
     }
 
-    function column($name)
+    /**
+     * Create a table column
+     * 
+     * @param string $name Column name
+     * @return \Clicalmani\Database\Factory\Column
+     */
+    public function column(string $name) : \Clicalmani\Database\Factory\Column
     {
         $column = new Column($name);
         $this->columns[] = $column;
@@ -36,7 +48,12 @@ class Maker
         return $column;
     }
 
-    function alter()
+    /**
+     * Alter a database table
+     * 
+     * @return \Clicalmani\Database\Factory\AlterOption
+     */
+    public function alter() : AlterOption
     {
         if (static::$current_alter_option) $this->changes[] = static::$current_alter_option;
 
@@ -46,41 +63,76 @@ class Maker
         return $option;
     }
 
-    function index($name)
+    /**
+     * Create a table index
+     * 
+     * @param string $name Index name
+     * @return \Clicalmani\Database\Factory\Indexes\Index
+     */
+    public function index(string $name = '') : Index
     {
         $index = new Index($name);
         $this->indexes[] = $index;
         return $index;
     }
 
-    function engine($engine = 'InnoDB')
+    /**
+     * Table creation engine
+     * 
+     * @param string $engine
+     * @return void
+     */
+    public function engine(string $engine = 'InnoDB') : void
     {
         $this->query->set('engine', $engine);
     }
 
-    function collate($default_collation)
+    /**
+     * Table default collation
+     * 
+     * @param string $default_collation
+     * @return void
+     */
+    public function collate(string $default_collation) : void
     {
         $this->query->set('collate', $default_collation);
     }
 
-    function charset($default_charset)
+    /**
+     * Table default character set
+     * 
+     * @param string $default_charset
+     * @return void
+     */
+    public function charset(string $default_charset) : void
     {
         $this->query->set('charset', $default_charset);
     }
 
-    function primaryKey(...$keys)
+    /**
+     * Table primary key
+     * 
+     * @param string ...$attributes
+     * @return void
+     */
+    public function primaryKey(string ...$attributes) : void
     {
         $value = '';
 
-        foreach ($keys as $index => $key) {
-            if ($index < count($keys) - 1) $value .= '`' . $key . '`, ';
+        foreach ($attributes as $index => $key) {
+            if ($index < count($attributes) - 1) $value .= '`' . $key . '`, ';
             else $value .= '`' . $key . '`';
         }
 
         $this->primary = 'PRIMARY KEY (' . $value . ')';
     }
 
-    function make()
+    /**
+     * Make migration
+     * 
+     * @return bool True on success, false on failure
+     */
+    public function make() : bool
     {
         $definition = [];
 

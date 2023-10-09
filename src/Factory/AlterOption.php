@@ -7,7 +7,7 @@ class AlterOption extends DataType
 {
     function addColumn($name)
     {
-        $this->data = 'ADD COLUMN ' . $name;
+        $this->data = "ADD COLUMN `$name`";
         return $this;
     }
 
@@ -65,9 +65,21 @@ class AlterOption extends DataType
         return $this;
     }
 
+    public function addPrimaryKey(string $key) : static
+    {
+        $this->data = "ADD PRIMARY KEY (`$key`)";
+        return $this;
+    }
+
     function addIndex($name, $columns = [])
     {
         $this->data = "ADD INDEX $name (" . join(',', $columns) . ")";
+        return $this;
+    }
+
+    function addUniqueIndex($name, $columns = [])
+    {
+        $this->data = "ADD UNIQUE INDEX $name (" . join(',', $columns) . ")";
         return $this;
     }
 
@@ -91,7 +103,7 @@ class AlterOption extends DataType
 
     function referencies($table, $columns = [])
     {
-        $this->data .= ' REFERENCES ' . $table . ' (' . join(',', $columns) . ')';
+        $this->data .= ' REFERENCES ' . env('DB_TABLE_PREFIX', '') . $table . ' (' . join(',', $columns) . ')';
         return $this;
     }
 
@@ -157,7 +169,8 @@ class AlterOption extends DataType
 
     function renameTo($new_name)
     {
-        $this->data = "RENAME TO $new_name";
+        $prefix = env('DB_TABLE_PREFIX', '');
+        $this->data = "RENAME TO $prefix{$new_name}";
         return $this;
     }
 

@@ -39,4 +39,14 @@ trait StringGenerator
         $str = str_pad($str, $length, $str);
         return substr(str_shuffle( $str ), 0, $length);
     }
+
+    /**
+     * Generate email
+     * 
+     * @return string
+     */
+    public static function email() : string 
+    {
+        return strtolower(self::name() . '.' . self::name()) . '@example.com';
+    }
 }

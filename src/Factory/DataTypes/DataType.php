@@ -24,6 +24,12 @@ class DataType
         return $this;
     }
 
+    public function defaultNull()
+    {
+        $this->data .= ' DEFAULT NULL';
+        return $this;
+    }
+
     function unique()
     {
         $this->data .= ' UNIQUE';
@@ -62,6 +68,6 @@ class DataType
     function __call($method, $params)
     {
         if (method_exists($this, $method)) $this->{$method}(...$params);
-        else throw new \Clicalmani\Exceptions\DataTypeException("The method $method is not associated to any data type.");
+        else throw new \Clicalmani\Database\Exceptions\DataTypeException("The method $method is not associated to any data type.");
     }
 }

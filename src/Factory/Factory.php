@@ -41,7 +41,7 @@ class Factory
      * @param array $attributes Only specified attributes will be overriden
      * @return array New seed
      */
-    private function override($attributes = [])
+    private function override(array $attributes = [])
     {
         $this->attributes_override = $this->merge($attributes);
         $seed = $this->definition();
@@ -49,8 +49,8 @@ class Factory
         foreach ($this->attributes_override as $attribute => $value) {
             $seed[$attribute] = ($value instanceof Sequence) ? call( $value ): $value;
         }
-
-        return array_unique( $seed );
+        
+        return $seed;
     }
 
     /**
@@ -70,9 +70,7 @@ class Factory
         
         // Add namespace
         $factory_class = "\\Database\\Factories\\$factory";
-
-        require_once $root_path . "\\database\\factories\\$factory.php";
-
+        
         return new $factory_class;
     }
 

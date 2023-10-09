@@ -33,4 +33,19 @@ trait DateGenerator
                str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT) . ':' . 
                str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Time generator
+     * 
+     * @return string
+     */
+    public static function time(bool $with_seconds = true) : string
+    {
+        $time = str_pad(self::integer(0, 23), 2, '0', STR_PAD_LEFT) . ':' . 
+                str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT);
+
+        if ($with_seconds) $time .= ':' . str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT);
+        
+        return $time;
+    }
 }

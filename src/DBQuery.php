@@ -451,7 +451,7 @@ class DBQuery extends DB
 	 * @param string $table Table name
 	 * @return static
 	 */
-	public function join(array $table) : static
+	public function join(string $table) : static
 	{
 		$this->params['tables'][] = $table;
 		return $this;
