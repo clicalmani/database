@@ -6,7 +6,9 @@ class Faker
     use NumberGenerator, 
         StringGenerator, 
         DateGenerator,
-        NameGenerator;
+        NameGenerator,
+        LoremIpsum,
+        Places;
 
     static function randomInt(int $min = 0, int $max = 1) : int 
     {
