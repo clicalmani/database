@@ -19,6 +19,11 @@ trait Places
         return $xdt->select('country');
     }
 
+    /**
+     * Generate country a random country name
+     * 
+     * @return string
+     */
     public static function country() : string
     {
         $countries = self::countries();
@@ -26,6 +31,12 @@ trait Places
         return $names[0];
     }
 
+    /**
+     * Generate a random city name
+     * 
+     * @param string $country [Optional] If specified generate a city of the specified country
+     * @return string
+     */
     public static function city(string $country = null) : string
     {
         $xdt = self::xdt();
@@ -45,12 +56,22 @@ trait Places
         return $countries->pos(self::integer(0, $countries->length - 1))?->attr('latlng');
     }
 
-    public static function lat()
+    /**
+     * Generate a latitude
+     * 
+     * @return string
+     */
+    public static function lat() : string
     {
         $arr = explode(',', self::latlng());
         return $arr[0];
     }
 
+    /**
+     * Generate a longitude
+     * 
+     * @return string
+     */
     public static function lon()
     {
         $arr = explode(',', self::latlng());

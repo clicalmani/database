@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addresses>
+    <address>
+        <addrLine>44, avenue de la Libération</addrLine>
+        <addrLine>BP 30687</addrLine>
+        <addrLine>54063 Nancy Cedex</addrLine>
+        <addrLine>FRANCE</addrLine>
+    </address>
+    <address>
+        <addrLine>110 Southmoor Road,</addrLine>
+        <addrLine>Oxford OX2 6RB,</addrLine>
+        <addrLine>UK</addrLine>
+    </address>
+    <address>
+        <addrLine>110 Southmoor Road</addrLine>
+        <addrLine>Oxford</addrLine>
+        <addrLine>OX2 6RB</addrLine>
+        <addrLine>United Kingdom</addrLine>
+    </address>
+    <address>
+        <addrLine>Università di Bologna</addrLine>
+        <addrLine>Italy</addrLine>
+        <addrLine>40126</addrLine>
+        <addrLine>Bologna</addrLine>
+        <addrLine>via Marsala 24</addrLine>
+    </address>
+    <address>
+        <addrLine>Centre d'Études Supérieures de la Renaissance</addrLine>
+        <addrLine>59, rue Néricault-Destouches</addrLine>
+        <addrLine> 37013 </addrLine>
+        <addrLine>France</addrLine>
+    </address>
+    <address>
+        <addrLine>邯郸路220号</addrLine>
+        <addrLine>200433</addrLine>
+        <addrLine>上海市</addrLine>
+        <addrLine>中華人民共和國</addrLine>
+    </address>
+    <address>
+        <addrLine>沙田</addrLine>
+        <addrLine>新界</addrLine>
+        <addrLine>香港特別行政區</addrLine>
+        <addrLine>中華人民共和國</addrLine>
+    </address>
+    <address>
+        <addrLine>Computing Center, MC 135</addrLine>
+        <addrLine>P.O. Box 6998</addrLine>
+        <addrLine>Chicago, IL 60680</addrLine>
+        <addrLine>USA</addrLine>
+    </address>
+</addresses>

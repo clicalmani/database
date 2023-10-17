@@ -10,7 +10,13 @@ trait LoremIpsum
         self::$lipsum = new \joshtronic\LoremIpsum;
     }
 
-    public static function word(int $count = 1)
+    /**
+     * Lorem Ipsum: generate words
+     * 
+     * @param int $count [Optional] Number of words to be generated
+     * @return string 
+     */
+    public static function word(int $count = 1) : string
     {
         $words = self::$lipsum->words(max($count, 100), false, true);
         
@@ -26,12 +32,24 @@ trait LoremIpsum
         return join(' ', $tmp);
     }
 
-    public static function sentence(int $count = 1)
+    /**
+     * Lorem Ipsum: generate sentences
+     * 
+     * @param int $count Number of sentences to be generated
+     * @return string
+     */
+    public static function sentence(int $count = 1) : string
     {
         return self::$lipsum->sentences($count);
     }
 
-    public static function paragraph(int $count)
+    /**
+     * Lorem Ipsum: generate paragraph
+     * 
+     * @param int $count Number of paragraphs to be generated
+     * @return string
+     */
+    public static function paragraph(int $count = 1) : string
     {
         return self::$lipsum->paragraphs($count);
     }

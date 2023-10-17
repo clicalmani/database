@@ -229,9 +229,9 @@ abstract class DB
 	 * Begins a database transaction
 	 * 
 	 * @param callable $callback A callback function
-	 * @return bool true on success, false on failure
+	 * @return mixed 
 	 */
-	public function beginTransaction(?callable $callback = null) : bool
+	public function beginTransaction(?callable $callback = null) : mixed
 	{
 		if ( !isset($callback) ) {
 			static::$pdo->beginTransaction(); 
@@ -243,10 +243,10 @@ abstract class DB
 			$success = $callback();
 			if ( $success ) {
 				$this->commit();
-				return true;
+				return $success;
 			} else {
 				$this->rollback();
-				return false;
+				return $success;
 			}
 		}
 	}

@@ -37,6 +37,7 @@ trait DateGenerator
     /**
      * Time generator
      * 
+     * @param bool $with_seconds Add seconds
      * @return string
      */
     public static function time(bool $with_seconds = true) : string

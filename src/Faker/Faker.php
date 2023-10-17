@@ -6,7 +6,7 @@ class Faker
     use NumberGenerator, 
         StringGenerator, 
         DateGenerator,
-        NameGenerator,
+        Person,
         LoremIpsum,
         Places;
 
