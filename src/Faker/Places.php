@@ -37,7 +37,7 @@ trait Places
      * @param string $country [Optional] If specified generate a city of the specified country
      * @return string
      */
-    public static function city(string $country = null) : string
+    public static function city(?string $country = null) : string
     {
         $xdt = self::xdt();
         $xdt->connect('cities', true, true);
