@@ -278,10 +278,30 @@ class DBQuery extends DB
 	 * 
 	 * @return bool true on success, false on failure
 	 */
-	public function insertOrFaile(array $options = []) : bool
+	public function insertOrFail(array $options = []) : bool
 	{
-		$this->params['ignore'] = true;
-		return $this->insert($options);
+		try {
+			return $this->insert($options);
+		} catch (\PDOException $e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Insert new record or update the existing one
+	 * 
+	 * @param array $options
+	 * @return void
+	 */
+	public function insertOrUpdate(array $options) : void
+	{
+		if (false === $this->insertOrFail($options)) {
+
+			// Reset table for update
+			$this->params['tables'] = [$this->params['table']];
+
+			foreach ($options as $option) $this->update($option);
+		}
 	}
 
 	/**

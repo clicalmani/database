@@ -4,13 +4,6 @@ namespace Clicalmani\Database;
 use PDO;
 use \PDOStatement;
 
-global $db_config, $root_path;
-
-/**
- * Default database configuarion
- */
-$db_config = require config_path( '/database.php' );
-
 /**
  * Database abstraction class
  * 
@@ -92,7 +85,7 @@ abstract class DB
 	public static function getPdo() {
 		if ( isset(static::$pdo) ) return static::$pdo;
 
-		global $db_config;
+		$db_config = require config_path( '/database.php' );
 
 		try {
 			$db_default = $db_config['connections'][$db_config['default']];

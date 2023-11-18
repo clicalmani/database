@@ -36,4 +36,12 @@ class Schema
 
         $maker->make();
     }
+
+    public static function reverse(string $filename)
+    {
+        tap(
+            require_once database_path("/migrations/$filename.php"),
+            fn($migrate) => $migrate->out()
+        );
+    }
 }
