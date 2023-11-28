@@ -27,10 +27,7 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		$this->sql .= ' FROM ' . join(',', $this->sanitizeTables($this->params['tables'])) . ' ';
 		
 		if (isset($this->params['sub_query'])) {
-			$sub_query = trim($this->params['sub_query']);
-			$alias = substr($sub_query, strrpos($sub_query, ' '));
-
-			$this->sql .= $this->addJoint(['sub_query' => $sub_query, 'alias' => trim($alias)]) . ' ';
+			$this->sql .= $this->params['sub_query'] . ' ';
 		}
 		
 		if (isset($this->params['join'])) {

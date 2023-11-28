@@ -65,9 +65,9 @@ abstract class DB
 	/**
 	 * Returns a single database instance.
 	 * 
-	 * @return \Clicalmani\Database\DB object
+	 * @return \Clicalmani\Database\DBQuery object
 	 */
-	public static function getInstance() 
+	public static function getInstance() : DBQuery
 	{
 	    if ( ! static::$instance ) {
 			self::getPdo();
@@ -118,7 +118,7 @@ abstract class DB
 	 * @return \PDO::Statement
 	 */
 	public function query(string $sql, array $options = [], array $flags = []) 
-	{ 
+	{
 		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
 

@@ -4,11 +4,11 @@ namespace Clicalmani\Database;
 class Delete extends DBQueryBuilder implements \IteratorAggregate 
 {
 	public function __construct(
-		protected $params = array(), 
+		protected $params = [], 
 		protected $options = []
 	) 
 	{ 
-		parent::__construct($params);
+		parent::__construct($params, $options);
 		
 		$this->sql = 'DELETE ';
 
