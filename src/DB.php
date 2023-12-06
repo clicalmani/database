@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Flesco\Support\Log;
 use PDO;
 use \PDOStatement;
 
@@ -32,6 +33,8 @@ abstract class DB
 	 * Database tables prefix
 	 */
 	static private $prefix;
+
+	static private $logQuery = false;
 	
 	/**
 	 * Stores different database connections
@@ -119,12 +122,32 @@ abstract class DB
 	 */
 	public function query(string $sql, array $options = [], array $flags = []) 
 	{
+		if ( static::$logQuery ) {
+			Log::debug($sql);
+		}
+		
 		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
-
+		
 		return $statement;
 	} 
 
+	/**
+	 * Enable SQL log
+	 * 
+	 * @return void
+	 */
+	public function enableQueryLog() : void
+	{
+		static::$logQuery = true;
+	}
+
+	/**
+	 * Execute a SQL query
+	 * 
+	 * @param string $sql SQL statement
+	 * @return int|false
+	 */
 	public function execute(string $sql) : int|false
 	{
 		return static::$pdo->exec($sql);
