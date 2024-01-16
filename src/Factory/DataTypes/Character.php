@@ -199,7 +199,7 @@ trait Character
      */
     public function characterSet(string $charset = 'latin1') : static
     {
-        $this->data .= ' CHARACTER SET ' . $charset;
+        $this->data .= " CHARACTER SET '$charset'";
         return $this;
     }
 
@@ -224,7 +224,7 @@ trait Character
      */
     public function collation(string $collation = 'latin1_general_cs') : static
     {
-        $this->data .= ' COLLATION ' . $collation;
+        $this->data .= " COLLATE '$collation'";
         return $this;
     }
 }
