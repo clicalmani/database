@@ -6,6 +6,8 @@ use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
 
+use function PHPUnit\Framework\stringContains;
+
 /**
  * Database query
  * 
@@ -86,7 +88,7 @@ class DBQuery extends DB
 	 * @param array $params [Optional] Query parameters
 	 * @param array $options [Optional] 
 	 */
-	public function __construct(private int|null $query = null, array $params = [], private array $options = [])
+	public function __construct(private ?int $query = null, ?array $params = [], private ?array $options = [])
 	{ 
 		$this->params = isset($params)? $params: [];
 		$this->query = $query;
@@ -414,7 +416,6 @@ class DBQuery extends DB
 	 * Gets a database query result set. An optional comma separated list of request fields can be specified as 
 	 * the unique argument.
 	 * 
-	 * @see Clicalmani\Database\DBQuery::select() method
 	 * @param string $fields a list of request fields separated by comma.
 	 * @return \Clicalmani\Collection\Collection
 	 */
@@ -477,21 +478,22 @@ class DBQuery extends DB
 		return $this;
 	}
 
-	/**
-	 * Left join a database table to the current selected table. 
-	 * 
-	 * @param string $table Table name
-	 * @param string $parent_id Parent key
-	 * @param string $child_id Foreign key
-	 * @return static
-	 */
-	public function joinLeft(string $table, string $parent_id, string $child_id) : static
+	private function __join(string $table, string $parent_id, string $child_id, string $type = 'LEFT', ?bool $is_crossed = false) : static
 	{
+		// Casts
+		$table = (string) $table;
+		$parent_id = (string) $parent_id;
+		$child_id = (string) $child_id;
+		$type = (string) $type;
+
 		$joint = [
 			'table'    => $table,
-			'type'     => 'LEFT',
+			'type'     => $type,
 			'criteria' => ($parent_id == $child_id) ? 'USING(' . $parent_id . ')': 'ON(' . $parent_id . '=' . $child_id . ')'
 		];
+
+		// Unset criteria for cross join
+		if ($is_crossed) $joint['criteria'] = '';
 		
 		if ( isset($this->params['join']) AND is_array($this->params['join'])) {
 			$this->params['join'][] = $joint;
@@ -504,6 +506,19 @@ class DBQuery extends DB
 	}
 
 	/**
+	 * Left join a database table to the current selected table. 
+	 * 
+	 * @param string $table Table name
+	 * @param string $parent_id Parent key
+	 * @param string $child_id Foreign key
+	 * @return static
+	 */
+	public function joinLeft(string $table, string $parent_id, string $child_id) : static
+	{
+		return $this->__join($table, $parent_id, $child_id);
+	}
+
+	/**
 	 * Right join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
@@ -513,20 +528,7 @@ class DBQuery extends DB
 	 */
 	public function joinRight(string $table, string $parent_id, string $child_id) : static
 	{
-		$joint = [
-			'table'    => $table,
-			'type'     => 'RIGHT',
-			'criteria' => ($parent_id == $child_id) ? 'USING(' . $parent_id . ')': 'ON(' . $parent_id . '=' . $child_id . ')'
-		];
-
-		if ( isset($this->params['join']) AND is_array($this->params['join'])) {
-			$this->params['join'][] = $joint;
-		} else {
-			$this->params['join'] = [];
-			$this->params['join'][] = $joint;
-		}
-
-		return $this;
+		return $this->__join($table, $parent_id, $child_id, 'RIGHT');
 	}
 
 	/**
@@ -539,19 +541,17 @@ class DBQuery extends DB
 	 */
 	public function joinInner(string $table, string $parent_id, string $child_id) : static
 	{
-		$joint = [
-			'table'    => $table,
-			'type'     => 'INNER',
-			'criteria' => ($parent_id == $child_id) ? 'USING(' . $parent_id . ')': 'ON(' . $parent_id . '=' . $child_id . ')'
-		];
+		return $this->__join($table, $parent_id, $child_id, 'INNER');
+	}
 
-		if ( isset($this->params['join']) AND is_array($this->params['join'])) {
-			$this->params['join'][] = $joint;
-		} else {
-			$this->params['join'] = [];
-			$this->params['join'][] = $joint;
-		}
-
-		return $this;
+	/**
+	 * Cross join
+	 * 
+	 * @param string $table Table name
+	 * @return static
+	 */
+	public function crossJoin(string $table) : static
+	{
+		return $this->__join($table, '', '', 'CROSS', true);
 	}
 }

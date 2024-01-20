@@ -1,8 +1,12 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Database\DBQueryBuilder;
-
+/**
+ * Class Update
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Update extends DBQueryBuilder implements \IteratorAggregate 
 {
 	public function __construct(
@@ -45,6 +49,11 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 		}
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @overriden
+	 * @return void
+	 */
 	public function query() : void
 	{ 
 		$this->bindVars();
@@ -67,7 +76,13 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 		$statement = null;
 	}
 	
-	public function getIterator() : \Traversable {
+	/**
+	 * Get iterator
+	 * 
+	 * @return \Traversable
+	 */
+	public function getIterator() : \Traversable 
+	{
 		return new DBQueryIterator($this);
 	}
 }

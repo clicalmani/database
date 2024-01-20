@@ -1,6 +1,14 @@
 <?php
 namespace Clicalmani\Database\Faker;
 
+/**
+ * Class Person
+ * 
+ * Generate person informations
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 trait Person
 {
     /**
@@ -8,31 +16,30 @@ trait Person
      * 
      * @return string Generated name
      */
-    static function name() : string
+    public static function name() : string
     {
-        $names = json_decode( file_get_contents( __DIR__ . '/data/names.json') );
-        $index = self::integer(0, count($names) - 1);
-
-        return $names[$index];
+        $names = json_decode( file_get_contents( __DIR__ . '/data/names.json') ) ?? [];
+        return @ $names[self::integer(0, count($names) - 1)];
     }
 
     /**
      * Generate email
      * 
+     * @param ?string $host
      * @return string
      */
-    public static function email() : string 
+    public static function email(?string $host = 'exemple.com') : string 
     {
-        return strtolower(self::name() . '.' . self::name()) . '@example.com';
+        return strtolower(self::name() . '.' . self::name()) . "@$host";
     }
 
     /**
      * Phone number
      * 
-     * @param string $format Format
+     * @param ?string $format Format
      * @return string
      */
-    public static function phone(string $format = '(+ddd) dd dd dd dd') : string 
+    public static function phone(?string $format = '(+ddd) dd dd dd dd') : string 
     {
         while (str_contains($format, 'd')) {
             $format = preg_replace('/[d]/', self::num(1), $format, 1);
@@ -44,10 +51,10 @@ trait Person
     /**
      * Personnal address
      * 
-     * @param bool $short [Optional] Short address
+     * @param ?bool $short Short address
      * @return string
      */
-    public static function address(bool $short = true) : string 
+    public static function address(?bool $short = true) : string 
     {
         $xdt = xdt();
         $xdt->setDirectory( __DIR__ . '/data' );

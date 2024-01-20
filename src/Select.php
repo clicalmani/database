@@ -1,6 +1,12 @@
 <?php
 namespace Clicalmani\Database;
 
+/**
+ * Class Select
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Select extends DBQueryBuilder implements \IteratorAggregate 
 {
 	public function __construct(
@@ -62,6 +68,11 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		if ( isset($this->params['limit']) ) $this->sql .= ' LIMIT ' . $this->params['offset'] . ', ' . $this->params['limit'];
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @overriden
+	 * @return void
+	 */
 	public function query() :void
 	{ 
 		$this->bindVars();
@@ -77,7 +88,13 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		}
 	}
 	
-	function getIterator() : \Traversable {
+	/**
+	 * Get iterator
+	 * 
+	 * @return \Traversable
+	 */
+	public function getIterator() : \Traversable 
+	{
 		return new DBQueryIterator($this);
 	}
 }

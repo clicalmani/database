@@ -1,27 +1,53 @@
 <?php
 namespace Clicalmani\Database\Factory\DataTypes;
 
+/**
+ * Trait Date
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 trait Date
 {
-    function date()
+    /**
+     * Date data type
+     * 
+     * @return static
+     */
+    public function date() : static
     {
         $this->data .= ' DATE';
         return $this;
     }
 
-    function dateTime()
+    /**
+     * Datetime data type
+     * 
+     * @return static 
+     */
+    public function dateTime() : static
     {
         $this->data .= ' DATETIME';
         return $this;
     }
 
-    function time()
+    /**
+     * Time data type
+     * 
+     * @return static
+     */
+    public function time() : static
     {
         $this->data .= ' TIME';
         return $this;
     }
 
-    function timestamp()
+    /**
+     * Epoch times data type
+     * 
+     * @return static
+     */
+    public function timestamp() : static
     {
         $this->data .= ' TIMESTAMP';
         return $this;

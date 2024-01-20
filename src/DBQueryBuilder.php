@@ -4,11 +4,11 @@ namespace Clicalmani\Database;
 use Clicalmani\Collection\Collection;
 
 /**
- * Database Query Builder
+ * Class Database Query Builder
  * 
  * Builds a SQL query to be executed in a database statement.
  * 
- * @package Flesco\Database
+ * @package Clicaomani\Database
  * @author @clicalmani
  */
 abstract class DBQueryBuilder 
@@ -98,7 +98,8 @@ abstract class DBQueryBuilder
 	protected const JOIN_TYPES = [
 		'left'  => 'LEFT JOIN',
 		'right' => 'RIGHT JOIN',
-		'inner' => 'INNER JOIN'
+		'inner' => 'INNER JOIN',
+		'cross' => 'CROSS JOIN'
 	];
 
 	/**
@@ -131,13 +132,18 @@ abstract class DBQueryBuilder
 	}
 	
 	/**
-	 * Execute as SQL statement
+	 * Execute a SQL statement
 	 * 
 	 * @return void
 	 */
 	public abstract function query() : void;
 	
-	function execSQL(string $sql) : int|false
+	/**
+	 * Execute a SQL statement
+	 * 
+	 * @param string $sql
+	 */
+	public function execSQL(string $sql) : int|false
 	{
 		return $this->db->execute($this->bindVars($sql));
 	}

@@ -1,6 +1,12 @@
 <?php
 namespace Clicalmani\Database\Factory\DataTypes;
 
+/**
+ * Class DataType
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class DataType
 {
     use Numeric,
@@ -9,40 +15,81 @@ class DataType
         JSON,
         Date;
 
-    function __construct(protected $data = '')
-    {}
+    /**
+     * Data
+     * 
+     * @var string
+     */
+    protected string $data = '';
 
-    function nullable($bool = true)
+    public function __construct(string $data = '') {
+        $this->data = $data;
+    }
+
+    /**
+     * Set null data type
+     * 
+     * @param ?bool $null Default to true
+     * @return static
+     */
+    public function nullable(?bool $null = true) : static
     {
-        $this->data .= $bool ? ' NULL': ' NOT NULL';
+        $this->data .= $null ? ' NULL': ' NOT NULL';
         return $this;
     }
 
-    function default($value = '')
+    /**
+     * Set default value
+     * 
+     * @param ?string $value Default value
+     * @return static
+     */
+    public function default(?string $value = '') : static
     {
-        $this->data .= ' DEFAULT "' . $value . '"';
+        $this->data .= ' DEFAULT ' . (!is_null($value) ? "'$value'": 'NULL');
         return $this;
     }
 
-    public function defaultNull()
+    /**
+     * Shorthand for default when default value is null.
+     * 
+     * @return static
+     */
+    public function defaultNull() : static
     {
         $this->data .= ' DEFAULT NULL';
         return $this;
     }
 
-    function unique()
+    /**
+     * Unique index
+     * 
+     * @return static
+     */
+    public function unique() : static
     {
         $this->data .= ' UNIQUE';
         return $this;
     }
 
-    function primary()
+    /**
+     * Primary key
+     * 
+     * @return static
+     */
+    public function primary() : static
     {
         $this->data .= ' PRIMARY KEY';
         return $this;
     }
 
-    function comment($comment = '')
+    /**
+     * Comment a data
+     * 
+     * @param ?string $comment Data comment
+     * @return static
+     */
+    public function comment(?string $comment = '') : static
     {
         $this->data .= ' COMMENT "' . $comment . '"';
         return $this;
@@ -60,12 +107,24 @@ class DataType
         return $value;
     }
 
-    function getData()
+    /**
+     * Returns data
+     * 
+     * @return string
+     */
+    public function getData() : string
     {
         return $this->data;
     }
 
-    function __call($method, $params)
+    /**
+     * PHP magic __call
+     * 
+     * @param string $method Method to call
+     * @param mixed $params Arguments
+     * @return void
+     */
+    public function __call(string $method, mixed $params) : void
     {
         if (method_exists($this, $method)) $this->{$method}(...$params);
         else throw new \Clicalmani\Database\Exceptions\DataTypeException("The method $method is not associated to any data type.");

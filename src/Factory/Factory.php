@@ -1,6 +1,12 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
+/**
+ * Class Factory
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Factory
 {
     /**
@@ -30,7 +36,7 @@ class Factory
      * @param array $attributes [Optional] Attributes to merge to overriden attributes
      * @return array 
      */
-    private function merge(array $attributes = []) : array
+    private function merge(?array $attributes = []) : array
     {
         return array_merge($this->attributes_override, $attributes);
     }
@@ -41,7 +47,7 @@ class Factory
      * @param array $attributes Only specified attributes will be overriden
      * @return array New seed
      */
-    private function override(array $attributes = [])
+    private function override(?array $attributes = [])
     {
         $this->attributes_override = $this->merge($attributes);
         $seed = $this->definition();

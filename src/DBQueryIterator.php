@@ -5,7 +5,7 @@ namespace Clicalmani\Database;
  * DBQuery iterator
  * 
  * @package Clicalmani\Database
- * @author clicalmani
+ * @author @clicalmani
  */
 class DBQueryIterator implements \Iterator 
 {

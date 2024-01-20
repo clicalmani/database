@@ -7,27 +7,87 @@ use Clicalmani\Database\Factory\Indexes\Index;
 use Clicalmani\Database\Factory\AlterOption;
 
 /**
- * Maker
+ * Class Maker
  * 
  * @package Clicalmani\Database
  * @author clicalmani
  */
 class Maker
 {
+    /**
+     * Query object
+     * 
+     * @var \Clicalmani\Database\DBQuery
+     */
     private $query;
+
+    /**
+     * Holds columns
+     * 
+     * @var ?array
+     */
     private $columns = [];
+
+    /**
+     * Holds indexes
+     * 
+     * @var ?array
+     */
     private $indexes = [];
+
+    /**
+     * Holds changes
+     * 
+     * @var ?array
+     */
     private $changes = [];
+
+    /**
+     * Primary key
+     * 
+     * @var string
+     */
     private $primary;
 
-    const CREATE_TABLE         = DBQuery::CREATE;
-    const DROP_TABLE           = DBQuery::DROP_TABLE;
-    const DROP_TABLE_IF_EXISTS = DBQuery::DROP_TABLE_IF_EXISTS;
-    const ALTER_TABLE          = DBQuery::ALTER;
+    /**
+     * Class constances
+     * 
+     * |---------------------------------------------------
+     * |                      Flags
+     * |---------------------------------------------------
+     */
 
-    static $current_alter_option;
+    /**
+     * Create table flag
+     * 
+     * @var int
+     */
+    const CREATE_TABLE         = DBQuery::CREATE;   
 
-    public function __construct(string $table, int $flag = self::CREATE_TABLE) 
+    /**
+     * Drop table flag
+     * 
+     * @var int
+     */
+    const DROP_TABLE           = DBQuery::DROP_TABLE;            
+
+    /**
+     * Drop table if exists flag
+     * 
+     * @var int
+     */
+    const DROP_TABLE_IF_EXISTS = DBQuery::DROP_TABLE_IF_EXISTS;  
+
+    /**
+     * Alter table flag
+     * 
+     * @var int
+     */
+    const ALTER_TABLE          = DBQuery::ALTER;       
+
+    protected static $current_alter_option;
+
+    public function __construct(string $table, ?int $flag = self::CREATE_TABLE) 
     {
         $this->query = new DBQuery;
         $this->query->set('type', $flag);
@@ -56,11 +116,7 @@ class Maker
     public function alter() : AlterOption
     {
         if (static::$current_alter_option) $this->changes[] = static::$current_alter_option;
-
-        $option = new AlterOption;
-        $this->changes[] = $option;
-
-        return $option;
+        return tap(new AlterOption, fn(AlterOption $option) => $this->changes[] = $option);
     }
 
     /**
@@ -71,9 +127,7 @@ class Maker
      */
     public function index(string $name = '') : Index
     {
-        $index = new Index($name);
-        $this->indexes[] = $index;
-        return $index;
+        return tap(new Index($name), fn(Index $index) => $this->indexes[] = $index);
     }
 
     /**

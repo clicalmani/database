@@ -1,8 +1,22 @@
 <?php
 namespace Clicalmani\Database\Faker;
 
+/**
+ * Trait Places
+ * 
+ * Generate place address
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 trait Places 
 {
+    /**
+     * XDT Object
+     * 
+     * @var \Clicalmani\XPower\XDT
+     * @see https://github.com/clicalmani/xpower
+     */
     private static $xdt;
 
     private static function xdt()
@@ -20,7 +34,7 @@ trait Places
     }
 
     /**
-     * Generate country a random country name
+     * Generate a random country name
      * 
      * @return string
      */

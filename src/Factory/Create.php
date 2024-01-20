@@ -3,15 +3,19 @@ namespace Clicalmani\Database\Factory;
 
 use Clicalmani\Database\DBQueryBuilder;
 use Clicalmani\Database\DBQueryIterator;
-use Clicalmani\Database\Factory\DataTypes\DataType;
-use Clicalmani\Exceptions\DataTypeException;
 
+/**
+ * Class Create
+ * 
+ * Database table creation
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Create extends DBQueryBuilder implements \IteratorAggregate 
 {
-	private $dataType;
-
 	public function __construct(
-		protected $params = array(), 
+		protected $params = [], 
 		protected $options = []
 	) 
     { 
@@ -30,6 +34,12 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
         if (isset($this->params['charset'])) $this->sql .= 'DEFAULT CHARACTER SET = ' . $this->params['charset'];
 	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @override
+	 * @see \Clicalmani\Database\DBQueryBuilder::query()
+	 * @return void
+	 */
 	public function query() : void
 	{
 	    $result = $this->db->query($this->sql);
@@ -39,6 +49,11 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
 	    $this->error_msg  = $this->db->error();
 	}
 	
+	/**
+	 * Get iterator
+	 * 
+	 * @return \Traversable
+	 */
 	public function getIterator() : \Traversable
 	{
 		return new DBQueryIterator($this);

@@ -1,6 +1,12 @@
 <?php
 namespace Clicalmani\Database;
 
+/**
+ * Class Insert
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Insert extends DBQueryBuilder implements \IteratorAggregate 
 {
 	public function __construct(
@@ -24,6 +30,11 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate
 		}
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @overriden
+	 * @return void
+	 */
 	public function query() : void
 	{
 		$this->bindVars();
@@ -45,7 +56,12 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate
 		$statement = null;
 	}
 	
-	function getIterator() : \Traversable
+	/**
+	 * Get iterator
+	 * 
+	 * @return \Traversable
+	 */
+	public function getIterator() : \Traversable
 	{
 		return new DBQueryIterator($this);
 	}

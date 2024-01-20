@@ -13,43 +13,54 @@ use \PDOStatement;
  * by specifing the corresponding specific PDO driver.
  * 
  * @package Flesco\Database
- * @author Abdoul-Madjid
- * @version 3.0.1
- * @since 2015
+ * @author @clicalmani
  */
 abstract class DB 
 {
 	/**
 	 * Stores the single database instance for all connections.
+	 * 
+	 * @var static
 	 */
 	static private $instance;
 
 	/**
 	 * Stores PDO instance
+	 * 
+	 * @var \PDO
 	 */
 	static private $pdo;
 
 	/**
 	 * Database tables prefix
+	 * 
+	 * @var string
 	 */
 	static private $prefix;
 
+	/**
+	 * Toggle query log
+	 * 
+	 * @var bool
+	 */
 	static private $logQuery = false;
 	
 	/**
-	 * Stores different database connections
+	 * Stores database connections
+	 * 
+	 * @var ?array
 	 */
 	private $cons = [];
 	
 	/**
 	 * Returns a database connection by specifying the driver as argument.
 	 * 
-	 * @param string $driver Database driver
+	 * @param ?string $driver Database driver
 	 * @return \PDO Object
 	 */
-	public function getConnection($driver = '') 
+	public function getConnection(?string $driver = '') 
 	{ 
-		if (empty($driver)) {
+		if ($driver === '') {
 			return static::$pdo ? static::$pdo : null;
 		} 
 
@@ -120,7 +131,7 @@ abstract class DB
 	 * @param string $sql SQL command structure
 	 * @return \PDO::Statement
 	 */
-	public function query(string $sql, array $options = [], array $flags = []) 
+	public function query(string $sql, ?array $options = [], ?array $flags = []) 
 	{
 		if ( static::$logQuery ) {
 			Log::debug($sql);
@@ -172,7 +183,7 @@ abstract class DB
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.
 	 */
-	public function getRow($statement, int $flag = PDO::FETCH_NUM) : mixed
+	public function getRow($statement, ?int $flag = PDO::FETCH_NUM) : mixed
 	{
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
 		return [];
@@ -184,7 +195,7 @@ abstract class DB
 	 * @param \PDO::Stattement $statement
 	 * @return int the number of rows, or 0 otherwise.
 	 */
-	public function numRows($statement) : int
+	public function numRows(PDOStatement $statement) : int
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->rowCount(); 
 		return 0;
@@ -201,7 +212,7 @@ abstract class DB
 	 * @see \PDO::prepare() method
 	 * @return \PDO::Statement
 	 */
-	public function prepare(string $sql, array $options = [])
+	public function prepare(string $sql, ?array $options = [])
 	{
 		return static::$pdo->prepare($sql, $options);
 	}
@@ -235,7 +246,7 @@ abstract class DB
 	 * @param \PDO::Statement $statement the statement to destroy.
 	 * @return bool|null null on success or false on failure.
 	 */
-	public function free($statement) : bool|null
+	public function free(PDOStatement $statement) : bool|null
 	{ 
 		if ($statement instanceof PDOStatement) return $statement = null; 
 		return false;

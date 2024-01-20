@@ -2,32 +2,45 @@
 namespace Clicalmani\Database\Factory\DataTypes;
 
 /**
- * Numeric data type
+ * Trait Numeric
  * 
  * @package Clicalmani\Database
- * @author clicalmani
+ * @author @clicalmani
  */
 trait Numeric
 {
     /**
-     * Int data type
+     * Integer data type
+     * 
+     * @param int $length Default 10
+     * @return static
+     */
+    public function integer(int $length = 10) : static
+    {
+        $this->data .= " INT($length)";
+        return $this;
+    }
+
+    /**
+     * Alias of integer()
      * 
      * @return static
      */
-    public function int() : static
+    public function int(int $length = 10) : static
     {
-        $this->data .= ' INT(10)';
-        return $this;
+        return $this->integer($length);
     }
 
     /**
      * Unsigned int data type
      * 
+     * @param int $length
      * @return static
      */
-    public function intUnsigned() : static
+    public function intUnsigned(int $length = 10) : static
     {
-        $this->data .= ' INT(10) UNSIGNED';
+        $this->integer($length);
+        $this->data .= " UNSIGNED";
         return $this;
     }
 
@@ -45,11 +58,12 @@ trait Numeric
     /**
      * Big int data type
      * 
+     * @param int $length
      * @return static
      */
-    public function bigInt() : static
+    public function bigInt(int $length = 20) : static
     {
-        $this->data .= ' BIGINT';
+        $this->data .= " BIGINT($length)";
         return $this;
     }
 

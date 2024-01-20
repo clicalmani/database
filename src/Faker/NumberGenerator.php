@@ -1,16 +1,22 @@
 <?php
 namespace Clicalmani\Database\Faker;
 
+/**
+ * Class NumberGenerator
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 trait NumberGenerator
 {
     /**
      * Integer generator
      * 
-     * @param int $min
-     * @param int $max
+     * @param ?int $min
+     * @param ?int $max
      * @return int
      */
-    static function integer(int $min = 0, int $max = 1) : int
+    public static function integer(?int $min = 0, ?int $max = 1) : int
     {
         return random_int($min, $max);
     }
@@ -18,14 +24,13 @@ trait NumberGenerator
     /**
      * Float generator
      * 
-     * @param int $min
-     * @param int $max
+     * @param ?int $min
+     * @param ?int $max
+     * @param ?int $decimal Decimal place
      * @return float
      */
-    static function float(int $min = 0, int $max = 1, int $decimal = 2) : float
+    public static function float(?int $min = 0, ?int $max = 1, ?int $decimal = 2) : float
     {
-        $number = self::integer($min, $max) . '.' . self::integer();
-
         $decimal_part = '00';
 
         if ( $decimal ) {

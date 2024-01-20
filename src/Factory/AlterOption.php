@@ -3,147 +3,303 @@ namespace Clicalmani\Database\Factory;
 
 use Clicalmani\Database\Factory\DataTypes\DataType;
 
+/**
+ * Class AlterOption
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class AlterOption extends DataType
 {
-    function addColumn($name)
+    /**
+     * Add column
+     * 
+     * @param string $name Column name
+     * @return static
+     */
+    public function addColumn(string $name) : static
     {
         $this->data = "ADD COLUMN `$name`";
         return $this;
     }
 
-    function dropColumn($name)
+    /**
+     * Drop column
+     * 
+     * @param string $name Column name
+     * @return static
+     */
+    public function dropColumn(string $name) : static
     {
         $this->data = 'DROP COLUMN ' . $name;
         return $this;
     }
 
-    function modifyColumn($name)
+    /**
+     * Modify column
+     * 
+     * @param string $name Column name
+     * @return static
+     */
+    public function modifyColumn(string $name) : static
     {
         $this->data = 'MODIFY ' . $name;
         return $this;
     }
 
-    function alterColumn($name)
+    /**
+     * Alter column
+     * 
+     * @param string $name Column name
+     * @return static
+     */
+    public function alterColumn(string $name) : static
     {
         $this->data = 'ALTER COLUMN ' . $name;
         return $this;
     }
 
-    function setDefault($value)
+    /**
+     * Set column default value
+     * 
+     * @param string $value
+     * @return static
+     */
+    public function setDefault(string $value) : static
     {
         $this->data .= ' SET DEFAULT ' . $value;
         return $this;
     }
 
-    function dropDefault()
+    /**
+     * Drop column default value
+     * 
+     * @return static
+     */
+    public function dropDefault() : static
     {
         $this->data .= ' DROP DEFAULT';
         return $this;
     }
 
-    function changeColumn($name)
+    /**
+     * Change column
+     * 
+     * @param string $name Column name
+     * @return static
+     */
+    public function changeColumn(string $name) : static
     {
         $this->data = " CHANGE COLUMN `$name` `$name`";
         return $this;
     }
 
-    function first()
+    /**
+     * Modification occurs at the upper top
+     * 
+     * @return static
+     */
+    public function first() : static
     {
         $this->data .= ' FIRST';
         return $this;
     }
 
-    function after($column)
+    /**
+     * Modification occurs after column
+     * 
+     * @param string $column Column name
+     * @return static
+     */
+    public function after(string $column) : static
     {
         $this->data .= ' AFTER ' . $column;
         return $this;
     }
 
-    function dropPrimaryKey()
+    /**
+     * Drop primary key
+     * 
+     * @return static
+     */
+    public function dropPrimaryKey() : static
     {
         $this->data = 'DROP PRIMARY KEY';
         return $this;
     }
 
+    /**
+     * Add primary key
+     * 
+     * @param string $key Primary key
+     * @return static
+     */
     public function addPrimaryKey(string $key) : static
     {
         $this->data = "ADD PRIMARY KEY (`$key`)";
         return $this;
     }
 
-    function addIndex($name, $columns = [])
+    /**
+     * Add index
+     * 
+     * @param string $name Index name
+     * @param array $columns Index columns
+     * @return static
+     */
+    public function addIndex(string $name, ?array $columns = []) : static
     {
         $this->data = "ADD INDEX $name (" . join(',', $columns) . ")";
         return $this;
     }
 
-    function addUniqueIndex($name, $columns = [])
+    /**
+     * Add unique index
+     * 
+     * @param string $name Index name
+     * @param ?array $columns Index columns
+     * @return static
+     */
+    public function addUniqueIndex(string $name, ?array $columns = []) : static
     {
         $this->data = "ADD UNIQUE INDEX $name (" . join(',', $columns) . ")";
         return $this;
     }
 
-    function dropIndex($name)
+    /**
+     * Drop index
+     * 
+     * @param string $name Index name
+     * @return static
+     */
+    public function dropIndex(string $name) : static
     {
         $this->data = "DROP INDEX $name";
         return $this;
     }
 
-    function addConstraint($name)
+    /**
+     * Add constraint
+     * 
+     * @param string $constraint
+     * @return static
+     */
+    public function addConstraint($constraint) : static
     {
-        $this->data = "ADD CONSTRAINT $name";
+        $this->data = "ADD CONSTRAINT $constraint";
         return $this;
     }
 
-    function foreignKey($columns = [])
+    /**
+     * Add index foreign key
+     * 
+     * @param ?array $columns Columns
+     * @return static
+     */
+    public function foreignKey(?array $columns = []) : static
     {
         $this->data .= ' FOREIGN KEY (' . join(',', $columns) . ')';
         return $this;
     }
 
-    function referencies($table, $columns = [])
+    /**
+     * Add table references
+     * 
+     * @param string $table
+     * @param ?array $columns
+     * @return static
+     */
+    public function references(string $table, ?array $columns = []) : static
     {
         $this->data .= ' REFERENCES ' . env('DB_TABLE_PREFIX', '') . $table . ' (' . join(',', $columns) . ')';
         return $this;
     }
 
-    function onDeleteCascade()
+    /**
+     * Alias of references()
+     * 
+     * @deprecated
+     * @param string $table
+     * @param ?array $columns
+     * @return static
+     */
+    public function referencies(string $table, ?array $columns = []) : static
+    {
+        return $this->references($table, $columns);
+    }
+
+    /**
+     * On delete action
+     * 
+     * @return static
+     */
+    public function onDeleteCascade() : static
     {
         $this->data .= ' ON DELETE CASCADE';
         return $this;
     }
 
-    function onUpdateCascade()
+    /**
+     * On update action
+     * 
+     * @return static
+     */
+    public function onUpdateCascade() : static
     {
         $this->data .= ' ON UPDATE CASCADE';
         return $this;
     }
 
-    function onDeleteRestrict()
+    /**
+     * On delete action (restrict)
+     * 
+     * @return static
+     */
+    public function onDeleteRestrict() : static
     {
         $this->data .= ' ON DELETE RESTRICT';
         return $this;
     }
 
-    function onUpdateRestrict()
+    /**
+     * On update action (restrict)
+     * 
+     * @return static
+     */
+    public function onUpdateRestrict() : static
     {
         $this->data .= ' ON UPDATE RESTRICT';
         return $this;
     }
 
-    function onDeleteSetNull()
+    /**
+     * On delete action (set null)
+     * 
+     * @return static
+     */
+    public function onDeleteSetNull() : static
     {
         $this->data .= ' ON DELETE SET NULL';
         return $this;
     }
 
-    function onUpdateSetNull()
+    /**
+     * On update action (set null)
+     * 
+     * @return static
+     */
+    public function onUpdateSetNull() : static
     {
         $this->data .= ' ON UPDATE SET NULL';
         return $this;
     }
 
-    function onDeleteNoAction()
+    /**
+     * On delete action (no action)
+     * 
+     * @return static
+     */
+    public function onDeleteNoAction() : static
     {
         $this->data .= ' ON DELETE NO ACTION';
         return $this;
@@ -155,26 +311,50 @@ class AlterOption extends DataType
         return $this;
     }
 
-    function uniqueIndex($name, $columns = [])
+    /**
+     * Set unique index
+     * 
+     * @param string $name Index name
+     * @param ?array $columns Index columns
+     * @return static
+     */
+    public function uniqueIndex(string $name, ?array $columns = []) : static
     {
         $this->data .= " UNIQUE $name (" . join(',', $columns) . ")";
         return $this;
     }
 
-    function dropForeignKey($constraint)
+    /**
+     * Drop foreign key
+     * 
+     * @param string $constraint
+     * @return static
+     */
+    public function dropForeignKey(string $constraint) : static
     {
         $this->data = "DROP FOREIGN KEY $constraint";
         return $this;
     }
 
-    function renameTo($new_name)
+    /**
+     * Rename a table
+     * 
+     * @param string $new_name
+     * @return static
+     */
+    public function renameTo($new_name) : static
     {
         $prefix = env('DB_TABLE_PREFIX', '');
         $this->data = "RENAME TO $prefix{$new_name}";
         return $this;
     }
 
-    function render()
+    /**
+     * Render changes
+     * 
+     * @return string
+     */
+    public function render() : string
     {
         return $this->data;
     }

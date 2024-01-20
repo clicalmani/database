@@ -2,10 +2,10 @@
 namespace Clicalmani\Database\Factory\DataTypes;
 
 /**
- * Character data type
+ * Trait Character data type
  * 
  * @package Clicalmani\Database
- * @author clicalmani
+ * @author @clicalmani
  */
 trait Character
 {
@@ -18,8 +18,7 @@ trait Character
     public function char(int $length = 10) : static
     {
         $this->data .= ' CHAR';
-        $this->length($length);
-        return $this;
+        return $this->length($length);
     }
 
     /**
@@ -31,8 +30,7 @@ trait Character
     public function varchar($length = 45) : static
     {
         $this->data .= ' VARCHAR';
-        $this->length($length);
-        return $this;
+        return $this->length($length);
     }
 
     /**

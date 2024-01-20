@@ -1,8 +1,14 @@
 <?php
 namespace Clicalmani\Database\Exceptions;
 
+/**
+ * Class DBQueryException
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class DBQueryException extends \PDOException {
-	function __construct($message){
+	public function __construct(string $message){
 		parent::__construct($message);
 	}
 }

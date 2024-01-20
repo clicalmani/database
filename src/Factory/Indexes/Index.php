@@ -1,19 +1,27 @@
 <?php
 namespace Clicalmani\Database\Factory\Indexes;
 
+/**
+ * Class Index
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Index extends IndexType
 {
-    private $keys = [],
-            $cols = [],
-            $constraint,
-            $references,
-            $onDelete,
+    private $name = '',     // Index name
+            $keys = [],     // Key indexes
+            $cols = [],     // INdex columns
+            $constraint,    // Index constraint
+            $references,    // Index references
+            $onDelete,      
             $onUpdate,
             $match,
-            $prefix;
+            $prefix;        // Table prefix
 
-    function __construct(private $name = '')
+    public function __construct(string $name = '')
     {
+        $this->name = $name;
         $this->prefix = env('DB_TABLE_PREFIX', '');
     }
 
@@ -200,16 +208,7 @@ class Index extends IndexType
 
         if ($this->references) {
             $key .= ' REFERENCES ' . $this->references . ' ';
-
-            // $key .= '(';
-
-            // foreach ($this->cols as $index => $col_name) {
-            //     if ($index < count($this->cols) - 1) $key .= "`$col_name`, ";
-            //     else $key .= "`$col_name`";
-            // }
-
-            // $key .= ') ';
-
+            
             if ($this->onDelete) $key .= $this->onDelete . ' ';
             if ($this->onUpdate) $key .= $this->onUpdate . ' ';
             if ($this->match) $key .= $this->match . ' ';

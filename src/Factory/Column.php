@@ -4,14 +4,23 @@ namespace Clicalmani\Database\Factory;
 use Clicalmani\Database\Factory\DataTypes\DataType;
 
 /**
- * Table column creation
+ * Class Column
  * 
  * @package Clicalmani\Database
- * @author clicalmani
+ * @author @clicalmani
  */
 class Column extends DataType 
 {
-    public function __construct(private $name) {}
+    /**
+     * Column name
+     * 
+     * @var ?string
+     */
+    private string $name = '';
+
+    public function __construct(string $name) {
+        $this->name = $name;
+    }
 
     /**
      * Render column data

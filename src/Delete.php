@@ -1,6 +1,12 @@
 <?php
 namespace Clicalmani\Database;
 
+/**
+ * Class Delete
+ * 
+ * @package Clicalmani\Database
+ * @author @clicalmani
+ */
 class Delete extends DBQueryBuilder implements \IteratorAggregate 
 {
 	public function __construct(
@@ -87,6 +93,11 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 		}
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @overriden
+	 * @return void
+	 */
 	public function query() : void 
 	{
 		$this->bindVars();
@@ -97,9 +108,13 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 	    $this->error_msg  = $this->db->error();
 	}
 	
+	/**
+	 * Get iterator
+	 * 
+	 * @return \Traversable
+	 */
 	public function getIterator() : \Traversable 
 	{
 		return new DBQueryIterator($this);
 	}
 }
-?>
