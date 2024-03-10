@@ -29,9 +29,9 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
 		
 		if (isset($this->params['engine'])) $this->sql .= 'ENGINE = ' . $this->params['engine'];
 
-        if (isset($this->params['collate'])) $this->sql .= 'DEFAULT COLLATE = ' . $this->params['collate'];
+        if (isset($this->params['collate'])) $this->sql .= ' DEFAULT COLLATE = ' . $this->params['collate'];
 
-        if (isset($this->params['charset'])) $this->sql .= 'DEFAULT CHARACTER SET = ' . $this->params['charset'];
+        if (isset($this->params['charset'])) $this->sql .= ' DEFAULT CHARACTER SET = ' . $this->params['charset'];
 	}
 
 	/**

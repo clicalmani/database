@@ -114,6 +114,9 @@ abstract class DB
 				]
 			);
 
+			/**
+			 * Set default collation and character set
+			 */
 			static::$pdo->query('SET NAMES ' . $db_default['charset']);
 			static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . $db_default['charset'] . ' COLLATION ' . $db_default['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . $db_default['name'] . '"');
 			

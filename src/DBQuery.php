@@ -80,6 +80,20 @@ class DBQuery extends DB
 	 * @var int 6
 	 */
 	const DROP_TABLE_IF_EXISTS = 6;
+
+	/**
+	 * Lock table flag
+	 * 
+	 * @var int 8
+	 */
+	const LOCK_TABLE = 8;
+
+	/**
+	 * Unlock table flag
+	 * 
+	 * @var int 9
+	 */
+	const UNLOCK_TABLE = 9;
 	
 	/**
 	 * Constructor
@@ -197,6 +211,16 @@ class DBQuery extends DB
 
 			case static::ALTER:
 				$obj = new Alter($this->params, $this->options);
+				$obj->query();
+				return $obj;
+
+			case static::LOCK_TABLE:
+				$obj = new Lock($this->params, $this->options);
+				$obj->query();
+				return $obj;
+
+			case static::UNLOCK_TABLE:
+				$obj = new Unlock($this->params, $this->options);
 				$obj->query();
 				return $obj;
 		}
@@ -337,6 +361,9 @@ class DBQuery extends DB
 		}
 		
 		$this->options = $options;
+
+		$criteria = trim($criteria);
+		if ( empty($criteria) ) $criteria = '1';
 
 		if ( !isset($this->params['where']) ) {
 			$this->params['where'] = $criteria;
@@ -550,8 +577,30 @@ class DBQuery extends DB
 	 * @param string $table Table name
 	 * @return static
 	 */
-	public function crossJoin(string $table) : static
+	public function joinCross(string $table) : static
 	{
 		return $this->__join($table, '', '', 'CROSS', true);
+	}
+
+	/**
+	 * Lock table in writing mode
+	 * 
+	 * @return bool
+	 */
+	public function lock() : bool
+	{
+		$this->query = static::LOCK_TABLE;
+		return $this->exec()->status() === 'success';
+	}
+
+	/**
+	 * Unlock a locked table in writing mode
+	 * 
+	 * @return bool
+	 */
+	public function unlock() : bool
+	{
+		$this->query = static::UNLOCK_TABLE;
+		return $this->exec()->status() === 'success';
 	}
 }

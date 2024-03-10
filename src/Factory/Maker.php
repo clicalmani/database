@@ -144,10 +144,10 @@ class Maker
     /**
      * Table default collation
      * 
-     * @param string $default_collation
+     * @param ?string $default_collation
      * @return void
      */
-    public function collate(string $default_collation) : void
+    public function collate(?string $default_collation = 'utf8mb4_unicode_ci') : void
     {
         $this->query->set('collate', $default_collation);
     }
@@ -155,10 +155,10 @@ class Maker
     /**
      * Table default character set
      * 
-     * @param string $default_charset
+     * @param ?string $default_charset
      * @return void
      */
-    public function charset(string $default_charset) : void
+    public function charset(?string $default_charset = 'utf8mb4') : void
     {
         $this->query->set('charset', $default_charset);
     }
