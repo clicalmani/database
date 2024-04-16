@@ -217,6 +217,10 @@ abstract class DB
 	 */
 	public function prepare(string $sql, ?array $options = [])
 	{
+		if ( static::$logQuery ) {
+			Log::debug($sql);
+		}
+		
 		return static::$pdo->prepare($sql, $options);
 	}
 	

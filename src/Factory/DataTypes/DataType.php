@@ -44,9 +44,9 @@ class DataType
      * @param ?string $value Default value
      * @return static
      */
-    public function default(?string $value = '') : static
+    public function default(?string $value = NULL) : static
     {
-        $this->data .= ' DEFAULT ' . (!is_null($value) ? "'$value'": 'NULL');
+        $this->data .= ' DEFAULT ' . ((NULL !== $value) ? "'$value'": 'NULL');
         return $this;
     }
 
@@ -100,8 +100,8 @@ class DataType
         $value = '';
 
         foreach ($arr as $index => $val) {
-            if ($index < count($arr) - 1) $value .= '"' . $val . '", ';
-            else $value .= '"' . $val . '"';
+            if ($index < count($arr) - 1) $value .= "'$val', ";
+            else $value .= "'$val'";
         }
 
         return $value;

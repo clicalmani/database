@@ -74,7 +74,7 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	 * @return void
 	 */
 	public function query() :void
-	{ 
+	{
 		$this->bindVars();
 	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
     	

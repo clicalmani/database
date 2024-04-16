@@ -67,8 +67,6 @@ class Factory
      */
     public static function fromModel(string $model) : static
     {
-        global $root_path;
-
         /**
          * Factory is obtained by appending Factory to model class name
          */
@@ -76,7 +74,7 @@ class Factory
         
         // Add namespace
         $factory_class = "\\Database\\Factories\\$factory";
-        
+            
         return new $factory_class;
     }
 

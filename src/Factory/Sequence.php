@@ -50,12 +50,7 @@ class Sequence implements \Countable
     {
         return $this->count;
     }
-
-    /**
-     * PHP magic __invoke
-     * 
-     * @return mixed
-     */
+    
     public function __invoke() : mixed
     {
         return tap(nocall( $this->sequence[$this->index % $this->count] ), fn() => $this->index = $this->index + 1);

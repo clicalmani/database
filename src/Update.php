@@ -55,7 +55,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 	 * @return void
 	 */
 	public function query() : void
-	{ 
+	{
 		$this->bindVars();
 		$statement = $this->db->prepare($this->sql, $this->params['options']);
 

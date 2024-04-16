@@ -347,8 +347,8 @@ class DBQuery extends DB
 
 			case 2:
 				$criteria = $args[0];
-				$operator = $args[1];
-				$options  = [];
+				$operator = 'AND';
+				$options  = $args[1];
 			break;
 
 			case 3:
