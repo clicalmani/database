@@ -60,25 +60,6 @@ class Factory
     }
 
     /**
-     * Create a factory from model
-     * 
-     * @param string $model Factory model
-     * @return static
-     */
-    public static function fromModel(string $model) : static
-    {
-        /**
-         * Factory is obtained by appending Factory to model class name
-         */
-        $factory = substr($model, strripos($model, '\\') + 1) . 'Factory';
-        
-        // Add namespace
-        $factory_class = "\\Database\\Factories\\$factory";
-            
-        return new $factory_class;
-    }
-
-    /**
      * Override: Factory seed
      * 
      * @return array<string, mixed>
@@ -125,10 +106,8 @@ class Factory
      */
     public static function new() : static
     {
-        // Back trace the model class
-        $model = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[1]['class'];
-        
-        return static::fromModel($model);
+        $factory = get_called_class();
+        return new $factory;
     }
 
     /**
@@ -156,7 +135,7 @@ class Factory
             $seeds[] = $this->override($attributes);
         }
         
-        with (new $this->model)->insert($seeds);
+        if ( $this->model ) with (new $this->model)->insert($seeds);
     }
 
     public function faker()

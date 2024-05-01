@@ -16,6 +16,13 @@ class DataType
         Date;
 
     /**
+     * Value
+     * 
+     * @var mixed
+     */
+    protected $value;
+
+    /**
      * Data
      * 
      * @var string
@@ -128,5 +135,15 @@ class DataType
     {
         if (method_exists($this, $method)) $this->{$method}(...$params);
         else throw new \Clicalmani\Database\Exceptions\DataTypeException("The method $method is not associated to any data type.");
+    }
+
+    public function __set($name, $value)
+    {
+        $this->value = $value;
+    }
+
+    public function __toString()
+    {
+        return $this->value;
     }
 }

@@ -1,8 +1,6 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
-use PHPUnit\Framework\Constraint\Callback;
-
 /**
  * Class Schema
  * 
@@ -48,7 +46,7 @@ class Schema
      */
     public static function drop(string $table) : void
     {
-        with( new Maker($table, MAKER::DROP_TABLE) )->make();
+        with( new Maker($table, Maker::DROP_TABLE) )->make();
     }
 
     /**
@@ -59,7 +57,7 @@ class Schema
      */
     public static function dropIfExists(string $table) : void
     {
-        with( new Maker($table, MAKER::DROP_TABLE_IF_EXISTS) )->make();
+        with( new Maker($table, Maker::DROP_TABLE_IF_EXISTS) )->make();
     }
 
     /**
@@ -72,7 +70,7 @@ class Schema
     public static function modify(string $table, callable $callback) : void
     {
         $callback(
-            $maker = new Maker($table, MAKER::ALTER_TABLE)
+            $maker = new Maker($table, Maker::ALTER_TABLE)
         );
 
         $maker->make();

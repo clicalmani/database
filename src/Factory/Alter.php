@@ -17,17 +17,17 @@ class Alter extends DBQueryBuilder implements \IteratorAggregate
 	 * 
 	 * @var ?array
 	 */
-	protected array $params = [];
+	protected $params = [];
 
 	/**
 	 * Query options
 	 * 
 	 * @var ?array
 	 */
-	protected array $options = [];
+	protected $options = [];
 
-	public function __construct(?array $params = [], ?array $options = []) 
-    { 
+	public function __construct($params = [], $options = []) 
+    {
 		$this->params = $params;
 		$this->options = $options;
 		parent::__construct($params, $options);

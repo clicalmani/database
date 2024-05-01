@@ -9,6 +9,7 @@ use Clicalmani\Database\Factory\DataTypes\DataType;
  * @package Clicalmani\Database
  * @author @clicalmani
  */
+#[\Attribute(\Attribute::TARGET_CLASS)]
 class AlterOption extends DataType
 {
     /**
