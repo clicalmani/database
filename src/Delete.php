@@ -101,6 +101,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 	public function query() : void 
 	{
 		$this->bindVars();
+		/** @var \PDOStatement */
 	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
     	
 		$this->status     = $statement ? true: false;

@@ -7,7 +7,7 @@ namespace Clicalmani\Database\Factory\DataTypes;
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class DataType
+class DataType implements \JsonSerializable
 {
     use Numeric,
         Character,
@@ -21,6 +21,8 @@ class DataType
      * @var mixed
      */
     protected $value;
+
+    protected $type;
 
     /**
      * Data
@@ -125,6 +127,26 @@ class DataType
     }
 
     /**
+     * Type getter
+     * 
+     * @return string
+     */
+    public function getType() : string
+    {
+        return $this->type;
+    }
+
+    /**
+     * Value getter
+     * 
+     * @return mixed
+     */
+    public function getValue() : mixed
+    {
+        return $this->value;
+    }
+
+    /**
      * PHP magic __call
      * 
      * @param string $method Method to call
@@ -139,10 +161,16 @@ class DataType
 
     public function __set($name, $value)
     {
-        $this->value = $value;
+        $this->type = gettype($value);
+        $this->{$name} = $value; // $name should always be egal "value"
     }
 
     public function __toString()
+    {
+        return $this->value;
+    }
+
+    public function jsonSerialize(): mixed
     {
         return $this->value;
     }

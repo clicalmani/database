@@ -14,7 +14,7 @@ class TinyInt extends DataType
         if (TRUE === @ $parameters['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
+        if (isset($parameters['default'])) $this->default($parameters['default']);
 
         if (TRUE === @ $parameters['autoIncrement']) $this->autoIncrement();
 

@@ -10,8 +10,10 @@ use Clicalmani\Database\Factory\Indexes\Index;
 use Clicalmani\Database\Factory\Maker;
 use Clicalmani\Database\Factory\PrimaryKey;
 use Clicalmani\Database\Factory\Property;
-use Clicalmani\Flesco\Models\Attribute;
-use Clicalmani\Flesco\Models\Model;
+use Clicalmani\Database\Factory\Models\Attribute;
+use Clicalmani\Database\Factory\Models\Model;
+use Clicalmani\Flesco\Support\Facades\Log;
+use Clicalmani\Fundation\Validation\InputValidator;
 
 abstract class Entity 
 {
@@ -39,9 +41,9 @@ abstract class Entity
     /**
      * Entity model
      * 
-     * @var \Clicalmani\Flesco\Models\Model
+     * @var \Clicalmani\Database\Factory\Models\Model
      */
-    protected \Clicalmani\Flesco\Models\Model $model;
+    protected \Clicalmani\Database\Factory\Models\Model $model;
 
     /**
      * Entity access mode
@@ -67,7 +69,7 @@ abstract class Entity
     /**
      * Get entity attributes
      * 
-     * @return \Clicalmani\Flesco\Models\Attribute[]
+     * @return \Clicalmani\Database\Factory\Models\Attribute[]
      */
     public function getAttributes() : array
     {
@@ -95,11 +97,13 @@ abstract class Entity
      * Get attribute by name
      * 
      * @param string $name Attribute name
-     * @return \Clicalmani\Flesco\Models\Attribute
+     * @return \Clicalmani\Database\Factory\Models\Attribute
      */
     public function getAttribute(string $name) : Attribute
     {
-        return tap(new Attribute($name, @ $this->model->{$name}), function(Attribute $attribute) {
+        return tap(new Attribute($name), function(Attribute $attribute) {
+            $attribute->model = $this->model;
+            $attribute->value = $attribute->isCustom() ? $attribute->getCustomValue(): $this->model->get("`$attribute->name`");
             $attribute->model = $this->model;
             $attribute->access = $this->access;
         });
@@ -129,7 +133,7 @@ abstract class Entity
     /**
      * Model getter
      * 
-     * @return \Clicalmani\Flesco\Models\Model
+     * @return \Clicalmani\Database\Factory\Models\Model
      */
     public function getModel() : Model
     {
@@ -139,7 +143,7 @@ abstract class Entity
     /**
      * Model setter
      * 
-     * @param \Clicalmani\Flesco\Models\Model $model
+     * @param \Clicalmani\Database\Factory\Models\Model $model
      * @return void
      */
     public function setModel(Model $model) : void
@@ -156,44 +160,75 @@ abstract class Entity
      */
     public function setProperty(string $name, mixed $value) : void
     {
-        $type = $this->getPropertyClass($name);
-        $args = [];
-
-        // Whether property is a primary key
-        $is_primary_key = false;
+        $attr = new Attribute($name, $value);
+        $attr->model = $this->model;
 
         /**
-         * Property attribute
-         * 
-         * Apply user defined property attributes
+         * Avoid setting custom property 
+         * Only set field on insert and update
          */
-        if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Property::class)) {
-            $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use(&$args) {
-                $args = $attribute->newInstance()->args;
-            });
+        if (FALSE === $attr->isCustom() && in_array($this->access, [static::ADD_RECORD, static::UPDATE_RECORD])) {
+            
+            try {
+                /**
+                 * Validate property
+                 */
+                if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Validate::class)) {
+                    $attribute = $attributes[0];
+                    $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use($name, &$value) {
+                        $validator = new InputValidator;
+                        $input = [$name => $value];
+                        $validator->sanitize($input, [$name => $attribute->newInstance()->validator]);
+                        $validator->passed($name);
+                        $value = $input[$name];
+                    });
+                }
+
+                $type = $this->getPropertyClass($name);
+                $args = [];
+
+                // Whether property is a primary key
+                $is_primary_key = false;
+
+                /**
+                 * Property attribute
+                 * 
+                 * Apply user defined property attributes
+                 */
+                if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Property::class)) {
+                    $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use(&$args) {
+                        $args = $attribute->newInstance()->args;
+                    });
+                }
+
+                /**
+                 * Primary key
+                 */
+                if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(PrimaryKey::class)) {
+                    $attribute = $attributes[0];
+                    $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use(&$is_primary_key) {
+                        $is_primary_key = true;
+                    });
+                }
+
+                if ( is_subclass_of($type, DataType::class) ) {
+                    $property = new $type( ...$args );
+                    $property->value = $value;
+                    
+                    if (TRUE === $is_primary_key) $property->primary();
+                    
+                    $this->{$name} = $property;
+                }
+            } catch (\ReflectionException $e) {
+                Log::error($e->getMessage(), E_ERROR, __CLASS__, __LINE__);
+            } catch (\Exception $e) {
+                Log::error($e->getMessage(), E_ERROR, __CLASS__, __LINE__);
+            }
+            
+            if ( $this->access === static::ADD_RECORD ) $this->new_records[] = $name;
+            if ( $this->access === static::UPDATE_RECORD ) $this->updated_records[] = $name;
         }
-
-        /**
-         * Primary key
-         */
-        if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(PrimaryKey::class)) {
-            $attribute = $attributes[0];
-            $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use(&$is_primary_key) {
-                $is_primary_key = true;
-            });
-        }
-
-        if ( is_subclass_of($type, DataType::class) ) {
-            $property = new $type( ...$args );
-            $property->value = $value;
-
-            if (TRUE === $is_primary_key) $property->primary();
-
-            $this->{$name} = $property;
-        }
-
-        if ( $this->access === static::ADD_RECORD ) $this->new_records[] = $name;
-        if ( $this->access === static::UPDATE_RECORD ) $this->updated_records[] = $name;
+        
     }
 
     private function getPropertyClass(string $name)
@@ -226,9 +261,11 @@ abstract class Entity
     /**
      * Migrate entity
      * 
+     * @param ?bool $exec
+     * @param ?string $dump_file
      * @return bool TRUE on success, FALSE otherwise.
      */
-    public function migrate() : bool
+    public function migrate(?bool $exec = true, ?string $dump_file = null) : bool
     {
         $table = $this->model->getTable();
 
@@ -268,7 +305,7 @@ abstract class Entity
                     });
                 }
 
-                $definition[] = $name . ' ' . $type->getData();
+                $definition[] = "`$name`" . $type->getData();
             }
         }
 
@@ -338,6 +375,22 @@ abstract class Entity
         }
 
         /**
+         * Table default collation
+         */
+        $db_config = require config_path( '/database.php' );
+        $db_default = $db_config['connections'][$db_config['default']];
+
+        if ($charset = @$db_default['charset']) {
+
+            $collate = @$db_default['collation'] ?? "{$charset}_general_ci";
+
+            $query->set('charset', $charset);
+            $query->set('collate', $collate);
+        }
+
+        if ($engine = @$db_default['engine']) $query->set('engine', $engine);
+
+        /**
          * Default Collation
          */
         if ($attributes = (new \ReflectionClass($this))->getAttributes(DefaultCollation::class)) {
@@ -359,8 +412,8 @@ abstract class Entity
         }
         
         $query->set('definition', $definition);
-        
-        return $query->exec()->status() === 'success';
+
+        return $this->build($query->exec(), $table, $exec, $dump_file);
     }
 
     /**
@@ -390,6 +443,49 @@ abstract class Entity
 
     private function useAttribute(\ReflectionAttribute $attribute, callable $callback)
     {
-        if (!$attribute->isRepeated()) $callback($attribute);
+        $callback($attribute);
+    }
+
+    /**
+     * Execute or output the generated SQL statement.
+     * 
+     * @param \Clicalmani\Database\DBQueryBuilder $builder
+     * @param string $table Table name
+     * @param ?bool $exec
+     * @param ?string $dump_file 
+     * @return mixed
+     */
+    private function build(\Clicalmani\Database\DBQueryBuilder $builder, string $table, ?bool $exec = true, ?string $dump_file = null) : mixed
+    {
+        /**
+         * Execute the generated SQL statement.
+         */
+        if (TRUE == $exec) return $builder->status() === 'success';
+        
+        /** @var string */
+        $sql = $builder->getSQL(); // Generated SQL statement
+        /** @var string */
+        $prefix = env('DB_TABLE_PREFIX', '');
+
+        $sql = <<<SQL
+        -- -----------------------------------------------------
+        -- Table `$prefix{$table}`
+        -- -----------------------------------------------------
+
+        $sql;\n\n
+        SQL;
+
+        /**
+         * No dump file specified
+         */
+        if (NULL === $dump_file) {
+            echo $sql;
+            return null;
+        }
+
+        /** @var resource */
+        $fh = fopen(database_path("/migrations/$dump_file.sql"), 'a+');
+        fwrite($fh, $sql);
+        return fclose($fh);
     }
 }

@@ -94,6 +94,13 @@ class DBQuery extends DB
 	 * @var int 9
 	 */
 	const UNLOCK_TABLE = 9;
+
+	/**
+	 * Builder
+	 * 
+	 * @var \Clicalmani\Database\DBQueryBuilder
+	 */
+	private $builder;
 	
 	/**
 	 * Constructor
@@ -174,58 +181,58 @@ class DBQuery extends DB
 		switch ($this->query){
 			
 			case static::SELECT:
-				$obj = new Select($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Select($this->params, $this->options);
+				$this->builder->query();
+				break;
 			
 			case static::INSERT:
-				$obj = new Insert($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Insert($this->params, $this->options);
+				$this->builder->query();
+				break;
 				
 			case static::DELETE:
-				$obj = new Delete($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Delete($this->params, $this->options);
+				$this->builder->query();
+				break;
 				
 			case static::UPDATE:
-				$obj = new Update($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Update($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::CREATE:
-				$obj = new Create($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Create($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::DROP_TABLE:
-				$obj = new Drop($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Drop($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::DROP_TABLE_IF_EXISTS:
 				$this->params['exists'] = true;
-				$obj = new Drop($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Drop($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::ALTER:
-				$obj = new Alter($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Alter($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::LOCK_TABLE:
-				$obj = new Lock($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Lock($this->params, $this->options);
+				$this->builder->query();
+				break;
 
 			case static::UNLOCK_TABLE:
-				$obj = new Unlock($this->params, $this->options);
-				$obj->query();
-				return $obj;
+				$this->builder = new Unlock($this->params, $this->options);
+				$this->builder->query();
+				break;
 		}
 
-		return null;
+		return $this->builder;
 	}
 
 	/**
@@ -602,5 +609,15 @@ class DBQuery extends DB
 	{
 		$this->query = static::UNLOCK_TABLE;
 		return $this->exec()->status() === 'success';
+	}
+
+	/**
+	 * Returns query builder object.
+	 * 
+	 * @return \Clicalmani\Database\DBQueryBuilder|null
+	 */
+	public function getBuilder() : DBQueryBuilder|null
+	{
+		return $this->builder;
 	}
 }

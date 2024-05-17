@@ -3,6 +3,8 @@ namespace Clicalmani\Database;
 
 use Clicalmani\Collection\Collection;
 
+use function PHPUnit\Framework\isEmpty;
+
 /**
  * Class Database Query Builder
  * 
@@ -23,7 +25,7 @@ abstract class DBQueryBuilder
 	/**
 	 * DBQuery object
 	 * 
-	 * @var Cicalmani\Database\DBQuery
+	 * @var \Cicalmani\Database\DBQuery
 	 */
 	protected $db;
 
@@ -325,9 +327,16 @@ abstract class DBQueryBuilder
 	 */
 	public function getDataType(mixed $data) : int
 	{
-		if ( is_int($data) ) return \PDO::PARAM_INT;
-		if ( is_bool($data) ) return \PDO::PARAM_BOOL;
-		if ( is_null($data) ) return \PDO::PARAM_NULL;
+		$value = $data;
+
+		if ( is_subclass_of($data, \Clicalmani\Database\Factory\DataTypes\DataType::class) ) {
+			$value = $data->getValue();
+			settype($value, $data->getType());
+		}
+		
+		if ( is_int($value) ) return \PDO::PARAM_INT;
+		if ( is_bool($value) ) return \PDO::PARAM_BOOL;
+		if ( is_null($value) ) return \PDO::PARAM_NULL;
 
 		return \PDO::PARAM_STR;
 	}

@@ -4,7 +4,7 @@ namespace Clicalmani\Database\Factory;
 /**
  * Service tag to autoconfigure validators.
  */
-#[\Attribute(\Attribute::TARGET_CLASS)]
+#[\Attribute(\Attribute::TARGET_CLASS | \Attribute::IS_REPEATABLE)]
 class Index
 {
     /**
@@ -94,9 +94,9 @@ class Index
     /**
      * Index references
      * 
-     * @var ?array<string, string>
+     * @var string|array<string, string>
      */
-    public ?array $references = [];
+    public string|array $references = [];
 
     /**
      * On update
@@ -117,11 +117,24 @@ class Index
         string $key, 
         ?bool $unique = false, 
         ?string $constraint = null,
-        ?array $references = [],
+        string|array $references = [],
         ?int $onUpdate = self::ON_UPDATE_CASCADE,
         ?int $onDelete = self::ON_DELETE_CASCADE
     )
     {
+        if (is_string($references)) {
+            if (is_subclass_of($references, \Clicalmani\Database\Factory\Models\Model::class)) {
+                /** @var \Clicalmani\Database\Factory\Models\Model */
+                $model = new $references;
+                $table = $model->getTable();
+                $primary_key = $model->getKey();
+
+                if ( is_array($primary_key) ) throw new \TypeError("Expected string; array given. Reference table should not have multiple keys.");
+
+                $references = ['table' => $table, 'key' => $primary_key];
+            } else throw new \TypeError(sprintf("Expected type of %s; got %s.", \Clicalmani\Database\Factory\Models\Model::class, $references));
+        }
+
         $this->name = $name;
         $this->key = $key;
         $this->unique = $unique;

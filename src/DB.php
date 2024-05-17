@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Flesco\Support\Log;
+use Clicalmani\Flesco\Support\Facades\Log;
 use PDO;
 use \PDOStatement;
 
@@ -98,10 +98,13 @@ abstract class DB
 	 */
 	public static function getPdo() {
 		if ( isset(static::$pdo) ) return static::$pdo;
-
-		$db_config = require config_path( '/database.php' );
-
+		
+		/** @var array<string|array> */
+		$db_config = require_once config_path( '/database.php' );
+		
 		try {
+
+			/** @var array<string> */
 			$db_default = $db_config['connections'][$db_config['default']];
 			
 			static::$pdo = new PDO(
@@ -124,7 +127,7 @@ abstract class DB
 
 			return static::$pdo;
 		} catch(\PDOException $e) {
-			die('An error occurred while trying to connect to the database server, please contact your administrator for further informations.');
+			die($e->getMessage());
 		}
 	}
 	

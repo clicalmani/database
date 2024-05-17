@@ -57,10 +57,13 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 	public function query() : void
 	{
 		$this->bindVars();
+		/** @var \PDOStatement */
 		$statement = $this->db->prepare($this->sql, $this->params['options']);
 
-		foreach ($this->params['values'] as $i => $value) {
-			$statement->bindValue($this->params['fields'][$i], $value, $this->getDataType($value));
+		foreach ($this->params['values'] as $i => $type) {
+			if ( is_subclass_of($type, \Clicalmani\Database\Factory\DataTypes\DataType::class) ) $value = $type->getValue();
+			else $value = $type;
+			$statement->bindValue($this->params['fields'][$i], $value, $this->getDataType($type));
 		}
 
 		foreach ($this->options as $param => $value) {

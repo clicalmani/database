@@ -32,10 +32,6 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		
 		$this->sql .= ' FROM ' . join(',', $this->sanitizeTables($this->params['tables'])) . ' ';
 		
-		if (isset($this->params['sub_query'])) {
-			$this->sql .= $this->params['sub_query'] . ' ';
-		}
-		
 		if (isset($this->params['join'])) {
 			
 			foreach ($this->params['join'] as $joint) {
@@ -76,6 +72,7 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	public function query() :void
 	{
 		$this->bindVars();
+		/** @var \PDOStatement */
 	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
     	
 		$this->status     = $statement ? true: false;

@@ -21,13 +21,13 @@ class Create extends DBQueryBuilder implements \IteratorAggregate
     { 
 		parent::__construct($params, $options);
 		
-		$this->sql .= 'CREATE TABLE IF NOT EXISTS ' . $this->db->getPrefix() . $this->params['table'];
+		$this->sql .= 'CREATE TABLE IF NOT EXISTS `' . $this->db->getPrefix() . $this->params['table'] . '`';
 		
 		if (isset($this->params['definition'])) {
-            $this->sql .= ' (' . join(',', $this->params['definition']) . ') ';
+            $this->sql .= " (\n\t" . join(",\n\t", $this->params['definition']) . ')';
 		}
 		
-		if (isset($this->params['engine'])) $this->sql .= 'ENGINE = ' . $this->params['engine'];
+		if (isset($this->params['engine'])) $this->sql .= ' ENGINE = ' . $this->params['engine'];
 
         if (isset($this->params['collate'])) $this->sql .= ' DEFAULT COLLATE = ' . $this->params['collate'];
 
