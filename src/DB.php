@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Flesco\Support\Facades\Log;
+use Clicalmani\Fundation\Support\Facades\Log;
 use PDO;
 use \PDOStatement;
 

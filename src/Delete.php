@@ -29,7 +29,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 				 */
 
 				$prefix = $this->db->getPrefix();
-				$tables = new \Clicalmani\Collection\Collection;
+				$tables = new \Clicalmani\Fundation\Collection\Collection;
 				$tables->exchange($this->params['tables'])->map(function($val) use($prefix) {
 					return $prefix . $val;
 				})->toArray();

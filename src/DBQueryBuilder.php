@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Collection\Collection;
+use Clicalmani\Fundation\Collection\Collection;
 
 use function PHPUnit\Framework\isEmpty;
 
@@ -81,7 +81,7 @@ abstract class DBQueryBuilder
 	/**
 	 * SQL result
 	 * 
-	 * @var \Clicalmani\Collection\Collection
+	 * @var \Clicalmani\Fundation\Collection\Collection
 	 */
 	protected $result; 
 
@@ -184,7 +184,7 @@ abstract class DBQueryBuilder
 	/**
 	 * Gets the SQL result
 	 * 
-	 * @return \Clicalmani\Collection\Collection
+	 * @return \Clicalmani\Fundation\Collection\Collection
 	 */
 	public function result() : Collection { return $this->result; }
 	

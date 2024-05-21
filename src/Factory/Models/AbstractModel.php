@@ -4,12 +4,12 @@ namespace Clicalmani\Database\Factory\Models;
 use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
-use Clicalmani\Flesco\Exceptions\ModelException;
+use Clicalmani\Fundation\Exceptions\ModelException;
 
 /**
  * Class AbstractModel
  * 
- * @package Clicalmani\Flesco
+ * @package Clicalmani\Fundation
  * @author @clicalmani
  */
 abstract class AbstractModel implements Joinable, \JsonSerializable
