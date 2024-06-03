@@ -3,7 +3,8 @@
     "description": "Tonka database query builder",
     "type": "library",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.0",
+        "joshtronic/php-loremipsum": "^2.1.0"
     },
     "license": "proprietary",
     "autoload": {
