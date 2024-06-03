@@ -139,10 +139,6 @@ abstract class DB
 	 */
 	public function query(string $sql, ?array $options = [], ?array $flags = []) 
 	{
-		if ( static::$logQuery ) {
-			Log::debug($sql);
-		}
-		
 		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
 		
@@ -205,6 +201,16 @@ abstract class DB
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->rowCount(); 
 		return 0;
+	}
+
+	/**
+	 * Returns rows count for CALC_FOUND_ROWS enabled statements.
+	 * 
+	 * @return int the number of rows, or 0 otherwise.
+	 */
+	public function foundRows() : int
+	{
+		return @ $this->query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
 	}
 
 	/**

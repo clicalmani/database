@@ -20,7 +20,7 @@ class AlterOption extends DataType
      */
     public function addColumn(string $name) : static
     {
-        $this->data = "ADD COLUMN `$name`";
+        $this->data .= "ADD COLUMN `$name`";
         return $this;
     }
 
@@ -32,7 +32,7 @@ class AlterOption extends DataType
      */
     public function dropColumn(string $name) : static
     {
-        $this->data = 'DROP COLUMN ' . $name;
+        $this->data = "DROP COLUMN `$name`";
         return $this;
     }
 
@@ -44,7 +44,7 @@ class AlterOption extends DataType
      */
     public function modifyColumn(string $name) : static
     {
-        $this->data = 'MODIFY ' . $name;
+        $this->data .= "MODIFY `$name`";
         return $this;
     }
 
@@ -56,7 +56,7 @@ class AlterOption extends DataType
      */
     public function alterColumn(string $name) : static
     {
-        $this->data = 'ALTER COLUMN ' . $name;
+        $this->data .= "ALTER COLUMN `$name`";
         return $this;
     }
 
@@ -91,7 +91,7 @@ class AlterOption extends DataType
      */
     public function changeColumn(string $name) : static
     {
-        $this->data = " CHANGE COLUMN `$name` `$name`";
+        $this->data .= " CHANGE COLUMN `$name` `$name`";
         return $this;
     }
 
@@ -125,7 +125,7 @@ class AlterOption extends DataType
      */
     public function dropPrimaryKey() : static
     {
-        $this->data = 'DROP PRIMARY KEY';
+        $this->data .= 'DROP PRIMARY KEY';
         return $this;
     }
 
@@ -137,7 +137,7 @@ class AlterOption extends DataType
      */
     public function addPrimaryKey(string $key) : static
     {
-        $this->data = "ADD PRIMARY KEY (`$key`)";
+        $this->data .= "ADD PRIMARY KEY (`$key`)";
         return $this;
     }
 
@@ -145,12 +145,12 @@ class AlterOption extends DataType
      * Add index
      * 
      * @param string $name Index name
-     * @param array $columns Index columns
+     * @param ?array $columns Index columns
      * @return static
      */
     public function addIndex(string $name, ?array $columns = []) : static
     {
-        $this->data = "ADD INDEX $name (" . join(',', $columns) . ")";
+        $this->data .= "ADD INDEX $name (" . join(',', $columns) . ")";
         return $this;
     }
 
@@ -163,7 +163,7 @@ class AlterOption extends DataType
      */
     public function addUniqueIndex(string $name, ?array $columns = []) : static
     {
-        $this->data = "ADD UNIQUE INDEX $name (" . join(',', $columns) . ")";
+        $this->data .= "ADD UNIQUE INDEX $name (" . join(',', $columns) . ")";
         return $this;
     }
 
@@ -175,7 +175,7 @@ class AlterOption extends DataType
      */
     public function dropIndex(string $name) : static
     {
-        $this->data = "DROP INDEX $name";
+        $this->data .= "DROP INDEX $name";
         return $this;
     }
 
@@ -187,7 +187,7 @@ class AlterOption extends DataType
      */
     public function addConstraint($constraint) : static
     {
-        $this->data = "ADD CONSTRAINT $constraint";
+        $this->data .= "ADD CONSTRAINT $constraint";
         return $this;
     }
 
@@ -333,7 +333,7 @@ class AlterOption extends DataType
      */
     public function dropForeignKey(string $constraint) : static
     {
-        $this->data = "DROP FOREIGN KEY $constraint";
+        $this->data .= "DROP FOREIGN KEY $constraint";
         return $this;
     }
 
@@ -346,8 +346,18 @@ class AlterOption extends DataType
     public function renameTo($new_name) : static
     {
         $prefix = env('DB_TABLE_PREFIX', '');
-        $this->data = "RENAME TO $prefix{$new_name}";
+        $this->data .= "RENAME TO $prefix{$new_name}";
         return $this;
+    }
+
+    /**
+     * Add delimiter
+     * 
+     * @return void
+     */
+    public function end() : void
+    {
+        $this->data .= ', ';
     }
 
     /**
