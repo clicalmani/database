@@ -103,6 +103,17 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
+     * Gets the query result
+     * 
+     * @param ?string $fields SQL select statement.
+     * @return \Clicalmani\Fundation\Collection\Collection
+     */
+    public function select(?string $fields = '*') : Collection
+    {
+        return $this->get($fields);
+    }
+
+    /**
      * Instead of returning a raw SQL statement result, every row in the result set will be
      * matched to a table model.
      * 
@@ -136,13 +147,19 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
             $this->query->set('where', $this->getKeySQLCondition( count( $this->query->getParam('tables') ) > 1 ? true: false ));
         }
 
+        // Save params
+        $params = $this->query->params;
+        
         // Before delete boot
-        $this->triggerEvent('before_delete');
+        $this->emit('before_delete');
+
+        // Restore params
+        $this->query->params = $params;
         
         $success = $this->query->delete()->exec()->status() == 'success';
 
         // After delete boot
-        $this->triggerEvent('after_delete');
+        $this->emit('after_delete');
 
         return $success;
     }
@@ -198,7 +215,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if ( !empty( $criteria ) ) {
 
             if (FALSE === $this->isEmpty()) {
-                $this->triggerEvent('before_update');
+                $this->emit('before_update');
 
                 /** @var array */
                 $data = $this->getData();
@@ -242,7 +259,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
             // Restore state
             $this->query->set('type', DBQuery::SELECT);
             
-            if (FALSE === $this->isEmpty()) $this->triggerEvent('after_update'); 
+            if (FALSE === $this->isEmpty()) $this->emit('after_update'); 
             
             return $success;
         } 
@@ -256,19 +273,19 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param array $fields Row attributes values
      * @return bool True on success, false on failure
      */
-    public function insert(array $fields = []) : bool
+    public function insert(array $fields = [], ?bool $replace = false) : bool
     {
         if (empty($fields)) return false;
         
         // Before create boot
-        $this->triggerEvent('before_create');
+        $this->emit('before_create');
 
         // Update data
         $data = $this->getData();
         if (array_key_exists('in', $data)) $fields = [$data['in']];
         
         $this->query->unset('tables');
-        $this->query->set('type', DBQuery::INSERT);
+        $this->query->set('type', (FALSE === $replace) ? DBQuery::INSERT: DBQuery::REPLACE);
         $this->query->set('table', $this->getTable());
         $this->query->set('ignore', $this->insert_ignore); // Set SQL IGNORE flag
 
@@ -312,7 +329,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         
         if (NULL !== $this->id) {
             // After create boot
-            $this->triggerEvent('after_create');
+            $this->emit('after_create');
         }
         
         return $success;
@@ -570,12 +587,8 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
                 $obj->orderBy($options->order_by);
             }
 
-            if (@ $options?->offset) {
-                $obj->offset($options->offset);
-            }
-
-            if (@ $options?->limit) {
-                $obj->limit($options->limit);
+            if (NULL !== @ $options?->offset && @ $options?->limit) {
+                $obj->limit(@ $options?->offset, $options->limit);
             }
             
             return $obj->fetch();
@@ -776,7 +789,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
 
-    public function triggerEvent(string $event, mixed $data = null): void
+    public function emit(string $event, mixed $data = null): void
     {
         if ( $handler = @ $this->eventHandlers[$event] ) {
 
@@ -811,7 +824,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
                 
                 foreach ($listeners as $listener) {
                     if ( is_callable($listener) ) $listener($event, $data);
-                    else instance($listener, fn($inst) => $inst->listener($event, $data));
+                    else instance($listener, fn($inst) => $inst->handler($event, $data));
                 }
             }
 

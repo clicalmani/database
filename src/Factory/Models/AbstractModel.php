@@ -136,13 +136,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     abstract protected function boot() : void;
 
     /**
-     * Trigger event
+     * Emit event
      * 
      * @param string $event Event name
      * @param mixed $data Event data
      * @return void
      */
-    abstract protected function triggerEvent(string $event, mixed $data = null) : void;
+    abstract protected function emit(string $event, mixed $data = null) : void;
 
     /**
      * Constructor
@@ -379,11 +379,22 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $entity = $this->getEntity();
         $entity->setModel($this);
 
+        $seemsJson = function(string $name, mixed &$value) use($entity) {
+            try {
+                $type = $entity->getPropertyType($name);
+
+                if ($type === \Clicalmani\Database\DataTypes\Json::class) {
+                    $value = (new $type)->decode($value);
+                }
+            } catch (\Exception $e) {}
+        };
+
         // Attributes
         $data = [];
         foreach ($row as $name => $value) {
             $entity->setAccess(Entity::READ_RECORD);
             $attribute = $entity->getAttribute($name);
+            $seemsJson($name, $value);
             $attribute->value = $value;
 
             if ($attribute->isHidden()) continue;
@@ -395,11 +406,10 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         // Custom attributes
         $data2 = [];
 
-        $entity = $this->getEntity();
-
         foreach ($this->custom as $name) {
             $entity->setAccess(Entity::READ_RECORD);
             $attribute = $entity->getAttribute($name);
+            $seemsJson($name, $value);
             $attribute->value = $value;
 
             $data2[$name] = $attribute->getCustomValue();
@@ -439,7 +449,17 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
              */
             $this->query->set('join', $joint);
             
-            if ($row = $collection->first()) return $row[$name];
+            if ($row = $collection->first()) {
+
+                $value = $row[$name];
+                $type = $entity->getPropertyType($name);
+
+                if ($type === \Clicalmani\Database\DataTypes\Json::class) {
+                    $value = (new $type)->decode($value);
+                }
+                
+                return $value;
+            }
     
             return null;
         } catch (\PDOException $e) {

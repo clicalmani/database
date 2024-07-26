@@ -96,6 +96,13 @@ class DBQuery extends DB
 	const UNLOCK_TABLE = 9;
 
 	/**
+	 * Replace flag
+	 * 
+	 * @var int 10
+	 */
+	const REPLACE = 10;
+
+	/**
 	 * Builder
 	 * 
 	 * @var \Clicalmani\Database\DBQueryBuilder
@@ -230,6 +237,11 @@ class DBQuery extends DB
 				$this->builder = new Unlock($this->params, $this->options);
 				$this->builder->query();
 				break;
+
+			case static::REPLACE:
+				$this->builder = new Replace($this->params, $this->options);
+				$this->builder->query();
+				break;
 		}
 
 		return $this->builder;
@@ -280,9 +292,10 @@ class DBQuery extends DB
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
+	 * @param ?bool $replace Run REPLACE query if record exists
 	 * @return bool true on success, false on failure
 	 */
-	public function insert(array $options = []) : bool
+	public function insert(array $options = [], ?bool $replace = false) : bool
 	{
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
 
@@ -301,7 +314,7 @@ class DBQuery extends DB
 			$this->params['values'][] = $values;
 		}
 
-		$this->set('query', self::INSERT); 
+		$this->set('query', (FALSE === $replace) ? self::INSERT: self::REPLACE); 
 		
 		return $this->exec()->status() === 'success';
 	}
@@ -323,6 +336,7 @@ class DBQuery extends DB
 	/**
 	 * Insert new record or update the existing one
 	 * 
+	 * @deprecated
 	 * @param array $options
 	 * @return void
 	 */

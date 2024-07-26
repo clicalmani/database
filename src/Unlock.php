@@ -16,7 +16,7 @@ class Unlock extends DBQueryBuilder implements \IteratorAggregate
 	{ 
 		parent::__construct($params, $options);
 		
-		$this->sql = 'ALTER TABLE ' . $this->params['table'] . ' ENABLE KEYS; ';
+		$this->sql = 'ALTER TABLE ' . $this->db->getPrefix() . $this->params['table'] . ' ENABLE KEYS; ';
         $this->sql .= 'UNLOCK TABLES;';
 	}
 	

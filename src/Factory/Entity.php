@@ -184,7 +184,7 @@ abstract class Entity
                     });
                 }
 
-                $type = $this->getPropertyClass($name);
+                $type = $this->getPropertyType($name);
                 $args = [];
 
                 // Whether property is a primary key
@@ -212,7 +212,13 @@ abstract class Entity
                 }
 
                 if ( is_subclass_of($type, DataType::class) ) {
+
                     $property = new $type( ...$args );
+
+                    if ($type === \Clicalmani\Database\DataTypes\Json::class) {
+                        $value = $property->encode($value);
+                    }
+
                     $property->value = $value;
                     
                     if (TRUE === $is_primary_key) $property->primary();
@@ -231,9 +237,15 @@ abstract class Entity
         
     }
 
-    private function getPropertyClass(string $name)
+    public function getPropertyType(string $name)
     {
-        return ( new \ReflectionProperty($this, $name) )->getType()->getName();
+        $property = ( new \ReflectionProperty($this, $name) );
+
+        if (property_exists($this, $name) && $property->hasType()) {
+            return $property->getType()->getName();
+        }
+        
+        throw new \Exception();
     }
 
     /**
@@ -277,7 +289,7 @@ abstract class Entity
 
         foreach (( new \ReflectionClass($this) )->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
             $name = $property->getName();
-            $class = $this->getPropertyClass($name);
+            $class = $this->getPropertyType($name);
 
             if ( is_subclass_of($class, DataType::class) ) {
 
@@ -337,7 +349,7 @@ abstract class Entity
                 $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use(&$definition) {
                     $instance =  $attribute->newInstance();
                     $index = new Index($instance->name);
-                    $index = $index->key($instance->key);
+                    $index = $index->key(...explode(',', $instance->key));
 
                     if ($instance->unique) $index = $index->unique();
                     else $index = $index->index();

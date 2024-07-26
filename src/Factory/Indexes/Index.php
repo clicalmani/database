@@ -199,7 +199,8 @@ class Index extends IndexType
             $key .= ' (';
 
             foreach ($this->keys as $index => $k) {
-                if ($index < count($this->keys) - 1) $key .= "`$key`, ";
+                $k = trim($k);
+                if ($index < count($this->keys) - 1) $key .= "`$k`, ";
                 else $key .= "`$k`";
             }
 

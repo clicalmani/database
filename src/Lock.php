@@ -16,8 +16,8 @@ class Lock extends DBQueryBuilder implements \IteratorAggregate
 	{ 
 		parent::__construct($params, $options);
 		
-		$this->sql = 'LOCK TABLES ' . $this->params['table'] . ' WRITE; ';
-		$this->sql .= 'ALTER TABLE ' . $this->params['table'] . ' DISABLE KEYS;';
+		$this->sql = 'LOCK TABLES ' . $this->db->getPrefix() . $this->params['table'] . ' WRITE; ';
+		$this->sql .= 'ALTER TABLE ' . $this->db->getPrefix() . $this->params['table'] . ' DISABLE KEYS;';
 	}
 	
 	/**
