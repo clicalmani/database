@@ -22,28 +22,35 @@ abstract class DB
 	 * 
 	 * @var static
 	 */
-	static private $instance;
+	private static $instance;
 
 	/**
 	 * Stores PDO instance
 	 * 
 	 * @var \PDO
 	 */
-	static private $pdo;
+	private static $pdo;
 
 	/**
 	 * Database tables prefix
 	 * 
 	 * @var string
 	 */
-	static private $prefix;
+	private static $prefix;
 
 	/**
 	 * Toggle query log
 	 * 
 	 * @var bool
 	 */
-	static private $logQuery = false;
+	private static $logQuery = false;
+
+	/**
+	 * DB config
+	 * 
+	 * @var array
+	 */
+	private static $db_config;
 	
 	/**
 	 * Stores database connections
@@ -56,17 +63,46 @@ abstract class DB
 	 * Returns a database connection by specifying the driver as argument.
 	 * 
 	 * @param ?string $driver Database driver
-	 * @return \PDO Object
+	 * @return \PDO|null Object
 	 */
-	public function getConnection(?string $driver = '') 
-	{ 
-		if ($driver === '') {
-			return static::$pdo ? static::$pdo : null;
+	public static function getConnection(?string $driver = '') : \PDO|null
+	{
+		/** @var array<string|array> */
+		static::$db_config = require_once config_path( '/database.php' );
+
+		if (static::$pdo) {
+			return static::$pdo;
 		} 
 
-		/**
-		 * Driver provided
-		 */
+		if ($driver !== '' && $db_config = @static::$db_config['connections'][$driver]) {
+			try {
+				static::$pdo = new PDO(
+					$db_config['driver'] . ':host=' . $db_config['host'] . ':' . $db_config['port'] . ';dbname=' . $db_config['name'],
+					$db_config['user'],
+					$db_config['pswd'],
+					[
+						PDO::ATTR_PERSISTENT => true,
+						PDO::ATTR_EMULATE_PREPARES => false
+					]
+				);
+	
+				if (isset($db_config['charset']) && isset($db_config['collation'])) {
+					/**
+					 * Set default collation and character set
+					 */
+					static::$pdo->query('SET NAMES ' . $db_config['charset']);
+					static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . $db_config['charset'] . ' COLLATION ' . $db_config['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . $db_config['name'] . '"');
+				}
+				
+				static::$prefix = @$db_config['prefix'] ?? '';
+	
+				return static::$pdo;
+			} catch(\PDOException $e) {
+				die($e->getMessage());
+			}
+		}
+
+		return null;
 	}
 	
 	/**
@@ -96,16 +132,16 @@ abstract class DB
 	 * 
 	 * @return \PDO instance
 	 */
-	public static function getPdo() {
-		if ( isset(static::$pdo) ) return static::$pdo;
-		
-		/** @var array<string|array> */
-		$db_config = require_once config_path( '/database.php' );
+	public static function getPdo() 
+	{
+		static::$pdo = static::getConnection();
+
+		if ( NULL !== static::$pdo ) return static::$pdo;
 		
 		try {
 
 			/** @var array<string> */
-			$db_default = $db_config['connections'][$db_config['default']];
+			$db_default = static::$db_config['connections'][static::$db_config['default']];
 			
 			static::$pdo = new PDO(
 				$db_default['driver'] . ':host=' . $db_default['host'] . ':' . $db_default['port'] . ';dbname=' . $db_default['name'],
@@ -129,6 +165,17 @@ abstract class DB
 		} catch(\PDOException $e) {
 			die($e->getMessage());
 		}
+	}
+
+	/**
+	 * Set PDO
+	 * 
+	 * @param \PDO $pdo
+	 * @return void
+	 */
+	public static function setPdo(\PDO $pdo) : void
+	{
+		static::$pdo = $pdo;
 	}
 	
 	/**

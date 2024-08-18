@@ -366,42 +366,29 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * In pratice a model can be joined to another model. But in particular situation, one may be aiming to join
      * the current model to a sub query (as this is possible with SQL). So this method allows such an operation.
      * 
-     * @param string $query_callback
-     * @param ?array $options
+     * @param string|callable $callback
      * @return static
      */
-    public function subQuery(string|callable $query_callback, ?array $options = []) : static
+    public function subQuery(string|callable $callback) : static
     {
-        if ( is_string($query_callback) ) $this->query->set('sub_query', $query_callback);
-        else {
+        /** @var \Clicalmani\Database\Factory\Models\JoinInterface */
+        $join = $callback(new \Clicalmani\Database\Factory\Models\Join);
 
-            if ( array_diff(['join', 'alias', 'condition', 'subfields'], array_keys($options)) ) throw new \Exception(
-                sprintf("Invalid option provided for %s::%s function", $this::class, 'subQuery()')
-            );
+        if (!$join->getCondition()) throw new \Exception(
+            sprintf("Expected join condition, got %s in %s at %d", $join->getCondition(), __CLASS__, __LINE__)
+        );
 
-            /** @var \Clicalmani\Database\Factory\Models\Model */
-            $model = $query_callback();
-            $model->get($options['subfields'] ?? '*');
-            $builder = $model->getQuery()->getBuilder();
-            $sql = $builder->getSQL();
+        $join->getQuery()->get($join->getFields());
+        $joints = $this->query->getParam('join') ?? [];
 
-            $joints = $this->query->getParam('join') ?? [];
+        $joints[] = [
+            'sub_query' => $join->getQuery()->getQuery()->getBuilder()->getSQL(),
+            'type'      => strtoupper($join->getType()),
+            'alias'     => $join->getAlias(),
+            'criteria'  => $join->getCondition()
+        ];
 
-            $joints[] = [
-                'sub_query' => $sql,
-                'type' => $options['join'],
-                'alias' => $options['alias'],
-                'criteria' => $options['condition']
-            ];
-
-            $this->query->set('join', $joints);
-            // $this->query->set('sub_query', "{$options['join']} ($sql) {$options['alias']} {$options['condition']}");
-
-            unset($query);
-            unset($builder);
-            unset($sql);
-            unset($joint);
-        }
+        $this->query->set('join', $joints);
 
         return $this;
     }
