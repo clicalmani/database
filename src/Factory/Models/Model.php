@@ -71,9 +71,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * Return the model instance. Usefull for static methods call.
      * 
      * @param string|array $id [optional] Primary key value
-     * @return static|null
+     * @return static
      */
-    private static function getInstance(string|array $id = null) : static|null
+    private static function getInstance(string|array $id = null) : static
     {
         $class = static::getClassName();
         return with ( new $class($id) );
@@ -661,6 +661,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this;
     }
 
+    public function top(int $row_count) : static
+    {
+        return $this->limit(0, $row_count);
+    }
+
     public function ignore(bool $ignore = true) : static
     {
         $this->insert_ignore = $ignore;
@@ -771,6 +776,8 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     private function registerEvent(string $event, callable $callback): void
     {
+        $handler = null;
+        
         if (static::$triggerEvents AND $callback AND is_callable($callback, true, $handler)) {
             $this->eventHandlers[$event] = $callback;
         }

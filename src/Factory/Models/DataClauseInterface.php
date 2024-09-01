@@ -71,4 +71,12 @@ interface DataClauseInterface
      * @return static
      */
     public function limit(?int $offset = 0, ?int $row_count = 1) : static;
+
+    /**
+     * Fetch the top n results
+     * 
+     * @param int $row_count Row count
+     * @return static
+     */
+    public function top(int $row_count) : static;
 }
