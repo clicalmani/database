@@ -12,8 +12,8 @@ use Clicalmani\Database\Factory\PrimaryKey;
 use Clicalmani\Database\Factory\Property;
 use Clicalmani\Database\Factory\Models\Attribute;
 use Clicalmani\Database\Factory\Models\Model;
-use Clicalmani\Fundation\Support\Facades\Log;
-use Clicalmani\Fundation\Validation\InputValidator;
+use Clicalmani\Foundation\Support\Facades\Log;
+use Clicalmani\Foundation\Validation\InputValidator;
 
 abstract class Entity 
 {

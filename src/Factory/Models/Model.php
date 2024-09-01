@@ -1,17 +1,17 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Fundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Factory;
 use Clicalmani\Database\Factory\Models\Events\Event;
-use Clicalmani\Fundation\Exceptions\ModelException;
+use Clicalmani\Foundation\Exceptions\ModelException;
 
 /**
  * Class Model
  * 
- * @package Clicalmani\Fundation
+ * @package Clicalmani\Foundation
  * @author @clicalmani
  */
 class Model extends AbstractModel implements DataClauseInterface, DataOptionInterface
@@ -83,7 +83,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * Gets the query result
      * 
      * @param ?string $fields SQL select statement.
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     public function get(?string $fields = '*') : Collection
     {
@@ -106,7 +106,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * Gets the query result
      * 
      * @param ?string $fields SQL select statement.
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     public function select(?string $fields = '*') : Collection
     {
@@ -118,7 +118,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * matched to a table model.
      * 
      * @param ?string $class Model class to be returned. If not specified the outer left table model of the joint will be used.
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     public function fetch(?string $class = null) : Collection
     {
@@ -433,7 +433,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param string $class Child model
      * @param string $foreign_key [Optional] Table foreign key
      * @param string $original_key [Optional] Original key
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     protected function hasMany(string $class, ?string $foreign_key = null, ?string $original_key = null) : Collection
     {
@@ -525,7 +525,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     /**
      * Returns all rows from the query statement result
      * 
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     public static function all() : Collection
     {
@@ -544,7 +544,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param array $exclude Parameters to exclude
      * @param array $options Options can be used to order the result set by specifics request parameters or limit the 
      *  number of rows to be returned in the result set.
-     * @return \Clicalmani\Fundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\Collection
      */
     public static function filter(array $exclude = [], array $options = []) : Collection
     {
@@ -558,7 +558,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
          * test_user_id holds the request user ID in test mode.
          * and hash is used for url encryption.
          */
-        $filters     = with (new \Clicalmani\Fundation\Http\Requests\Request)->where(array_merge($exclude, ['test_user_id', 'hash']));
+        $filters     = with (new \Clicalmani\Foundation\Http\Requests\Request)->where(array_merge($exclude, ['test_user_id', 'hash']));
         $child_class = static::getClassName();
 
         $criteria = '1';

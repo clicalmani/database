@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Fundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
@@ -251,7 +251,7 @@ class DBQuery extends DB
 	 * Alias of get
 	 * 
 	 * @see DBQuery::get() method
-	 * @return \Clicalmani\Fundation\Collection\Collection
+	 * @return \Clicalmani\Foundation\Collection\Collection
 	 */
 	public function select(string $fields = '*') : Collection
 	{
@@ -465,7 +465,7 @@ class DBQuery extends DB
 	 * the unique argument.
 	 * 
 	 * @param string $fields a list of request fields separated by comma.
-	 * @return \Clicalmani\Fundation\Collection\Collection
+	 * @return \Clicalmani\Foundation\Collection\Collection
 	 */
 	public function get(string $fields = '*') : Collection
 	{
@@ -483,7 +483,7 @@ class DBQuery extends DB
 	/**
 	 * Fetch all rows in a query result set.
 	 * 
-	 * @return \Clicalmani\Fundation\Collection\Collection
+	 * @return \Clicalmani\Foundation\Collection\Collection
 	 */
 	public function all() : Collection
 	{
