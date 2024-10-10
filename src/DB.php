@@ -107,7 +107,7 @@ abstract class DB
 	
 	/**
 	 * Returns the default database table prefix
-	 * 
+	 * oui
 	 * @return string Database table prefix
 	 */
 	public function getPrefix() { return static::$prefix; }
