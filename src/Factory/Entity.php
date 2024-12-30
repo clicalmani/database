@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
+use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\AlterOption;
 use Clicalmani\Database\Factory\DataTypes\DataType;
@@ -289,6 +290,7 @@ abstract class Entity
 
         foreach (( new \ReflectionClass($this) )->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
             $name = $property->getName();
+            $default_value = $property->getDefaultValue();
             $class = $this->getPropertyType($name);
 
             if ( is_subclass_of($class, DataType::class) ) {
@@ -305,7 +307,7 @@ abstract class Entity
                         $args = $attribute->newInstance()->args;
                     });
                 }
-
+                // if (NULL !== $default_value) $args['default'] = $default_value; // Default value
                 $type = new $class( ...$args );
 
                 /**
@@ -431,10 +433,12 @@ abstract class Entity
     /**
      * Drop entity
      * 
+     * @param ?bool $foreign_key_check Check foreign key constraint
      * @return bool TRUE on success, FALSE otherwise.
      */
-    public function drop() : bool
+    public function drop(?bool $foreign_key_check = true) : bool
     {
+        // if ($foreign_key_check) DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
         return with( new Maker($this->model->getTable(), Maker::DROP_TABLE_IF_EXISTS) )->make();
     }
 

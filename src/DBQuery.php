@@ -6,8 +6,6 @@ use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
 
-use function PHPUnit\Framework\stringContains;
-
 /**
  * Database query
  * 

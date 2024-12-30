@@ -84,6 +84,76 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	    	$this->result->add($row);
 		}
 	}
+
+	private function paginer(int $range, int $limit) {
+		extract($this->db->fetch($this->db->query('SELECT FOUND_ROWS() AS num_rows'), \PDO::FETCH_ASSOC));
+		$GLOBALS['num_rows'] = $num_rows;
+		$page_links = '<div>';
+		
+		if($num_rows > $limit) {
+			if(isset($_GET['page'])) {
+				$page = $_GET['page'];
+			} else {
+				$page = 1;
+			}
+			
+			$currpage = $_SERVER['PHP_SELF']; 
+
+			$currpage = str_replace("?page=$page", '', $currpage);
+			
+			if($page == 1) {
+				$page_links .= '&laquo; PREV';
+			} else {
+				$page_links .= "<a href='" . $currpage . "'&page=' . ($page - 1) . '>&laquo; PREV</a>";
+			}
+			
+			$num_of_pages = ceil($num_rows/$limit);
+			
+			$lrange = max(1, $page - (($range - 1) / 2));
+			$rrange = min($num_of_pages, $page + (($range - 1) / 2));
+	
+	
+			if(($rrange - $lrange) < ($range - 1)) {
+				if($lrange == 1) {
+					$rrange = min($lrange + ($range - 1), $num_of_pages);
+				} else {
+					$lrange = max($rrange - ($range - 1), 0);
+				}
+			}
+			
+			if($lrange > 1) {
+				$page_links .= "<a href='" . $currpage . "?page=1'>1</a>..";
+			} else {
+				$page_links .= '&nbsp;&nbsp;';
+			}
+			
+			for($i = 1; $i <= $num_of_pages; $i++) {
+				if($i == $page) {
+					$page_links .= $i;
+				} else {
+					if($lrange <= $i && $i <= $rrange) {
+						$page_links .= "<a href='" . $currpage . "?page=$i'>" . $i . "</a>";
+					}
+				}
+			}
+			
+			if($rrange < $num_of_pages) {
+				$page_links .= "..<a href='" . $currpage . "?page=$num_of_pages'>" . $num_of_pages . "</a>";
+			} else {
+				$page_links .= '&nbsp;&nbsp;';
+			}
+			
+			if(($num_rows - ($limit * $page)) > 0) {
+				$page_links .= "<a href='" . $currpage . "?page=" . ($page + 1) . "'>NEXT &raquo;</a>";
+			} else {
+				$page_links .= 'NEXT &raquo;';
+			}
+		} else {
+			$page_links .= '&laquo; PREV&nbsp;&nbsp;1&nbsp;&nbsp;NEXT &raquo;&nbsp;&nbsp;';
+		}
+		
+		return $page_links .= "</div>";
+	}
 	
 	/**
 	 * Get iterator

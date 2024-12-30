@@ -14,8 +14,6 @@ class Json extends DataType
         if (TRUE === @ $parameters['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
-
         if ($comment = @ $parameters['comment']) $this->comment($comment);
 
         $this->config = \App\Providers\AppServiceProvider::getAppConfig();

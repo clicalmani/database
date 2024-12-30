@@ -73,7 +73,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param string|array $id [optional] Primary key value
      * @return static
      */
-    private static function getInstance(string|array $id = null) : static
+    private static function getInstance($id = null) : static
     {
         $class = static::getClassName();
         return with ( new $class($id) );
