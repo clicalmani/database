@@ -3,7 +3,7 @@ namespace Clicalmani\Database;
 
 use Clicalmani\Foundation\Support\Facades\Log;
 use PDO;
-use \PDOStatement;
+use PDOStatement;
 
 /**
  * Database abstraction class
@@ -53,13 +53,6 @@ abstract class DB
 	private static $db_config;
 	
 	/**
-	 * Stores database connections
-	 * 
-	 * @var ?array
-	 */
-	private $cons = [];
-	
-	/**
 	 * Returns a database connection by specifying the driver as argument.
 	 * 
 	 * @param ?string $driver Database driver
@@ -68,38 +61,14 @@ abstract class DB
 	public static function getConnection(?string $driver = '') : \PDO|null
 	{
 		/** @var array<string|array> */
-		static::$db_config = require_once config_path( '/database.php' );
+		static::$db_config = \Clicalmani\Foundation\Support\Facades\Config::database();
 
 		if (static::$pdo) {
 			return static::$pdo;
 		} 
 
-		if ($driver !== '' && $db_config = @static::$db_config['connections'][$driver]) {
-			try {
-				static::$pdo = new PDO(
-					$db_config['driver'] . ':host=' . $db_config['host'] . ':' . $db_config['port'] . ';dbname=' . $db_config['name'],
-					$db_config['user'],
-					$db_config['pswd'],
-					[
-						PDO::ATTR_PERSISTENT => true,
-						PDO::ATTR_EMULATE_PREPARES => false
-					]
-				);
-	
-				if (isset($db_config['charset']) && isset($db_config['collation'])) {
-					/**
-					 * Set default collation and character set
-					 */
-					static::$pdo->query('SET NAMES ' . $db_config['charset']);
-					static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . $db_config['charset'] . ' COLLATION ' . $db_config['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . $db_config['name'] . '"');
-				}
-				
-				static::$prefix = @$db_config['prefix'] ?? '';
-	
-				return static::$pdo;
-			} catch(\PDOException $e) {
-				die($e->getMessage());
-			}
+		if ($driver !== '' && @static::$db_config['connections'][$driver]) {
+			return self::getPdo();
 		}
 
 		return null;
@@ -168,7 +137,7 @@ abstract class DB
 	}
 
 	/**
-	 * Set PDO
+	 * Set PDO instance
 	 * 
 	 * @param \PDO $pdo
 	 * @return void
@@ -179,12 +148,14 @@ abstract class DB
 	}
 	
 	/**
-	 * Execute a database query
+	 * Execute a SQL query
 	 * 
-	 * @param string $sql SQL command structure
+	 * @param string $sql SQL statement
+	 * @param array $options Statement options
+	 * @param array $flags Statement flags
 	 * @return \PDO::Statement
 	 */
-	public function query(string $sql, ?array $options = [], ?array $flags = []) 
+	public function query(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
 	{
 		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
@@ -193,7 +164,7 @@ abstract class DB
 	} 
 
 	/**
-	 * Enable SQL log
+	 * Enable query log
 	 * 
 	 * @return void
 	 */
@@ -214,7 +185,7 @@ abstract class DB
 	}
 	
 	/**
-	 * Fetch a result set by returning an associative array
+	 * Fetch a result set by returning an associative array.
 	 * 
 	 * @param \PDO::Statement $statement
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
@@ -227,7 +198,8 @@ abstract class DB
 	}
 	
 	/**
-	 * Fetch a result set by returning a numeric indexed array.
+	 * Fetch the first row from a result set.
+	 * 
 	 * @param \PDO::Statement $statement
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.

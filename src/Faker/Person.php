@@ -75,4 +75,19 @@ trait Person
 
         return $ret;
     }
+
+    /**
+     * Generate a random person
+     * 
+     * @return array
+     */
+    public static function person() : array
+    {
+        return [
+            'name' => self::name(),
+            'email' => self::email(),
+            'phone' => self::phone(),
+            'address' => self::address()
+        ];
+    }
 }

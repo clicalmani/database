@@ -94,4 +94,16 @@ class Faker
     {
         return self::date($min_year, $max_year);
     }
+
+    /**
+     * Pick a random element from an array.
+     * 
+     * @param ?int $min_year
+     * @param ?int $max_year
+     * @return string
+     */
+    public static function randomElement(array $array) : mixed
+    {
+        return $array[array_rand($array)];
+    }
 }

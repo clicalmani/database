@@ -55,4 +55,14 @@ class Sequence implements \Countable
     {
         return tap(nocall( $this->sequence[$this->index % $this->count] ), fn() => $this->index = $this->index + 1);
     }
+
+    /**
+     * Get the next sequence
+     * 
+     * @return mixed
+     */
+    public function next() : mixed
+    {
+        return $this->__invoke();
+    }
 }

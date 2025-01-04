@@ -3,8 +3,6 @@ namespace Clicalmani\Database;
 
 use Clicalmani\Foundation\Collection\Collection;
 
-use function PHPUnit\Framework\isEmpty;
-
 /**
  * Class Database Query Builder
  * 
@@ -162,7 +160,6 @@ abstract class DBQueryBuilder
 		);
 		
 		foreach ($bindings as $key => $value) {
-			
 			$this->sql = str_replace($key, $value, $this->sql);
 		}
 	}
@@ -182,7 +179,7 @@ abstract class DBQueryBuilder
 	public function hasResult() : bool { return $this->num_rows > 0; }
 	
 	/**
-	 * Gets the SQL result
+	 * Gets the query result set.
 	 * 
 	 * @return \Clicalmani\Foundation\Collection\Collection
 	 */
@@ -350,4 +347,18 @@ abstract class DBQueryBuilder
 	{ 
 		return $this->error_msg;
 	}
+
+	/**
+	 * Number of affected rows
+	 * 
+	 * @return int
+	 */
+	public function affectedRows() : int { return $this->num_rows; }
+
+	/**
+	 * Get the last error code
+	 * 
+	 * @return int
+	 */
+	public function errno() : int { return $this->error_code; }
 }

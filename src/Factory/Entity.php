@@ -1,7 +1,6 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\AlterOption;
 use Clicalmani\Database\Factory\DataTypes\DataType;
@@ -436,9 +435,9 @@ abstract class Entity
      * @param ?bool $foreign_key_check Check foreign key constraint
      * @return bool TRUE on success, FALSE otherwise.
      */
-    public function drop(?bool $foreign_key_check = true) : bool
+    public function drop(?bool $foreign_key_check = false) : bool
     {
-        // if ($foreign_key_check) DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
+        if ($foreign_key_check) \Clicalmani\Database\DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
         return with( new Maker($this->model->getTable(), Maker::DROP_TABLE_IF_EXISTS) )->make();
     }
 
@@ -457,6 +456,13 @@ abstract class Entity
         );
     }
 
+    /**
+     * Use attribute
+     * 
+     * @param \ReflectionAttribute $attribute
+     * @param callable $callback
+     * @return void
+     */
     private function useAttribute(\ReflectionAttribute $attribute, callable $callback)
     {
         $callback($attribute);
@@ -503,5 +509,47 @@ abstract class Entity
         $fh = fopen(database_path("/migrations/$dump_file.sql"), 'a+');
         fwrite($fh, $sql);
         return fclose($fh);
+    }
+
+    /**
+     * Get entity attributes
+     * 
+     * @return \Clicalmani\Database\Factory\Models\Attribute[]
+     */
+    public function __invoke() : array
+    {
+        return $this->getAttributes();
+    }
+
+    /**
+     * Get attribute by name
+     * 
+     * @param string $name Attribute name
+     * @return \Clicalmani\Database\Factory\Models\Attribute
+     */
+    public function __get(string $name) : Attribute
+    {
+        return $this->getAttribute($name);
+    }
+
+    /**
+     * Property access getter
+     * 
+     * @return int
+     */
+    public function __isset(string $name) : bool
+    {
+        return $this->isWriting($name);
+    }
+
+    /**
+     * Property access setter
+     * 
+     * @param int $access
+     * @return void
+     */
+    public function __set(string $name, mixed $value) : void
+    {
+        $this->setProperty($name, $value);
     }
 }

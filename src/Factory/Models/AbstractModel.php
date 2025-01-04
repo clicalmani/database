@@ -514,4 +514,22 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
             throw new ModelException($error, ModelException::ERROR_3060);
         }
     }
+
+    /**
+     * @param string $name
+     * @return bool
+     */
+    public function __isset(string $name) : bool
+    {
+        return isset($this->{$name});
+    }
+
+    /**
+     * @param string $name
+     * @return void
+     */
+    public function __unset(string $name) : void
+    {
+        unset($this->{$name});
+    }
 }

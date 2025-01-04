@@ -143,4 +143,22 @@ class Index
         $this->onUpdate = $onUpdate;
         $this->onDelete = $onDelete;
     }
+
+    public function __toString() : string
+    {
+        return $this->name;
+    }
+
+    public function __invoke() : array
+    {
+        return [
+            'name' => $this->name,
+            'key' => $this->key,
+            'unique' => $this->unique,
+            'constraint' => $this->constraint,
+            'references' => $this->references,
+            'onUpdate' => $this->onUpdate,
+            'onDelete' => $this->onDelete
+        ];
+    }
 }

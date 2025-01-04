@@ -67,4 +67,26 @@ trait LoremIpsum
     {
         return self::$lipsum->paragraphs($count);
     }
+
+    /**
+     * Lorem Ipsum: generate text
+     * 
+     * @param ?int $count Number of paragraphs to be generated
+     * @return string
+     */
+    public static function text(?int $count = 1) : string
+    {
+        return self::$lipsum->paragraphs($count);
+    }
+
+    /**
+     * Lorem Ipsum: generate a random string
+     * 
+     * @param ?int $length
+     * @return string
+     */
+    public static function string(?int $length = 10) : string
+    {
+        return self::$lipsum->words($length, false, true);
+    }
 }

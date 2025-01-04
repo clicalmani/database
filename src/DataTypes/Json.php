@@ -16,7 +16,7 @@ class Json extends DataType
 
         if ($comment = @ $parameters['comment']) $this->comment($comment);
 
-        $this->config = \App\Providers\AppServiceProvider::getAppConfig();
+        $this->config = \Clicalmani\Foundation\Support\Facades\Config::app();
     }
 
     /**

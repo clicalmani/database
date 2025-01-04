@@ -90,10 +90,10 @@ class Factory
      * @param Sequence $states
      * @return static
      */
-    public function states(Sequence $states) : static
+    public function states(Sequence $seqs) : static
     {
-        foreach (range(1, $states->count) as $num) {  
-            $this->state($states());
+        foreach (range(1, $seqs->count) as $num) {  
+            $this->state($seqs());
         }
 
         return $this;
@@ -141,5 +141,15 @@ class Factory
     public function faker()
     {
         return new \Clicalmani\Database\Faker\Faker;
+    }
+
+    /**
+     * Returns a new sequence
+     * 
+     * @return Sequence
+     */
+    public function sequence()
+    {
+        return new Sequence;
     }
 }

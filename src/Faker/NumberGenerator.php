@@ -39,4 +39,16 @@ trait NumberGenerator
 
         return (float) self::integer($min, $max) . '.' . $decimal_part;
     }
+
+    /**
+     * Generate a random number
+     * 
+     * @param ?int $min
+     * @param ?int $max
+     * @return int
+     */
+    public static function number(?int $min = 0, ?int $max = 100) : int
+    {
+        return self::integer($min, $max);
+    }
 }

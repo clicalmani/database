@@ -131,9 +131,9 @@ class Maker
     }
 
     /**
-     * Table creation engine
+     * Table default engine
      * 
-     * @param string $engine
+     * @param string $engine Default InnoDB
      * @return void
      */
     public function engine(string $engine = 'InnoDB') : void

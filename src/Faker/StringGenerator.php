@@ -47,4 +47,17 @@ trait StringGenerator
         $str = str_pad($str, $length, $str);
         return substr(str_shuffle( $str ), 0, $length);
     }
+
+    /**
+     * Alphanumeric with special characters
+     * 
+     * @param ?int $length Default 10
+     * @return string
+     */
+    public static function alphaNumSpecial(?int $length = 10) : string
+    {
+        $str = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
+        $str = str_pad($str, $length, $str);
+        return substr(str_shuffle( $str ), 0, $length);
+    }
 }

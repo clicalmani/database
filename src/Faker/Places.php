@@ -91,4 +91,50 @@ trait Places
         $arr = explode(',', self::latlng());
         return end($arr);
     }
+
+    /**
+     * Generate a random place
+     * 
+     * @return array
+     */
+    public static function place() : array
+    {
+        return [
+            'country' => self::country(),
+            'city' => self::city(),
+            'address' => self::address(),
+            'lat' => self::lat(),
+            'lon' => self::lon()
+        ];
+    }
+
+    /**
+     * Generate a random place name
+     * 
+     * @return string
+     */
+    public static function placeName() : string
+    {
+        return self::city() . ', ' . self::country();
+    }
+
+    /**
+     * Generate a random place address
+     * 
+     * @return string
+     */
+    public static function placeAddress() : string
+    {
+        return self::address() . ', ' . self::city() . ', ' . self::country();
+    }
+
+    /**
+     * Generate a random place address with latitude and longitude
+     * 
+     * @return string
+     */
+    public static function placeAddressLatLng() : string
+    {
+        return self::address() . ', ' . self::city() . ', ' . self::country() . ' (' . self::lat() . ', ' . self::lon() . ')';
+    }
 }

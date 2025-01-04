@@ -114,10 +114,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
-     * Instead of returning a raw SQL statement result, every row in the result set will be
-     * matched to a table model.
+     * Fetch the result set
      * 
-     * @param ?string $class Model class to be returned. If not specified the outer left table model of the joint will be used.
+     * @param ?string $class [optional] Model class
      * @return \Clicalmani\Foundation\Collection\Collection
      */
     public function fetch(?string $class = null) : Collection
@@ -341,9 +340,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param array $fields Attributes values
      * @return bool True if success, false otherwise
      */
-    public function create(array $fields = []) : bool
+    public function create(array $fields = [], ?bool $replace = false) : bool
     {
-        return $this->insert($fields);
+        return $this->insert($fields, $replace);
     }
 
     /**
