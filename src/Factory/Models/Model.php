@@ -362,37 +362,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
-     * In pratice a model can be joined to another model. But in particular situation, one may be aiming to join
-     * the current model to a sub query (as this is possible with SQL). So this method allows such an operation.
-     * 
-     * @param string|callable $callback
-     * @return static
-     */
-    public function subQuery(string|callable $callback) : static
-    {
-        /** @var \Clicalmani\Database\Factory\Models\JoinInterface */
-        $join = $callback(new \Clicalmani\Database\Factory\Models\Join);
-
-        if (!$join->getCondition()) throw new \Exception(
-            sprintf("Expected join condition, got %s in %s at %d", $join->getCondition(), __CLASS__, __LINE__)
-        );
-
-        $join->getQuery()->get($join->getFields());
-        $joints = $this->query->getParam('join') ?? [];
-
-        $joints[] = [
-            'sub_query' => $join->getQuery()->getQuery()->getBuilder()->getSQL(),
-            'type'      => strtoupper($join->getType()),
-            'alias'     => $join->getAlias(),
-            'criteria'  => $join->getCondition()
-        ];
-
-        $this->query->set('join', $joints);
-
-        return $this;
-    }
-
-    /**
      * The current model inherit a foreign key
      * We should match the model key value to obtain its parent.
      * 
@@ -403,7 +372,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     protected function belongsTo(string $class, string|null $foreign_key = null, string|null $original_key = null) : mixed
     {
-        return ( new $class )->join($this, $foreign_key, $original_key)
+        return ( new $class )->__join($this, $foreign_key, $original_key)
                     ->whereAnd($this->getKeySQLCondition(true))
                     ->fetch()
                     ->first();
@@ -421,7 +390,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     {
         if ( $this->isEmpty() ) return null;
         
-        return $this->join($class, $foreign_key, $original_key)
+        return $this->__join($class, $foreign_key, $original_key)
                     ->fetch($class)
                     ->first();
     }
@@ -439,7 +408,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if ( $this->isEmpty() ) return collection();
         
         return $this->getInstance($this->id)
-                    ->join($class, $foreign_key, $original_key)
+                    ->__join($class, $foreign_key, $original_key)
                     ->fetch($class)
                     ->filter(fn($obj) => !$obj->isEmpty());  // Avoid empty records
     }

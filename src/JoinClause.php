@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-class joinClause
+class JoinClause
 {
     /**
      * ON statement

@@ -4,15 +4,13 @@ namespace Clicalmani\Database\Factory\Models;
 interface Joinable
 {
     /**
-     * Join models
+     * Custom join
      * 
-     * @param string|\Clicalmani\Database\Factory\Models\Model $model Specified model
-     * @param ?string $foreign_key Foreign key
-     * @param ?string $original_key Original key
-     * @param ?string $type Join type default LEFT
+     * @param callable|string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param ?callable $callback A callback function
      * @return static
      */
-    public function join(Model|string $model, string|null $foreign_key = null, string|null $original_key = null, string $type = 'LEFT') : static;
+    public function join(Model|string|callable $model, ?callable $callback = null): static;
 
     /**
      * Left join models

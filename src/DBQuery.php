@@ -519,19 +519,19 @@ class DBQuery extends DB
 	{
 		if (NULL === $callback && is_string($table)) $this->params['tables'][] = $table;
 		else {
-			$clause = new \Clicalmani\Database\joinClause;
+			$clause = new \Clicalmani\Database\JoinClause;
 
 			if ( is_string($table) ) $joint = ['table' => $table];
 
 			if ( is_callable($callback) ) $callback($clause);
 			elseif ( is_callable($table) ) $table($clause);
-
+			
 			if (!empty($clause->on)) $joint['criteria'] = $clause->on;
 			if (isset($clause->type)) $joint['type'] = $clause->type;
 			if (isset($clause->sub_query)) $joint['sub_query'] = $clause->sub_query;
 			if (isset($clause->alias)) $joint['alias'] = $clause->alias;
-
-			$this->params['join'][] = $joint;
+			
+			if (isset($joint)) $this->params['join'][] = $joint;
 		}
 
 		return $this;
@@ -547,7 +547,7 @@ class DBQuery extends DB
 	 */
 	private function __join(string $table, string $parent_id, string $child_id, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
 	{
-		return $this->join($table, function(joinClause $join) use ($parent_id, $is_crossed, $child_id, $type, $operator) {
+		return $this->join($table, function(JoinClause $join) use ($parent_id, $is_crossed, $child_id, $type, $operator) {
 			$join->type($type);
 			if ($is_crossed) $join->on('');
 			else if ($parent_id != $child_id) $join->on($parent_id . $operator . $child_id);
@@ -921,7 +921,7 @@ class DBQuery extends DB
 
 	public function subQuery(string $table, callable $callback) : static
 	{
-		$clause = new joinClause;
+		$clause = new JoinClause;
 		$callback($clause);
 		$joint = ['table' => $table];
 

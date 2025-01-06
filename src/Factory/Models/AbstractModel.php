@@ -307,7 +307,18 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->custom;
     }
 
-    public function join(Model|string $model, string|null $foreign_key = null, string|null $original_key = null, string $type = 'LEFT') : static 
+    public function join(Model|string|callable $model, ?callable $callback = null): static
+    {
+        if (is_string($model)) {
+            /** @var \Clicalmani\Database\Factory\Models\Model */
+            $model = new $model;
+            $this->query->join($model->getTable(true), $callback);
+        } elseif (is_callable($model)) $this->query->join($model);
+        
+        return $this;
+    }
+
+    protected function __join(Model|string $model, string|null $foreign_key = null, string|null $original_key = null, string $type = 'LEFT', ?string $operator = '=') : static 
     {
         $original_key = $original_key ?? $foreign_key;                              // The original key is the parent
                                                                                     // primary key
@@ -343,29 +354,29 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $type = ucfirst(strtolower($type));
 
         if ($type === 'Cross') $this->query->{'join' . $type}($model->getTable(true));
-        else $this->query->{'join' . $type}($model->getTable(true), $foreign_key, $original_key);
+        else $this->query->{'join' . $type}($model->getTable(true), $foreign_key, $original_key, $operator);
 
         return $this;
     }
 
-    public function leftJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null): static
+    public function leftJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
-        return $this->join($model, $foreign_key, $original_key);
+        return $this->__join($model, $foreign_key, $original_key, 'LEFT', $operator);
     }
 
-    public function rightJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null): static
+    public function rightJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
-        return $this->join($model, $foreign_key, $original_key, 'RIGHT');
+        return $this->__join($model, $foreign_key, $original_key, 'RIGHT', $operator);
     }
 
-    public function innerJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null): static
+    public function innerJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
-        return $this->join($model, $foreign_key, $original_key, 'INNER');
+        return $this->__join($model, $foreign_key, $original_key, 'INNER', $operator);
     }
 
     public function crossJoin(Model|string $model): static
     {
-        return $this->join($model, null, null, 'CROSS');
+        return $this->__join($model, null, null, 'CROSS');
     }
 
     public function jsonSerialize() : mixed

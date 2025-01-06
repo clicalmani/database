@@ -13,7 +13,7 @@ use Clicalmani\Database\Factory\Property;
 use Clicalmani\Database\Factory\Models\Attribute;
 use Clicalmani\Database\Factory\Models\Model;
 use Clicalmani\Foundation\Support\Facades\Log;
-use Clicalmani\Foundation\Validation\InputValidator;
+use Clicalmani\Foundation\Validation\Validator;
 
 abstract class Entity 
 {
@@ -176,7 +176,7 @@ abstract class Entity
                 if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Validate::class)) {
                     $attribute = $attributes[0];
                     $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use($name, &$value) {
-                        $validator = new InputValidator;
+                        $validator = new Validator;
                         $input = [$name => $value];
                         $validator->sanitize($input, [$name => $attribute->newInstance()->validator]);
                         $validator->passed($name);
