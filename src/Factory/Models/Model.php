@@ -16,6 +16,11 @@ use Clicalmani\Foundation\Exceptions\ModelException;
  */
 class Model extends AbstractModel implements DataClauseInterface, DataOptionInterface
 {
+    use SQLClauses;
+    use SQLCases;
+    use RelationShips;
+    use SQLTriggers;
+
     /**
      * Enable model events trigger
      * 
@@ -26,11 +31,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     public function __construct(array|string|null $id = null)
     {
         parent::__construct($id);
-        
-        /**
-         * Trigger model events
-         */
-        $this->boot();
     }
     
     /**
@@ -80,7 +80,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
-     * Gets the query result
+     * Get the query results.
      * 
      * @param ?string $fields SQL select statement.
      * @return \Clicalmani\Foundation\Collection\Collection
@@ -90,6 +90,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         try {
             if ( !$this->query->getParam('where') AND $this->id) {
                 $this->query->set('where', $this->getKeySQLCondition( $this->isAliasRequired() ));
+            }
+
+            // Exclude soft deleted records from the query results.
+            if ( $this->isSoftDeletable() ) {
+                $this->getQuery()->where('deleted_at IS NULL');
             }
     
             $this->query->set('distinct', $this->select_distinct); // Set SQL DISTINCT flag
@@ -134,6 +139,8 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function delete() : bool
     {
+        if ( $this->isSoftDeletable() ) return $this->softDelete();
+
         if ( $this->isEmpty() ) {
             $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable());
             throw new ModelException($error, ModelException::ERROR_3060);
@@ -170,13 +177,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function forceDelete() : bool
     {
-        if (FALSE === $this->isEmpty()) return $this->delete();
-
         /**
          * A delete operation must be set on a condition.
          * We first check the query where parameter.
          */
-        if (!empty($this->query->params['where'])) return $this->query->delete()->exec()->status() == 'success';
+        if (!empty($this->query->params['where'])) return $this->query->delete()->exec()->status() === 'success';
 
         $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable());
         throw new ModelException($error, ModelException::ERROR_3060);
@@ -189,10 +194,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function softDelete() : bool
     {
-        return DB::getInstance()->beginTransaction(function() {
-            $this->delete();
-            return false;
-        });
+        return  $this->update(['deleted_at' => now()]);
     }
 
     /**
@@ -243,7 +245,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
              * 
              * Verify whether key(s) is/are among the updated attributes
              */
-            collection( (array) $this->clean($this->primaryKey) )
+            collection( (array) $this->cleanKey($this->primaryKey) )
                 ->map(function($pkey, $index) use($record) {
                     if ( array_key_exists($pkey, $record) ) {               // The current key has been updated
                         if ( is_string($this->id) ) {
@@ -346,71 +348,15 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
-     * Same as create with the difference of catching PDOException in case 
-     * the query statement execution failed. Useful when catching the status result.
+     * Create a new record or fail
      * 
-     * @param array $fields Attributes values
-     * @return bool True if success, false otherwise
+     * @param ?array $fields
+     * @param ?bool $replace
+     * @return bool
      */
-    public function createOrFail(array $fields = []) : bool
+    public function createOrFail(array $fields = [], ?bool $replace = false) : bool
     {
-        try {
-            return $this->create($fields);
-        } catch (\PDOException $e) {
-            return false;
-        }
-    }
-
-    /**
-     * The current model inherit a foreign key
-     * We should match the model key value to obtain its parent.
-     * 
-     * @param string $class Parent model
-     * @param string $foreign_key [Optional] Table foreign key
-     * @param string $parent_key [Optional] original key
-     * @return mixed
-     */
-    protected function belongsTo(string $class, string|null $foreign_key = null, string|null $original_key = null) : mixed
-    {
-        return ( new $class )->__join($this, $foreign_key, $original_key)
-                    ->whereAnd($this->getKeySQLCondition(true))
-                    ->fetch()
-                    ->first();
-    }
-
-    /**
-     * One an one relationship: the current model inherit a foreign key
-     * 
-     * @param string $class Parent model
-     * @param string $foreign_key [Optional] Table foreign key
-     * @param string $parent_key [Optional] original key
-     * @return mixed
-     */
-    protected function hasOne(string $class, string|null $foreign_key = null, string|null $original_key = null) : mixed
-    {
-        if ( $this->isEmpty() ) return null;
-        
-        return $this->__join($class, $foreign_key, $original_key)
-                    ->fetch($class)
-                    ->first();
-    }
-
-    /**
-     * One to many relationship
-     * 
-     * @param string $class Child model
-     * @param string $foreign_key [Optional] Table foreign key
-     * @param string $original_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    protected function hasMany(string $class, ?string $foreign_key = null, ?string $original_key = null) : Collection
-    {
-        if ( $this->isEmpty() ) return collection();
-        
-        return $this->getInstance($this->id)
-                    ->__join($class, $foreign_key, $original_key)
-                    ->fetch($class)
-                    ->filter(fn($obj) => !$obj->isEmpty());  // Avoid empty records
+        return DB::getInstance()->beginTransaction(fn() => $this->create($fields, $replace));
     }
 
     /**
@@ -475,6 +421,19 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if ($row = $this->get()->first()) 
             return static::find( $this->guessKeyValue($row) );
 
+        return null;
+    }
+
+    /**
+     * Returns the first value in the selected result or fail.
+     * 
+     * @return static|null
+     */
+    public function firstOr(callable $callback) : static|null
+    {
+        if (NULL !== $row = $this->first()) return $row;
+
+        $callback();
         return null;
     }
     
@@ -577,79 +536,15 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this;
     }
 
-    public static function where(?string $criteria = '1', ?array $options = []) : static
-    {
-        $instance = static::getInstance();
-        $instance->getQuery()->where($criteria, 'AND', $options);
-
-        return $instance;
-    }
-
-    public function whereAnd(?string $criteria = '1', ?array $options = []) : static
-    {
-        $this->query->where($criteria, 'AND', $options);
-        return $this;
-    }
-
-    public function whereOr(string $criteria = '1', ?array $options = []) : static
-    {
-        $this->query->where($criteria, 'OR', $options);
-        return $this;
-    }
-    
-    public function orderBy(string $order) : static
-    {
-        $this->query->params['order_by'] = $order;
-        return $this;
-    }
-
-    public function having(string $criteria) : static
-    {
-        $this->query->having($criteria);
-        return $this;
-    }
-
-    public function groupBy(string $criteria, ?bool $with_rollup = false) : static
-    {
-        if ($with_rollup) $criteria .= ' WITH ROLLUP';
-        $this->query->groupBy($criteria);
-        return $this;
-    }
-
-    public function from(string $fields) : static
-    {
-        $this->query->from($fields);
-        return $this;
-    }
-
-    public function limit(?int $offset = 0, ?int $row_count = 1) : static
-    {
-        $this->query->set('offset', $offset);
-        $this->query->set('limit', $row_count);
-        return $this;
-    }
-
+    /**
+     * Fetch the top $row_count records from the query results set.
+     * 
+     * @param int $row_count
+     * @return static
+     */
     public function top(int $row_count) : static
     {
         return $this->limit(0, $row_count);
-    }
-
-    public function ignore(bool $ignore = true) : static
-    {
-        $this->insert_ignore = $ignore;
-        return $this;
-    }
-
-    public function distinct(bool $distinct = true) : static
-    {
-        $this->select_distinct = $distinct;
-        return $this;
-    }
-    
-    public function calcFoundRows(bool $calc = true) : static
-    {
-        $this->calc_found_rows = $calc;
-        return $this;
     }
 
     /**
@@ -662,77 +557,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return Factory::new();
     }
 
-    /**
-     * Before create trigger
-     * 
-     * @param callable $callback Event handler
-     * @return void
-     */
-    protected function beforeCreate(callable $callback) : void
+    protected function resolveRouteBinding(mixed $value, ?string $field = null) : static|null
     {
-        $this->registerEvent('before_create', $callback);
-    }
-
-    /**
-     * After create trigger
-     * 
-     * @param callable $callback Event handler
-     * @return static
-     */
-    protected function afterCreate(callable $callback) : void
-    {
-        $this->registerEvent('after_create', $callback);
-    }
-
-    /**
-     * Before update trigger
-     * 
-     * @param callable $callback Event handler
-     * @return void
-     */
-    protected function beforeUpdate(callable $callback) : void
-    {
-        $this->registerEvent('before_update', $callback);
-    }
-
-    /**
-     * After update trigger
-     * 
-     * @param callable $callback Event handler
-     * @return void
-     */
-    protected function afterUpdate(callable $callback) : void
-    {
-        $this->registerEvent('after_update', $callback);
-    }
-
-    /**
-     * Before delete trigger
-     * 
-     * @param callable $callback Event handler
-     * @return void
-     */
-    protected function beforeDelete(callable $callback) : void
-    {
-        $this->registerEvent('before_delete', $callback);
-    }
-
-    /**
-     * After delete trigger
-     * 
-     * @param callable $callback Event handler
-     * @return void
-     */
-    protected function afterDelete(callable $callback) : void
-    {
-        $this->registerEvent('after_delete', $callback);
-    }
-
-    protected function boot() : void
-    {
-        /**
-         * TODO
-         */
+        return null;
     }
 
     /**
@@ -749,6 +576,14 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if (static::$triggerEvents AND $callback AND is_callable($callback, true, $handler)) {
             $this->eventHandlers[$event] = $callback;
         }
+    }
+
+    /**
+     * @return bool
+     */
+    private function isSoftDeletable() : bool
+    {
+        return $this->dates && in_array('deleted_at', $this->dates);
     }
 
     public function emit(string $event, mixed $data = null): void

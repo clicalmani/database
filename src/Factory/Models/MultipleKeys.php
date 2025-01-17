@@ -9,7 +9,7 @@ Trait MultipleKeys
      * @param mixed $value Keys to be clean
      * @return mixed cleaned key(s)
      */
-    public function clean(mixed $value) : mixed
+    public function cleanKey(mixed $value) : mixed
     {
         if (!$value) return false;
 
@@ -30,7 +30,7 @@ Trait MultipleKeys
      */
     public function guessKeyValue(array $row)
     {
-        $key = $this->clean( $this->getKey() );
+        $key = $this->cleanKey( $this->getKey() );
         
         if ( is_array($key) ) {
 

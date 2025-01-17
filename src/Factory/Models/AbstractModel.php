@@ -94,6 +94,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $custom = [];
 
     /**
+     * Date attributes
+     * 
+     * @var string[]
+     */
+    protected $dates = [];
+
+    /**
      * Enable or disable table insert warning for duplicate keys.
      * 
      * @var bool Default to false
@@ -133,7 +140,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return void
      */
-    abstract protected function boot() : void;
+    protected abstract function boot() : void;
+
+    /**
+     * Resolve route binding.
+     * 
+     * @return static|null
+     */
+    protected abstract function resolveRouteBinding(mixed $value, ?string $field = null) : static|null;
 
     /**
      * Emit event
@@ -155,17 +169,22 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $this->query = new DBQuery;
 
         $this->query->set('tables', [$this->table]);
+
+        /**
+         * Trigger model events.
+         */
+        $this->boot();
     }
 
     /**
-     * Returns table primary key value
+     * Returns table primary key name.
      * 
      * @param bool $keep_alias When true table alias will be prepended to the key.
      * @return string|array
      */
     public function getKey(bool $keep_alias = false) : string|array
     {
-        if (false == $keep_alias) return $this->clean( $this->primaryKey );
+        if (false == $keep_alias) return $this->cleanKey( $this->primaryKey );
 
         return $this->primaryKey;
     }
@@ -328,8 +347,8 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
          * make sure that there is no alias in the key
          */
         if ($original_key == $foreign_key) {
-            $original_key = $this->clean($original_key);
-            $foreign_key  = $this->clean($foreign_key);
+            $original_key = $this->cleanKey($original_key);
+            $foreign_key  = $this->cleanKey($foreign_key);
         }
 
         if (is_string($model)) {
@@ -427,6 +446,17 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         }
         
         return array_merge($data, $data2);
+    }
+
+    /**
+     * Resolve route binding using a callback.
+     * 
+     * @param \Closure $callback
+     * @return void
+     */
+    public static function resolveRouteBindingUsing(\Closure $callback) : void
+    {
+        \App\Providers\RouteServiceProvider::routeBindingCallback($callback);
     }
 
     /**

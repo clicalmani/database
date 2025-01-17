@@ -1,5 +1,5 @@
 <?php 
-namespace Clicalmani\Database\Factory\Models;
+namespace Clicalmani\Database\Traits;
 
 trait HasFactory
 {

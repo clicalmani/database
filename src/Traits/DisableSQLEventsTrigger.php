@@ -1,7 +1,7 @@
 <?php 
-namespace Clicalmani\Database\Seeders;
+namespace Clicalmani\Database\Traits;
 
-trait DisableEventsTrigger 
+trait DisableSQLEventsTrigger 
 {
     public function __construct()
     {
