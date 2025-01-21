@@ -15,9 +15,14 @@ class Lock extends DBQueryBuilder implements \IteratorAggregate
 	) 
 	{ 
 		parent::__construct($params, $options);
+
+		$lock_type = $this->params['lock_type'] ?? 'WRITE';
 		
-		$this->sql = 'LOCK TABLES ' . $this->db->getPrefix() . $this->params['table'] . ' WRITE; ';
-		$this->sql .= 'ALTER TABLE ' . $this->db->getPrefix() . $this->params['table'] . ' DISABLE KEYS;';
+		$this->sql = 'LOCK TABLES ' . DB::getPrefix() . $this->params['table'] . " $lock_type; ";
+		
+		if ( isset($this->params['disable_keys']) ) {
+			$this->sql .= 'ALTER TABLE ' . DB::getPrefix() . $this->params['table'] . ' DISABLE KEYS; ';
+		}
 	}
 	
 	/**
@@ -27,12 +32,14 @@ class Lock extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() : void
 	{
-		$success = $this->db->execute($this->sql);
+		$success = DB::execute($this->sql);
+
+		$this->dispatch('query');
 		
 		$this->status     = $success;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-		$this->insert_id  = $this->db->insertId();
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
+		$this->insert_id  = DB::insertId();
 
 		$statement = null;
 	}

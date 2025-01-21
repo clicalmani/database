@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Database\Events\QueryTimeTracker;
 use Clicalmani\Foundation\Support\Facades\Log;
 use PDO;
 use PDOStatement;
@@ -51,27 +52,114 @@ abstract class DB
 	 * @var array
 	 */
 	private static $db_config;
+
+	/**
+	 * Database connection
+	 * 
+	 * @var array
+	 */
+	private static $connection;
 	
 	/**
 	 * Returns a database connection by specifying the driver as argument.
 	 * 
 	 * @param ?string $driver Database driver
-	 * @return \PDO|null Object
+	 * @return void
 	 */
-	public static function getConnection(?string $driver = '') : \PDO|null
+	public static function setConnection(?string $driver = '') : void
 	{
 		/** @var array<string|array> */
-		static::$db_config = \Clicalmani\Foundation\Support\Facades\Config::database();
+		static::$db_config = app()->config->database();
+		
+		if ( is_array(static::$db_config) ) {
 
-		if (static::$pdo) {
-			return static::$pdo;
-		} 
+			if ( ! isset(static::$db_config['default']) ) {
+				die('Database default connection not set');
+			}
 
-		if ($driver !== '' && @static::$db_config['connections'][$driver]) {
-			return self::getPdo();
+			if ( ! isset(static::$db_config['connections']) ) {
+				die('Database connections not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]) ) {
+				die('Database default connection not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['driver']) ) {
+				die('Database default connection driver not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['host']) ) {
+				die('Database default connection host not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['port']) ) {
+				die('Database default connection port not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['database']) ) {
+				die('Database default connection database not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['username']) ) {
+				die('Database default connection username not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['password']) ) {
+				die('Database default connection password not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['charset']) ) {
+				die('Database default connection charset not set');
+			}
+
+			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['collation']) ) {
+				die('Database default connection collation not set');
+			}
+
+			if ( empty($driver) ) {
+				static::$connection = static::$db_config['connections'][static::$db_config['default']];
+			} else {
+
+				if ( ! isset(static::$db_config['connections'][$driver]) ) {
+					die('Database connection not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['driver']) ) {
+					die('Database connection driver not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['host']) ) {
+					die('Database connection host not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['port']) ) {
+					die('Database connection port not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['database']) ) {
+					die('Database connection database not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['username']) ) {
+					die('Database connection username not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['password']) ) {
+					die('Database connection password not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['charset']) ) {
+					die('Database connection charset not set');
+				}
+	
+				if ( ! isset(static::$db_config['connections'][$driver]['collation']) ) {
+					die('Database connection collation not set');
+				}
+	
+				static::$connection = static::$db_config['connections'][$driver];
+			}
 		}
-
-		return null;
 	}
 	
 	/**
@@ -79,7 +167,7 @@ abstract class DB
 	 * oui
 	 * @return string Database table prefix
 	 */
-	public function getPrefix() { return static::$prefix; }
+	public static function getPrefix() { return static::$prefix; }
 	
 	/**
 	 * Returns a single database instance.
@@ -103,19 +191,17 @@ abstract class DB
 	 */
 	public static function getPdo() 
 	{
-		static::$pdo = static::getConnection();
+		if ( static::$pdo ) return static::$pdo;
 
-		if ( NULL !== static::$pdo ) return static::$pdo;
+		if ( ! static::$connection ) {
+			self::setConnection();
+		}
 		
 		try {
-
-			/** @var array<string> */
-			$db_default = static::$db_config['connections'][static::$db_config['default']];
-			
 			static::$pdo = new PDO(
-				$db_default['driver'] . ':host=' . $db_default['host'] . ':' . $db_default['port'] . ';dbname=' . $db_default['name'],
-				$db_default['user'],
-				$db_default['pswd'],
+				static::$connection['driver'] . ':host=' . static::$connection['host'] . ':' . static::$connection['port'] . ';dbname=' . static::$connection['database'],
+				static::$connection['username'],
+				static::$connection['password'],
 				[
 					PDO::ATTR_PERSISTENT => true,
 					PDO::ATTR_EMULATE_PREPARES => false
@@ -125,10 +211,14 @@ abstract class DB
 			/**
 			 * Set default collation and character set
 			 */
-			static::$pdo->query('SET NAMES ' . $db_default['charset']);
-			static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . $db_default['charset'] . ' COLLATION ' . $db_default['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . $db_default['name'] . '"');
+			static::$pdo->query('SET NAMES ' . static::$connection['charset']);
+			static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . static::$connection['charset'] . ' COLLATION ' . static::$connection['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . static::$connection['database'] . '"');
 			
-			static::$prefix = $db_default['prefix'];
+			static::$prefix = static::$connection['prefix'];
+
+			if ( app()->config->database('listeners') ) {
+				static::$pdo->query('SET PROFILING=1');
+			}
 
 			return static::$pdo;
 		} catch(\PDOException $e) {
@@ -155,9 +245,9 @@ abstract class DB
 	 * @param array $flags Statement flags
 	 * @return \PDO::Statement
 	 */
-	public function query(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
+	public static function query(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
 	{
-		$statement = $this->prepare($sql, $flags);
+		$statement = static::prepare(DBQueryBuilder::bindVars($sql), $flags);
 		$statement->execute($options);
 		
 		return $statement;
@@ -168,7 +258,7 @@ abstract class DB
 	 * 
 	 * @return void
 	 */
-	public function enableQueryLog() : void
+	public static function enableQueryLog() : void
 	{
 		static::$logQuery = true;
 	}
@@ -179,7 +269,7 @@ abstract class DB
 	 * @param string $sql SQL statement
 	 * @return int|false
 	 */
-	public function execute(string $sql) : int|false
+	public static function execute(string $sql) : int|false
 	{
 		return static::$pdo->exec($sql);
 	}
@@ -191,10 +281,23 @@ abstract class DB
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.
 	 */
-	public function fetch($statement, int $flag = PDO::FETCH_BOTH) : mixed
+	public static function fetch($statement, int $flag = PDO::FETCH_BOTH) : mixed
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
 		return null;
+	}
+
+	/**
+	 * Fetch all rows from a result set.
+	 * 
+	 * @param \PDO::Statement $statement
+	 * @param int \PDO Constant default is PDO::FETCH_BOTH
+	 * @return mixed Result row on success, false on failure.
+	 */
+	public static function fetchAll($statement, int $flag = PDO::FETCH_BOTH) : mixed
+	{
+		if ($statement instanceof PDOStatement) return $statement->fetchAll($flag);
+		return [];
 	}
 	
 	/**
@@ -204,7 +307,7 @@ abstract class DB
 	 * @param int \PDO Constant default is PDO::FETCH_BOTH
 	 * @return mixed Result row on success, false on failure.
 	 */
-	public function getRow($statement, ?int $flag = PDO::FETCH_NUM) : mixed
+	public static function getRow($statement, ?int $flag = PDO::FETCH_NUM) : mixed
 	{
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
 		return [];
@@ -216,7 +319,7 @@ abstract class DB
 	 * @param \PDO::Stattement $statement
 	 * @return int the number of rows, or 0 otherwise.
 	 */
-	public function numRows(PDOStatement $statement) : int
+	public static function numRows(PDOStatement $statement) : int
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->rowCount(); 
 		return 0;
@@ -227,9 +330,9 @@ abstract class DB
 	 * 
 	 * @return int the number of rows, or 0 otherwise.
 	 */
-	public function foundRows() : int
+	public static function foundRows() : int
 	{
-		return @ $this->query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
+		return @ static::query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
 	}
 
 	/**
@@ -243,13 +346,13 @@ abstract class DB
 	 * @see \PDO::prepare() method
 	 * @return \PDO::Statement
 	 */
-	public function prepare(string $sql, ?array $options = [])
+	public static function prepare(string $sql, ?array $options = [])
 	{
 		if ( static::$logQuery ) {
 			Log::debug($sql);
 		}
 		
-		return static::$pdo->prepare($sql, $options);
+		return static::$pdo->prepare(DBQueryBuilder::bindVars($sql), $options);
 	}
 	
 	/**
@@ -258,14 +361,14 @@ abstract class DB
 	 * @see \PDO::errorInfo() method
 	 * @return array An array of error information about the last operation peroformed on the database handle
 	 */
-	public function error() { return static::$pdo->errorInfo(); }
+	public static function error() { return static::$pdo->errorInfo(); }
 	
 	/**
 	 * Fetch the SQLSTATE associated with the last operation on the database handle.
 	 * 
 	 * @return string An SQLSTATE
 	 */
-	public function errno() { return static::$pdo->errorCode(); }
+	public static function errno() { return static::$pdo->errorCode(); }
 	
 	/**
 	 * Returns the ID of the last inserted row or sequence value.
@@ -273,7 +376,7 @@ abstract class DB
 	 * @param string [optional] $name name of the sequence object from which the ID should be returned.
 	 * @return string|false 
 	 */
-	public function insertId() : string|false { return static::$pdo->lastInsertId(); }
+	public static function insertId() : string|false { return static::$pdo->lastInsertId(); }
 	
 	/**
 	 * Destroy a statement
@@ -281,19 +384,19 @@ abstract class DB
 	 * @param \PDO::Statement $statement the statement to destroy.
 	 * @return bool|null null on success or false on failure.
 	 */
-	public function free(PDOStatement $statement) : bool|null
+	public static function free(PDOStatement $statement) : bool|null
 	{ 
 		if ($statement instanceof PDOStatement) return $statement = null; 
 		return false;
 	}
-	
+
 	/**
 	 * Begins a database transaction
 	 * 
-	 * @param callable $callback A callback function
+	 * @param ?callable $callback A callback function
 	 * @return mixed 
 	 */
-	public function beginTransaction(?callable $callback = null) : mixed
+	public static function transaction(?callable $callback = null) : mixed
 	{
 		if ( !isset($callback) ) {
 			static::$pdo->beginTransaction(); 
@@ -304,11 +407,44 @@ abstract class DB
 			static::$pdo->beginTransaction();
 			$success = $callback();
 			if ( $success ) {
-				$this->commit();
+				static::commit();
 				return $success;
 			} else {
-				$this->rollback();
+				static::rollback();
 				return $success;
+			}
+		}
+	}
+	
+	/**
+	 * Begins a database transaction
+	 * 
+	 * @param callable $callback A callback function
+	 * @return mixed 
+	 */
+	public static function beginTransaction(?callable $callback = null) : mixed
+	{
+		return static::transaction($callback);
+	}
+
+	/**
+	 * Handle transaction deadlock
+	 * 
+	 * @param callable $callback
+	 * @param ?int $attemps Default 5
+	 * @param ?int $sleep Default 100ms
+	 * @return mixed
+	 */
+	public static function deadlock(callable $callback, ?int $attemps = 5, ?int $sleep = 100) : mixed
+	{
+		while ($attemps--) {
+			try {
+				return static::transaction($callback);
+			} catch (\PDOException $e) {
+				if ($attemps === 0) {
+					throw $e;
+				}
+				usleep($sleep);
 			}
 		}
 	}
@@ -318,21 +454,21 @@ abstract class DB
 	 * 
 	 * @return bool
 	 */
-	public function commit() : bool { return static::$pdo->commit(); }
+	public static function commit() : bool { return static::$pdo->commit(); }
 
 	/**
 	 * Abort a transaction
 	 * 
 	 * @return bool
 	 */
-	public function rollback() : bool { return static::$pdo->rollback(); }
+	public static function rollback() : bool { return static::$pdo->rollback(); }
 	
 	/**
 	 * Destroy the database connection
 	 * 
 	 * @return void
 	 */
-	public function close() : void { static::$pdo = null; }
+	public static function close() : void { static::$pdo = null; }
 
 	/**
 	 * Select a database table on which to execute a SQL query.
@@ -340,7 +476,7 @@ abstract class DB
 	 * @param array|string $tables Database table(s) name(s)
 	 * @return \Clicalmani\Database\DBQuery Object
 	 */
-	static function table(array|string $tables) : DBQuery
+	public static function table(array|string $tables) : DBQuery
 	{
 		$builder = new DBQuery;
 		$builder->set('query', DBQuery::SELECT);
@@ -352,5 +488,93 @@ abstract class DB
 		}
 		
 		return $builder;
+	}
+
+	/**
+	 * Select raw SQL query
+	 * 
+	 * @param string $sql SQL statement
+	 * @param array $options Statement options
+	 * @param array $flags Statement flags
+	 * @return array
+	 */
+	public static function select(string $sql, ?array $options = [], ?array $flags = []) : array
+	{
+		$statement = static::$pdo->prepare($sql);
+		$statement->execute($options);
+		
+		return $statement->fetchAll(...$flags);
+	}
+
+	/**
+	 * Select one raw SQL query
+	 * 
+	 * @param string $sql SQL statement
+	 * @param array $options Statement options
+	 * @param array $flags Statement flags
+	 * @return array
+	 */
+	public static function selectOne(string $sql, ?array $options = [], ?array $flags = []) : array
+	{
+		$statement = static::$pdo->prepare($sql);
+		$statement->execute($options);
+		
+		return $statement->fetch(...$flags);
+	}
+
+	/**
+	 * Execute a raw SQL query
+	 * 
+	 * @param string $sql SQL statement
+	 * @param array $options Statement options
+	 * @param array $flags Statement flags
+	 * @return \PDOStatement
+	 */
+	public static function statement(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
+	{
+		$statement = static::$pdo->prepare($sql, ...$flags);
+		$statement->execute($options);
+		
+		return $statement;
+	}
+
+	/**
+	 * Execute a raw SQL query
+	 * 
+	 * @param string $sql SQL statement
+	 * @return \PDOStatement
+	 */
+	public static function unprepared(string $sql) : PDOStatement
+	{
+		return static::$pdo->query($sql);
+	}
+
+	/**
+	 * Establish a database connection
+	 * 
+	 * @param string $driver Database driver
+	 * @return \Clicalmani\Database\DBQuery Object
+	 */
+	public static function connection(string $driver = '') : DBQuery
+	{
+		if ( ! empty($driver) ) {
+			self::close();
+			self::setConnection($driver);
+			self::getPdo();
+		}
+
+		return static::$instance = new DBQuery;
+	}
+
+	/**
+	 * Listen for database query cumulative time.
+	 * 
+	 * @param string $event Event name
+	 * @param callable $callback Callback function
+	 * @return void
+	 */
+	public static function listen(string $event, callable $callback) : void
+	{
+		( new \Clicalmani\Database\Events\QueryTimeTracker )->listen($event, $callback);
 	}
 }

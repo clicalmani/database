@@ -34,6 +34,9 @@ trait SoftDelete
      */
     public function restore() : bool
     {
-       return  $this->update(['deleted_at' => null]);
+       $this->emit('restoring');
+       $success = $this->update(['deleted_at' => null]);
+       $this->emit('restored');
+       return $success;
     }
 }

@@ -17,6 +17,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     use MultipleKeys;
 
     /**
+     * Database connection
+     * 
+     * @var string Connection name
+     */
+    protected $connection;
+
+    /**
      * Primary key value
      * 
      * @var string|array
@@ -38,7 +45,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $table;
 
     /**
-     * Table attributes.
+     * Default attributes.
      * 
      * @var array
      */
@@ -73,6 +80,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $fillable = [];
 
     /**
+     * Guarded attributes
+     * 
+     * @var string[]
+     */
+    protected $guarded = [];
+
+    /**
      * Lock state
      * 
      * @var bool
@@ -101,18 +115,18 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $dates = [];
 
     /**
-     * Enable or disable table insert warning for duplicate keys.
+     * Handle SQL IGNORE
      * 
      * @var bool Default to false
      */
     protected $insert_ignore = false;
 
     /**
-     * Select distincts rows
+     * Handle SQL DISTINCT 
      * 
      * @var bool Default to false
      */
-    protected $select_distinct = false;
+    protected $distinct = false;
 
     /**
      * Enable pagination
@@ -129,6 +143,20 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $eventHandlers = [];
 
     /**
+     * Dispatch custom events
+     * 
+     * @var array<string, callable|string>
+     */
+    protected $dispatchesEvents = [];
+
+    /**
+     * Events observers
+     * 
+     * @var string[]
+     */
+    protected $observers = [];
+
+    /**
      * Model entity single instance
      * 
      * @var \Clicalmani\Database\Factory\Entity
@@ -140,7 +168,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return void
      */
-    protected abstract function boot() : void;
+    protected abstract function booted() : void;
 
     /**
      * Resolve route binding.
@@ -170,10 +198,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
         $this->query->set('tables', [$this->table]);
 
+        if ( isset($this->connection) ) {
+            $this->query->set('connection', $this->connection);
+        }
+
         /**
          * Trigger model events.
          */
-        $this->boot();
+        $this->booted();
     }
 
     /**
@@ -209,9 +241,9 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return void
      */
-    protected function lock() : void
+    protected function lock(?string $type = 'WRITE', ?bool $disable_keys = false) : void
     {
-        $this->locked = DB::table($this->table)->lock();
+        $this->locked = DB::table($this->table)->lock($type, $disable_keys);
     }
 
     /**
@@ -219,9 +251,9 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return void
      */
-    protected function unlock() : void
+    protected function unlock(?bool $enable_keys = false) : void
     {
-        $this->locked = !DB::table($this->table)->unlock();
+        $this->locked = !DB::table($this->table)->unlock($enable_keys);
     }
 
     /**
@@ -267,6 +299,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
             
             if ($attribute->access === Attribute::INSERT && $entity->isWriting($attribute->name)) $in[$attribute->name] = $value;
             elseif ($attribute->access === Attribute::UPDATE && $entity->isUpdating($attribute->name)) $out[$attribute->name] = $value;
+        }
+
+        // Append default values
+        foreach ($this->attributes as $name => $default_value) {
+            if ( !isset($in[$name]) && !isset($out[$name]) ) {
+                if ( $entity->getAccess() === Entity::ADD_RECORD ) $in[$name] = $default_value;
+                elseif ( $entity->getAccess() === Entity::UPDATE_RECORD ) $out[$name] = $default_value;
+            }
         }
 
         if ( $in ) return ['in' => $in];
@@ -324,6 +364,27 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     public function getCustomAttributes() : array
     {
         return $this->custom;
+    }
+
+    /**
+     * Default attributes getter
+     * 
+     * @return array
+     */
+    public function getDefaultAttributes() : array
+    {
+        return $this->attributes;
+    }
+
+    /**
+     * Get attribute default value
+     * 
+     * @param string $name
+     * @return string
+     */
+    public function getDefault(string $name) : mixed
+    {
+        return $this->attributes[$name] ?? null;
     }
 
     public function join(Model|string|callable $model, ?callable $callback = null): static
@@ -449,6 +510,19 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     }
 
     /**
+     * Set model connection
+     * 
+     * @param string $connection
+     * @return static
+     */
+    public function setConnection(string $connection) : static
+    {
+        $this->connection = $connection;
+        $this->query->set('connection', $connection);
+        return $this;
+    }
+
+    /**
      * Resolve route binding using a callback.
      * 
      * @param \Closure $callback
@@ -457,6 +531,44 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     public static function resolveRouteBindingUsing(\Closure $callback) : void
     {
         \App\Providers\RouteServiceProvider::routeBindingCallback($callback);
+    }
+
+    /**
+     * Protect attributes from mass assignment
+     * 
+     * @param array &$attributes
+     * @return void
+     */
+    protected function discardGuardedAttributes(array &$attributes) : void
+    {
+        $attributes_discarded = false;
+
+        if ( $this->guarded ) {
+            $attributes = array_diff($attributes, $this->guarded);
+            $attributes_discarded = true;
+        } elseif ( $this->fillable ) {
+            $attributes = array_intersect($attributes, $this->fillable);
+            $attributes_discarded = true;
+        }
+
+        if (TRUE === $attributes_discarded && app()->config->database('prevent_silent_discard_attribute')) {
+            $class = self::class;
+            throw new \Clicalmani\Database\Exceptions\MassAssignmentException(
+                sprintf("Trying to mass assign $class while in mass assignment preventing mode")
+            );
+        }
+    }
+
+    /**
+     * Prevent silent discard attribute setting
+     * 
+     * @return void
+     */
+    public static function preventSilentlyDiscardingAttributes() : void
+    {
+        $db_config = app()->config->database();
+        $db_config['prevent_silent_discard_attribute'] = true;
+        app()->database = $db_config;
     }
 
     /**
@@ -501,6 +613,10 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
                 
                 return $value;
             }
+
+            if ( $attribute->isDefault() ) {
+                return $attribute->getDefault();
+            }
     
             return null;
         } catch (\PDOException $e) {
@@ -537,19 +653,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
                 $entity->setAccess(Entity::UPDATE_RECORD);
 
-                /**
-                 * Updating data
-                 */
-                $entity->setProperty($name, $value);
             } else {
 
                 $entity->setAccess(Entity::ADD_RECORD);
 
-                /**
-                 * Inserting data
-                 */
-                $entity->setProperty($name, $value);
             }
+
+            $entity->setProperty($name, $value);
+
         } else {
             $error = sprintf("Error: can not update or insert new record on table %s", $this->getTable());
             throw new ModelException($error, ModelException::ERROR_3060);

@@ -15,8 +15,11 @@ class Unlock extends DBQueryBuilder implements \IteratorAggregate
 	) 
 	{ 
 		parent::__construct($params, $options);
+
+		$this->sql = '';
 		
-		$this->sql = 'ALTER TABLE ' . $this->db->getPrefix() . $this->params['table'] . ' ENABLE KEYS; ';
+		if ( isset($this->params['enable_keys']) ) $this->sql = 'ALTER TABLE ' . DB::getPrefix() . $this->params['table'] . ' ENABLE KEYS; ';
+		
         $this->sql .= 'UNLOCK TABLES;';
 	}
 	
@@ -27,12 +30,14 @@ class Unlock extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() : void
 	{
-		$success = $this->db->execute($this->sql);
+		$success = DB::execute($this->sql);
+
+		$this->dispatch('query');
 		
 		$this->status     = $success;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-		$this->insert_id  = $this->db->insertId();
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
+		$this->insert_id  = DB::insertId();
 
 		$statement = null;
 	}

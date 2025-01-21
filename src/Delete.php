@@ -28,7 +28,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 				 * Multiple tables delete
 				 */
 
-				$prefix = $this->db->getPrefix();
+				$prefix = DB::getPrefix();
 				$tables = new \Clicalmani\Foundation\Collection\Collection;
 				$tables->exchange($this->params['tables'])->map(function($val) use($prefix) {
 					return $prefix . $val;
@@ -46,7 +46,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 
 				if ( isset($this->params['join']) AND is_array($this->params['join']) ) {
 					foreach ($this->params['join'] as $joint ) {
-						$this->sql .= static::JOIN_TYPES[strtolower($joint['type'])] . ' ' . $this->db->getPrefix() . $joint['table'] . ' ';
+						$this->sql .= static::JOIN_TYPES[strtolower($joint['type'])] . ' ' . DB::getPrefix() . $joint['table'] . ' ';
 
 						if ( @ $joint['criteria'] ) {
 							$this->sql .= $joint['criteria'] . ' ';
@@ -59,7 +59,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 				 */
 
 				// Remove table alias
-				$this->params['tables'][0] = $this->db->getPrefix() . preg_split('/\s/', $this->params['tables'][0], -1, PREG_SPLIT_NO_EMPTY)[0];
+				$this->params['tables'][0] = DB::getPrefix() . preg_split('/\s/', $this->params['tables'][0], -1, PREG_SPLIT_NO_EMPTY)[0];
 				$this->params['where'] = preg_replace('/([a-zA-Z0-9-_]+)\./', '', $this->params['where']);
 				
 				$this->sql .= 'FROM ' . $this->params['tables'][0] . ' ';
@@ -100,13 +100,14 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() : void 
 	{
-		$this->bindVars();
 		/** @var \PDOStatement */
-	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
+	    $statement = DB::query($this->sql, $this->options, $this->params['options']);
+
+		$this->dispatch('query');
     	
 		$this->status     = $statement ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
 	}
 	
 	/**

@@ -7,6 +7,7 @@ use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Factory;
 use Clicalmani\Database\Factory\Models\Events\Event;
 use Clicalmani\Foundation\Exceptions\ModelException;
+use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 
 /**
  * Class Model
@@ -19,7 +20,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     use SQLClauses;
     use SQLCases;
     use RelationShips;
-    use SQLTriggers;
+    use CaptureEvents;
+    use SQLAggregate;
+    use StateChange;
 
     /**
      * Enable model events trigger
@@ -97,7 +100,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
                 $this->getQuery()->where('deleted_at IS NULL');
             }
     
-            $this->query->set('distinct', $this->select_distinct); // Set SQL DISTINCT flag
+            $this->query->set('distinct', $this->distinct); // Set SQL DISTINCT flag
             $this->query->set('calc', $this->calc_found_rows);     // Set SQL_CALC_FOUND_ROWS flag
             
             return $this->query->get($fields);
@@ -157,7 +160,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         $params = $this->query->params;
         
         // Before delete boot
-        $this->emit('before_delete');
+        $this->emit('deleting');
 
         // Restore params
         $this->query->params = $params;
@@ -165,7 +168,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         $success = $this->query->delete()->exec()->status() == 'success';
 
         // After delete boot
-        $this->emit('after_delete');
+        $this->emit('deleted');
 
         return $success;
     }
@@ -185,6 +188,18 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
 
         $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable());
         throw new ModelException($error, ModelException::ERROR_3060);
+    }
+
+    /**
+     * Destroy all records in the table
+     * 
+     * @return bool True on success, false on failure
+     */
+    public static function destroy() : bool
+    {
+        $instance = static::getInstance();
+        $instance->query->set('table', $instance->getTable());
+        return $instance->query->truncate();
     }
 
     /**
@@ -216,7 +231,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if ( !empty( $criteria ) ) {
 
             if (FALSE === $this->isEmpty()) {
-                $this->emit('before_update');
+                $this->emit('updating');
 
                 /** @var array */
                 $data = $this->getData();
@@ -260,7 +275,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
             // Restore state
             $this->query->set('type', DBQuery::SELECT);
             
-            if (FALSE === $this->isEmpty()) $this->emit('after_update'); 
+            if (FALSE === $this->isEmpty()) $this->emit('updated'); 
             
             return $success;
         } 
@@ -279,7 +294,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         if (empty($fields)) return false;
         
         // Before create boot
-        $this->emit('before_create');
+        $this->emit('creating');
 
         // Update data
         $data = $this->getData();
@@ -294,6 +309,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         $values = [];
 
         foreach ($fields as $field) {
+            $this->discardGuardedAttributes($field);
             if (empty($keys)) $keys = array_keys($field);
             
             /**
@@ -330,21 +346,31 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         
         if (NULL !== $this->id) {
             // After create boot
-            $this->emit('after_create');
+            $this->emit('created');
         }
         
         return $success;
     }
 
     /**
-     * Alias of insert
+     * Create a new record and return the instance.
+     * If the key is not auto incremented, the key value 
+     * will be guessed from the attributes values.
      * 
-     * @param array $fields Attributes values
-     * @return bool True if success, false otherwise
+     * @param array $attributes Attributes values
+     * @param ?bool $replace Replace the record if exists
+     * @return static
      */
-    public function create(array $fields = [], ?bool $replace = false) : bool
+    public static function create(array $attributes = [], ?bool $replace = false) : static
     {
-        return $this->insert($fields, $replace);
+        $instance = static::getInstance();
+        $instance->insert($attributes, $replace);
+        
+        if ($last_insert_id = $instance->lastInsertId()) {
+            return static::find($last_insert_id);
+        }
+
+        return static::find( $instance->guessKeyValue($attributes) );
     }
 
     /**
@@ -354,9 +380,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param ?bool $replace
      * @return bool
      */
-    public function createOrFail(array $fields = [], ?bool $replace = false) : bool
+    public static function createOrFail(array $fields = [], ?bool $replace = false) : bool
     {
-        return DB::getInstance()->beginTransaction(fn() => $this->create($fields, $replace));
+        return DB::transaction(fn() => static::getInstance()->insert($fields, $replace));
     }
 
     /**
@@ -366,6 +392,8 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function save() : bool
     {
+        $this->emit('saving');
+
         $success = false;
         $data = $this->getData();
         
@@ -391,6 +419,8 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         $this->query->set('tables', [$this->table]);
         unset($this->query->params['table']);
 
+        $this->emit('saved');
+
         return $success;
     }
 
@@ -402,7 +432,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function lastInsertId(?array $record = []) : mixed
     {
-        $last_insert_id = DB::getPdo()->lastInsertId();
+        $last_insert_id = DB::insertId();
         
         if (!$last_insert_id AND $record) {
             $last_insert_id = $this->guessKeyValue($record);
@@ -427,14 +457,27 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     /**
      * Returns the first value in the selected result or fail.
      * 
-     * @return static|null
+     * @return mixed Returns the model instance if found, otherwise callback result.
      */
-    public function firstOr(callable $callback) : static|null
+    public function firstOr(callable $callback) : mixed
     {
         if (NULL !== $row = $this->first()) return $row;
 
-        $callback();
-        return null;
+        return $callback();
+    }
+
+    /**
+     * Returns the first value in the selected result or fail.
+     * 
+     * @return static
+     */
+    public function firstOrFail() : static
+    {
+        try {
+            return $this->first() ?? throw new ModelNotFoundException("Model not found", 404);
+        } catch (ModelNotFoundException $e) {
+            throw $e;
+        }
     }
     
     /**
@@ -447,6 +490,36 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     {
         if (!$id) return null;
         return static::getInstance($id);
+    }
+
+    /**
+     * Returns a specified row defined by a specified primary key or fail.
+     * 
+     * @param string|array|null $id Primary key value
+     * @return static
+     */
+    public static function findOrFail(string|array|null $id) : static
+    {
+        try {
+            return static::find($id) ?? throw new ModelNotFoundException("Model not found", 404);
+        } catch (ModelNotFoundException $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * Returns a specified row defined by a specified primary key or create a new one.
+     * 
+     * @param string|array|null $id Primary key value
+     * @return mixed Returns the model instance if found, otherwise callback result.
+     */
+    public static function findOr(string|array|null $id, callable $callback) : mixed
+    {
+        $instance = static::getInstance($id);
+
+        if (NULL !== $row = $instance->first()) return $row;
+
+        return $callback();
     }
 
     /**
@@ -464,16 +537,15 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
-     * Filter the current SQL statement result by using a provided request query parameters.
-     * The query parameters will be automatically fetched. A filter can be used to exclude some
-     * specific parameters. 
+     * Filter the query result by using the request parameters. Equal sign 
+     * will be used to compare the request parameter value with the column value.
      * 
      * @param array $exclude Parameters to exclude
      * @param array $options Options can be used to order the result set by specifics request parameters or limit the 
      *  number of rows to be returned in the result set.
      * @return \Clicalmani\Foundation\Collection\Collection
      */
-    public static function filter(array $exclude = [], array $options = []) : Collection
+    public static function filter(?array $exclude = [], ?array $options = []) : Collection
     {
         $options = (object) $options;
 
@@ -481,7 +553,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
          * |---------------------------------------------------
          * |              ***** Notice *****
          * |---------------------------------------------------
-         * test_user_id and hash are two request parameters internally used by flesco.
+         * test_user_id and hash are two request parameters internally used by Tonka.
          * test_user_id holds the request user ID in test mode.
          * and hash is used for url encryption.
          */
@@ -548,6 +620,16 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
+     * Re-hydrate the model
+     * 
+     * @return static
+     */
+    public function refresh() : static
+    {
+        return static::find($this->id);
+    }
+
+    /**
      * Override: Create a seed for the model
      * 
      * @return \Clicalmani\Database\Factory\Factory
@@ -569,11 +651,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param callable $callback Event handler
      * @return void
      */
-    private function registerEvent(string $event, callable $callback): void
+    public function registerEvent(string $event, callable $callback): void
     {
-        $handler = null;
-        
-        if (static::$triggerEvents AND $callback AND is_callable($callback, true, $handler)) {
+        if (static::$triggerEvents && FALSE === $this->isCustomEvent($event) && is_callable($callback)) {
             $this->eventHandlers[$event] = $callback;
         }
     }
@@ -586,47 +666,82 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this->dates && in_array('deleted_at', $this->dates);
     }
 
+    /**
+     * Emit a model event
+     * 
+     * @param string $event Event name
+     * @param mixed $data Event data
+     * @return bool
+     * @throws \RuntimeException
+     */
     public function emit(string $event, mixed $data = null): void
     {
-        if ( $handler = @ $this->eventHandlers[$event] ) {
+        if ( FALSE === $this->isEvent($event) ) 
+            throw new \RuntimeException(
+                sprintf("Failed to emit %s, make sure it is a registered event.", $event)
+            );
 
-            /**
-             * Lock
-             */
-            if ( strpos($event, 'before') ) $this->lock();
-            
-            $handler($this);
+        $this->triggerEvent($event, $data);
+    }
 
-            /**
-             * Release
-             */
-            if ( $this->isLocked() ) $this->unlock();
+    /**
+     * Switch model connection
+     * 
+     * @param ?string $connection
+     * @return static
+     */
+    public static function on(string $connection = null) : static
+    {
+        $instance = static::getInstance();
+        $instance->connection = $connection;
+        return $instance;
+    }
+
+    /**
+     * Get the model original state
+     * 
+     * @param ?string $attribute
+     * @return string
+     */
+    public function getOriginal(?string $attribute = null) : mixed
+    {
+        $manipulated = $this->getData();
+
+        if ( !isset($attribute) ) return @$manipulated['in'] ?? @$manipulated['out'] ?? [];
+
+        if ( array_key_exists($attribute, @$manipulated['in'] ?? []) ) return $manipulated['in'][$attribute];
+
+        if ( array_key_exists($attribute, @$manipulated['out'] ?? []) ) return $manipulated['out'][$attribute];
+
+        return null;
+    }
+
+    /**
+     * Mass assignment
+     * 
+     * @param array $attributes
+     * @return static
+     */
+    public function fill(array $attributes) : static
+    {
+        $this->discardGuardedAttributes($attributes);
+
+        foreach ($attributes as $key => $value) {
+            $this->{$key} = $value;
         }
 
-        /**
-         * Custom events
-         */
-        else {
-            $customEvents = \App\Providers\EventServiceProvider::getEvents();
-            
-            $this->lock();
+        return $this;
+    }
 
-            foreach ($customEvents as $name => $listeners) {
-                
-                if ($name !== $event) continue;
-
-                $event = new Event;
-                $event->name = $name;
-                $event->target = $this;
-                
-                foreach ($listeners as $listener) {
-                    if ( is_callable($listener) ) $listener($event, $data);
-                    else instance($listener, fn($inst) => $inst->handler($event, $data));
-                }
-            }
-
-            $this->unlock();
-        }
+    /**
+     * Get the first value of a field in the query result
+     * 
+     * @param string $field Field to first
+     * @return mixed
+     */
+    public function firstValue(string $field) : mixed
+    {
+        return $this->query->firstValue($field);
     }
 
     public function __toString() : string

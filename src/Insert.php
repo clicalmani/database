@@ -16,7 +16,7 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate
 	{ 
 		parent::__construct($params, $options);
 		
-		$this->sql .= 'INSERT ' . ((isset($params['ignore']) AND $params['ignore'] == true) ? 'IGNORE': '') . ' INTO ' . $this->db->getPrefix() . $this->params['table'];
+		$this->sql .= 'INSERT ' . ((isset($params['ignore']) AND $params['ignore'] == true) ? 'IGNORE': '') . ' INTO ' . DB::getPrefix() . $this->params['table'];
 		
 		if (isset($this->params['fields'])) {
 
@@ -37,9 +37,10 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() : void
 	{
-		$this->bindVars();
 		/** @var \PDOStatement */
-		$statement = $this->db->prepare($this->sql, $this->params['options']);
+		$statement = DB::prepare($this->sql, $this->params['options']);
+
+		$this->dispatch('query');
 		
 		foreach ($this->params['values'] as $row) {
 			foreach ($row as $i => $type) {
@@ -52,9 +53,9 @@ class Insert extends DBQueryBuilder implements \IteratorAggregate
 		}
 		
 		$this->status     = $statement ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-		$this->insert_id  = $this->db->insertId();
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
+		$this->insert_id  = DB::insertId();
 
 		$statement = null;
 	}

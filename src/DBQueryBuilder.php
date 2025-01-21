@@ -70,6 +70,13 @@ abstract class DBQueryBuilder
 	protected $num_rows = 0;
 
 	/**
+	 * profile
+	 * 
+	 * @var array
+	 */
+	protected $profile;
+
+	/**
 	 * Human understandable status result
 	 * 
 	 * @var string Possible values are success or failure
@@ -103,6 +110,13 @@ abstract class DBQueryBuilder
 	];
 
 	/**
+	 * Cumulative time listeners
+	 * 
+	 * @var array
+	 */
+	protected $cumulative_time_listeners = [];
+
+	/**
 	 * Constructor
 	 * 
 	 * @param array $param [Optional]
@@ -129,6 +143,7 @@ abstract class DBQueryBuilder
 		
 		$this->db     = DB::getInstance(); 
 		$this->result = new Collection;
+		$this->cumulative_time_listeners = app()->config->database('listeners');
 	}
 	
 	/**
@@ -151,17 +166,19 @@ abstract class DBQueryBuilder
 	/**
 	 * Bind vars
 	 * 
-	 * @return void
+	 * @return string
 	 */
-	public function bindVars() : void
+	public static function bindVars(string $query) : string
 	{
 		$bindings = array(
-			'%PREFIX%'=>$this->db->getPrefix()
+			'%PREFIX%'=> DB::getPrefix()
 		);
 		
 		foreach ($bindings as $key => $value) {
-			$this->sql = str_replace($key, $value, $this->sql);
+			$query = str_replace($key, $value, $query);
 		}
+
+		return $query;
 	}
 	
 	/**
@@ -235,8 +252,7 @@ abstract class DBQueryBuilder
 	 * @return string 
 	 */
 	public function getSQL() : string { 
-		$this->bindVars();
-		return $this->sql; 
+		return self::bindVars($this->sql); 
 	}
 	
 	/**
@@ -361,4 +377,13 @@ abstract class DBQueryBuilder
 	 * @return int
 	 */
 	public function errno() : int { return $this->error_code; }
+
+	public function dispatch(string $event) : void
+	{
+		$this->profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
+
+		foreach ($this->cumulative_time_listeners[$event] as $listener) {
+			$listener(new Query($this->getSQL(), $this->options, $this->profile));
+		}
+	}
 }

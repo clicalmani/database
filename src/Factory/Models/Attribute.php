@@ -123,6 +123,16 @@ class Attribute
     }
 
     /**
+     * Verify whether it is a default attribute
+     * 
+     * @return bool
+     */
+    public function isDefault() : bool
+    {
+        return !!in_array($this->name, $this->model->getDefaultAttributes());
+    }
+
+    /**
      * Customize attribute
      * 
      * @return string
@@ -149,6 +159,11 @@ class Attribute
         }
 
         return null;
+    }
+
+    public function getDefault() : mixed
+    {
+        return $this->model->getDefault($this->name);
     }
 
     public function __set(mixed $name, mixed $value)

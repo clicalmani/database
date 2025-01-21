@@ -5,7 +5,6 @@ use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
-use Clicalmani\Database\Factory\Models\Join;
 use Clicalmani\Foundation\Collection\Map;
 
 /**
@@ -103,6 +102,13 @@ class DBQuery extends DB
 	const REPLACE = 10;
 
 	/**
+	 * Truncate flag
+	 * 
+	 * @var int 11
+	 */
+	const TRUNCATE = 11;
+
+	/**
 	 * Builder
 	 * 
 	 * @var \Clicalmani\Database\DBQueryBuilder
@@ -184,6 +190,10 @@ class DBQuery extends DB
 	public function exec() : \Clicalmani\Database\DBQueryBuilder
 	{ 
 		$this->query = isset($this->params['query'])? $this->params['query']: $this->query;
+
+		if ( isset($this->params['connection']) ) {
+			self::connection($this->params['connection']);
+		}
 		
 		switch ($this->query){
 			
@@ -242,20 +252,14 @@ class DBQuery extends DB
 				$this->builder = new Replace($this->params, $this->options);
 				$this->builder->query();
 				break;
+
+			case static::TRUNCATE:
+				$this->builder = new Truncate($this->params, $this->options);
+				$this->builder->query();
+				break;
 		}
 
 		return $this->builder;
-	}
-
-	/**
-	 * Alias of get
-	 * 
-	 * @see DBQuery::get() method
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function select(string $fields = '*') : Collection
-	{
-		return $this->get($fields);
 	}
 
 	/**
@@ -267,6 +271,25 @@ class DBQuery extends DB
 	{
 		$this->query = static::DELETE;
 		return $this;
+	}
+
+	/**
+	 * Perform a truncate request.
+	 * 
+	 * @return bool true on success, false on failure
+	 */
+	public function truncate() : bool
+	{
+		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
+
+		if ( isset( $table ) ) {
+			unset($this->params['tables']);
+			$this->params['table'] = $table;
+		}
+
+		$this->query = static::TRUNCATE;
+
+		return $this->exec()->status() === 'success';
 	}
 
 	/**
@@ -289,6 +312,32 @@ class DBQuery extends DB
 	}
 
 	/**
+	 * Increment a field value by a specified value.
+	 * 
+	 * @param string $field Field name
+	 * @param int $value [optional] Increment value. Default is 1
+	 * @param ?array $fields [optional] Additional fields to be updated
+	 * @return bool true on success, false on failure
+	 */
+	public function increment(string $field, int $value = 1, ?array $fields = []) : bool
+	{
+		return $this->update( array_merge($fields, [$field => $field . ' + ' . $value]) );
+	}
+
+	/**
+	 * Decrement a field value by a specified value.
+	 * 
+	 * @param string $field Field name
+	 * @param int $value [optional] Decrement value. Default is 1
+	 * @param ?array $fields [optional] Additional fields to be updated
+	 * @return bool true on success, false on failure
+	 */
+	public function decrement(string $field, int $value = 1, ?array $fields = []) : bool
+	{
+		return $this->update( array_merge($fields, [$field => $field . ' - ' . $value]) );
+	}
+
+	/**
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
@@ -297,6 +346,10 @@ class DBQuery extends DB
 	 */
 	public function insert(array $options = [], ?bool $replace = false) : bool
 	{
+		if ( ! is_array($options[0])) {
+			$options = [$options];
+		}
+
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
 
 		if ( isset( $table ) ) {
@@ -331,6 +384,18 @@ class DBQuery extends DB
 		} catch (\PDOException $e) {
 			return false;
 		}
+	}
+
+	/**
+	 * Insert new record to the selected table and return the last inserted id.
+	 * 
+	 * @param array $options [optional] New values to be inserted.
+	 * @return int
+	 */
+	public function insertGetId(array $options = []) : int
+	{
+		$this->insert($options);
+		return DB::insertId();
 	}
 
 	/**
@@ -509,6 +574,18 @@ class DBQuery extends DB
 	}
 
 	/**
+	 * Limit the number of rows to be returned in a query result set.
+	 * 
+	 * @param int $limit [Optional] The number of result to be returned. Default is 1
+	 * @return static
+	 */
+	public function top(int $limit = 1) : static
+	{
+		$this->params['limit'] = $limit;
+		return $this;
+	}
+
+	/**
 	 * Joins a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
@@ -608,22 +685,30 @@ class DBQuery extends DB
 	/**
 	 * Lock table in writing mode
 	 * 
+	 * @param ?string $type [optional] Lock type. Default is 'WRITE'
+	 * @param ?bool $disable_keys [optional] Disable foreign keys check. Default is false
 	 * @return bool
 	 */
-	public function lock() : bool
+	public function lock(?string $type = 'WRITE', ?bool $disable_keys = false) : bool
 	{
+		if ( ! in_array($type, ['READ', 'READ LOCAL', 'WRITE']) ) $type = 'WRITE';
+
 		$this->query = static::LOCK_TABLE;
+		$this->params['lock_type'] = $type;
+		if ( $disable_keys ) $this->params['disable_keys'] = true;
 		return $this->exec()->status() === 'success';
 	}
 
 	/**
 	 * Unlock a locked table in writing mode
 	 * 
+	 * @param ?bool $enable_keys [optional] Enable foreign keys check. Default is false
 	 * @return bool
 	 */
-	public function unlock() : bool
+	public function unlock(?bool $enable_keys = false) : bool
 	{
 		$this->query = static::UNLOCK_TABLE;
+		if ( $enable_keys ) $this->params['enable_keys'] = true;
 		return $this->exec()->status() === 'success';
 	}
 
@@ -657,6 +742,20 @@ class DBQuery extends DB
 		$this->params['limit'] = 1;
 		$result = $this->exec();
 		return (object) $result->result()->first();
+	}
+
+	/**
+	 * Returns the first value of a field in a query result set.
+	 * 
+	 * @param string $field The field to be returned
+	 * @return mixed
+	 */
+	public function firstValue(string $field) : mixed
+	{
+		$this->params['fields'] = $field;
+		$this->params['limit'] = 1;
+		$result = $this->exec();
+		return $result->result()->first()[$field];
 	}
 
 	/**
@@ -826,6 +925,22 @@ class DBQuery extends DB
 	}
 
 	/**
+	 * Paginate the query result set without FOUND_ROWS.
+	 * 
+	 * @param int $page Page number
+	 * @param int $size Page size
+	 * @return \Clicalmani\Foundation\Collection\Collection
+	 */
+	public function simplePaginate(int $page, int $size) : Collection
+	{
+		$offset = ($page - 1) * $size;
+		$this->params['offset'] = $offset;
+		$this->params['limit'] = $size;
+		$this->params['calc'] = false;
+		return $this->exec()->result();
+	}
+
+	/**
 	 * Lazy load the query result set.
 	 * 
 	 * @return \Clicalmani\Foundation\Collection\Collection
@@ -919,16 +1034,29 @@ class DBQuery extends DB
 		return $this->count() === 0;
 	}
 
-	public function subQuery(string $table, callable $callback) : static
+	/**
+	 * Check if a record exists in the query result set.
+	 * 
+	 * @param bool $condition
+	 * @param callable $callback
+	 * @return bool
+	 */
+	public function when(bool $condition, callable $callback) : static
 	{
-		$clause = new JoinClause;
-		$callback($clause);
-		$joint = ['table' => $table];
+		if ($condition) $callback($this->query);
+		return $this;
+	}
 
-		if (isset($clause->on)) $joint['criteria'] = $clause->on;
-		if (isset($clause->type)) $joint['type'] = $clause->type;
-
-		$this->params['join'] = $joint;
+	/**
+	 * Check if a record does not exist in the query result set.
+	 * 
+	 * @param bool $condition
+	 * @param callable $callback
+	 * @return bool
+	 */
+	public function unless(bool $condition, callable $callback) : static
+	{
+		if (!$condition) $callback($this->query);
 		return $this;
 	}
 }

@@ -22,7 +22,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 
 			if ($arr[0] !== $arr[sizeof($arr)-1]) $table .= ' ' . end($arr);
 
-			return $this->db->getPrefix() . $table;
+			return DB::getPrefix() . $table;
 		})->join(',');
 
 		if (isset($this->params['join'])) {
@@ -31,7 +31,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 			
 			foreach ($this->params['join'] as $joint) {
 				
-				$tables[] = $this->db->getPrefix() . $joint['table'];
+				$tables[] = DB::getPrefix() . $joint['table'];
 			}
 
 			$this->sql .= ', ' . join(',', $tables);
@@ -56,9 +56,10 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() : void
 	{
-		$this->bindVars();
 		/** @var \PDOStatement */
-		$statement = $this->db->prepare($this->sql, $this->params['options']);
+		$statement = DB::prepare($this->sql, $this->params['options']);
+
+		$this->dispatch('query');
 
 		foreach ($this->params['values'] as $i => $type) {
 			if ( is_subclass_of($type, \Clicalmani\Database\Factory\DataTypes\DataType::class) ) $value = $type->getValue();
@@ -73,8 +74,8 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 		$statement->execute();
     		
 		$this->status     = $statement ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
 
 		$statement = null;
 	}

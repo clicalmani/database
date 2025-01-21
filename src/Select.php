@@ -71,22 +71,23 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	 */
 	public function query() :void
 	{
-		$this->bindVars();
 		/** @var \PDOStatement */
-	    $statement = $this->db->query($this->sql, $this->options, $this->params['options']);
+	    $statement = DB::query($this->sql, $this->options, $this->params['options']);
+
+		$this->dispatch('query');
     	
 		$this->status     = $statement ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-		$this->num_rows   = $this->db->numRows($statement);
+	    $this->error_code = DB::errno();
+	    $this->error_msg  = DB::error();
+		$this->num_rows   = DB::numRows($statement);
 		
-	    while ($row = $this->db->fetch($statement, \PDO::FETCH_ASSOC)) {
+	    while ($row = DB::fetch($statement, \PDO::FETCH_ASSOC)) {
 	    	$this->result->add($row);
 		}
 	}
 
 	private function paginer(int $range, int $limit) {
-		extract($this->db->fetch($this->db->query('SELECT FOUND_ROWS() AS num_rows'), \PDO::FETCH_ASSOC));
+		extract(DB::fetch(DB::query('SELECT FOUND_ROWS() AS num_rows'), \PDO::FETCH_ASSOC));
 		$GLOBALS['num_rows'] = $num_rows;
 		$page_links = '<div>';
 		
