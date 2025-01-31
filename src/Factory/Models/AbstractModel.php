@@ -94,13 +94,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $locked = false;
 
     /**
-     * Enable model events trigger
-     * 
-     * @var bool Enabled by default
-     */
-    public static $triggerEvents = true;
-
-    /**
      * Append custom attributes
      * 
      * @var string[] Custom attributes
@@ -203,9 +196,23 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         }
 
         /**
-         * Trigger model events.
+         * Register model events.
          */
         $this->booted();
+
+        /**
+         * Register observers
+         */
+        foreach ($this->observers as $observer) {
+            $observer = new $observer;
+            if ( method_exists($observer, 'observe') ) {
+                $observer->observe($this);
+            } else {
+                throw new ModelException(
+                    sprintf("Observer %s must inherit from % class.", $observer::class, \Clicalmani\Database\Events\EventObserver::class),
+                );
+            }
+        }
     }
 
     /**
@@ -398,19 +405,9 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this;
     }
 
-    protected function __join(Model|string $model, string|null $foreign_key = null, string|null $original_key = null, string $type = 'LEFT', ?string $operator = '=') : static 
+    protected function __join(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : static 
     {
-        $original_key = $original_key ?? $foreign_key;                              // The original key is the parent
-                                                                                    // primary key
-        
-        /**
-         * USING operator will be used to join the tables in case foreign key match original key
-         * make sure that there is no alias in the key
-         */
-        if ($original_key == $foreign_key) {
-            $original_key = $this->cleanKey($original_key);
-            $foreign_key  = $this->cleanKey($foreign_key);
-        }
+        [$foreign_key, $original_key] = $this->keyLogic($foreign_key, $original_key);
 
         if (is_string($model)) {
             $model = new $model;
@@ -569,6 +566,23 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $db_config = app()->config->database();
         $db_config['prevent_silent_discard_attribute'] = true;
         app()->database = $db_config;
+    }
+
+    protected function keyLogic(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
+    {
+        if ( ! isset($foreign_key) ) {
+            return [strtolower($model ? (new $model)->getTable(): $this->getTable()) . '_id', 'id'];
+        }
+
+        $original_key = $original_key ?? $foreign_key;                              // The original key is the parent
+                                                                                    // primary key
+        
+        if ($original_key == $foreign_key) {
+            $original_key = $this->cleanKey($original_key);
+            $foreign_key  = $original_key;
+        }
+
+        return [$foreign_key, $original_key];
     }
 
     /**

@@ -5,7 +5,6 @@ use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Factory;
-use Clicalmani\Database\Factory\Models\Events\Event;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 
@@ -23,13 +22,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     use CaptureEvents;
     use SQLAggregate;
     use StateChange;
-
-    /**
-     * Enable model events trigger
-     * 
-     * @var bool Enabled by default
-     */
-    public static $triggerEvents = true;
 
     public function __construct(array|string|null $id = null)
     {
@@ -425,6 +417,16 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     }
 
     /**
+     * Save changes quietly
+     * 
+     * @return bool True on success, false on failure
+     */
+    public function saveQuietly() : bool
+    {
+        return $this->muteEvents()->save();
+    }
+
+    /**
      * Returns the last inserted ID for auto incremented keys
      * 
      * @param ?array<string, string> $records A record to guess the ID from (Internal use only)
@@ -653,8 +655,34 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public function registerEvent(string $event, callable $callback): void
     {
-        if (static::$triggerEvents && FALSE === $this->isCustomEvent($event) && is_callable($callback)) {
+        if (FALSE == self::isEventsCapturingPrevented() && FALSE === $this->isCustomEvent($event) && is_callable($callback)) {
             $this->eventHandlers[$event] = $callback;
+        }
+    }
+
+    /**
+     * Register observer
+     * 
+     * @param \Clicalmani\Database\Events\EventObserverInterface $observer
+     * @return void
+     * @throws \RuntimeException
+     */
+    public function registerObserver(\Clicalmani\Database\Events\EventObserverInterface $observer): void
+    {
+        $reflection = new \ReflectionClass($observer);
+        $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
+        
+        foreach ($methods as $method) {
+            if ( $this->isEvent($method->name) ) {
+
+                if ( array_key_exists($method->name, $this->eventHandlers) ) {
+                    throw new \RuntimeException(
+                        sprintf("Failed to register observer %s, event %s is already registered.", get_class($observer), $method->name)
+                    );
+                }
+
+                $this->observers[$method->name] = [$observer, $method->name];
+            }
         }
     }
 
@@ -681,6 +709,9 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
                 sprintf("Failed to emit %s, make sure it is a registered event.", $event)
             );
 
+        while(DB::inTransaction()) self::preventEventsCapturing();
+
+        self::allowEventsCapturing();
         $this->triggerEvent($event, $data);
     }
 

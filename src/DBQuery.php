@@ -173,13 +173,13 @@ class DBQuery extends DB
 	 * @param string $param Parameter name
 	 * @return mixed Parameter value, or null on failure.
 	 */
-	public function getParam(string $param)
+	public function getParam(string $param, mixed $default = null)
 	{
 		if (isset($this->params[$param])) {
-			return $this->params[$param];
+			return $this->params[$param] ?? $default;
 		}
 
-		return null;
+		return $default;
 	}
 
 	/**
@@ -258,6 +258,10 @@ class DBQuery extends DB
 				$this->builder->query();
 				break;
 		}
+
+		// Clear events data
+		unset($this->params['muted_events']);
+		unset($this->params['prevent_events']);
 
 		return $this->builder;
 	}
@@ -588,7 +592,7 @@ class DBQuery extends DB
 	/**
 	 * Joins a database table to the current selected table. 
 	 * 
-	 * @param string $table Table name
+	 * @param mixed $table Table name
 	 * @param ?callable $callback [optional] A callback function
 	 * @return static
 	 */
@@ -618,17 +622,19 @@ class DBQuery extends DB
 	 * Inner join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param string $parent_id Parent key
-	 * @param string $child_id Foreign key
+	 * @param ?string $foreign_key [Optional] Foreign key
+	 * @param ?string $original_key [Optional] Parent key
 	 * @return static
 	 */
-	private function __join(string $table, string $parent_id, string $child_id, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
+	private function __join(string $table, ?string $foreign_key = null, ?string $original_key = null, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
 	{
-		return $this->join($table, function(JoinClause $join) use ($parent_id, $is_crossed, $child_id, $type, $operator) {
+		if ( ! isset($foreign_key) ) $foreign_key = strtolower($table).'_id';
+
+		return $this->join($table, function(JoinClause $join) use ($foreign_key, $is_crossed, $original_key, $type, $operator) {
 			$join->type($type);
 			if ($is_crossed) $join->on('');
-			else if ($parent_id != $child_id) $join->on($parent_id . $operator . $child_id);
-			else $join->using($parent_id);
+			else if ($foreign_key != $original_key) $join->on($foreign_key . $operator . $original_key);
+			else $join->using($foreign_key);
 		});
 	}
 
@@ -636,39 +642,39 @@ class DBQuery extends DB
 	 * Left join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param string $parent_id Parent key
-	 * @param string $child_id Foreign key
+	 * @param ?string $foreign_key [Optional] Foreign key
+	 * @param ?string $original_key [Optional] Original key
 	 * @return static
 	 */
-	public function joinLeft(string $table, string $parent_id, string $child_id) : static
+	public function joinLeft(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
 	{
-		return $this->__join($table, $parent_id, $child_id);
+		return $this->__join($table, $foreign_key, $original_key);
 	}
 
 	/**
 	 * Right join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param string $parent_id Parent key
-	 * @param string $child_id Foreign key
+	 * @param ?string $foreign_key [Optional] Foreign key
+	 * @param ?string $original_key [Optional] Original key
 	 * @return static
 	 */
-	public function joinRight(string $table, string $parent_id, string $child_id) : static
+	public function joinRight(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
 	{
-		return $this->__join($table, $parent_id, $child_id, 'RIGHT');
+		return $this->__join($table, $foreign_key, $original_key, 'RIGHT');
 	}
 
 	/**
 	 * Inner join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param string $parent_id Parent key
-	 * @param string $child_id Foreign key
+	 * @param ?string $foreign_key [Optional] Foreign key
+	 * @param ?string $original_key [Optional] Original key
 	 * @return static
 	 */
-	public function joinInner(string $table, string $parent_id, string $child_id) : static
+	public function joinInner(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
 	{
-		return $this->__join($table, $parent_id, $child_id, 'INNER');
+		return $this->__join($table, $foreign_key, $original_key, 'INNER');
 	}
 
 	/**

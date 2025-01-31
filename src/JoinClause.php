@@ -99,6 +99,16 @@ class JoinClause
     }
 
     /**
+     * Inner join
+     * 
+     * @return static
+     */
+    public function outer() : static
+    {
+        return $this->type('OUTER');
+    }
+
+    /**
      * Cross join
      * 
      * @return static

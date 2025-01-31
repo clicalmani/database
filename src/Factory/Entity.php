@@ -53,7 +53,7 @@ abstract class Entity
     protected $access;
 
     /**
-     * Inserted records
+     * Created records
      * 
      * @var string[]
      */
@@ -401,7 +401,15 @@ abstract class Entity
             $query->set('collate', $collate);
         }
 
-        if ($engine = @$db_default['engine']) $query->set('engine', $engine);
+        /**
+         * Engine
+         */
+        if ($attributes = (new \ReflectionClass($this))->getAttributes(Engine::class)) {
+            $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use($query) {
+                $instance = $attribute->newInstance();
+                $query->set('engine', $instance->engine);
+            });
+        } elseif ($engine = @$db_default['engine']) $query->set('engine', $engine);
 
         /**
          * Default Collation
@@ -452,7 +460,7 @@ abstract class Entity
     public function alter(AlterOption $alter) : string
     {
         throw new \Exception(
-            sprintf("Method alter() of class %s must be overriden.", $this::class)
+            sprintf("Method % of class %s must be overriden.", 'alter', $this::class)
         );
     }
 

@@ -46,12 +46,30 @@ trait CaptureEvents
     private function getEventHandler(string $name) : mixed
     {
         if ( $this->isCustomEvent($name) ) {
+
+            /**
+             * Observer have priority over custom listeners.
+             */
+            if ( array_key_exists($name, $this->observers) ) {
+                return $this->observers[$name];
+            }
+
             foreach ($this->dispatchesEvents as $listener) {
                 if ($listener::__NAME__ === $name) return $listener;
             }
+
+            return null;
         }
 
-        return @$this->eventHandlers[$name];
+        /**
+         * For built-in events, model event has priority over
+         * observer.
+         */
+        if ( array_key_exists($name, $this->eventHandlers) ) {
+            return $this->eventHandlers[$name];
+        }
+
+        return @$this->observers[$name];
     }
 
     /**
@@ -61,6 +79,9 @@ trait CaptureEvents
     {
         /** @var callable|string */
         $handler = $this->getEventHandler($name);
+
+        // We nullify handler to prevent event from firing
+        if ( $this->isEventMuted($name) ) $handler = null;
 
         /**
          * |-------------------------------------------------------
@@ -82,6 +103,11 @@ trait CaptureEvents
             if ( strrpos($name, 'ing') ) $this->lock();
             
             if ( is_callable($handler) ) $handler($this);
+            elseif ( is_array($handler) ) {
+                $observer = $handler[0];
+                $method = $handler[1];
+                $observer->$method($this);
+            }
 
             /**
              * Release the lock
@@ -100,14 +126,18 @@ trait CaptureEvents
         else {
             foreach ($this->dispatchesEvents as $listener) {
                 
-                if ($listener::__NAME__ !== $name) {
+                if ($listener::__NAME__ === $name) {
 
-                    if ( class_exists($handler) ) {
+                    if ( is_string($handler) && class_exists($handler) ) {
                         /** @var \Clicalmani\Database\Events\EventListener */
                         $listener = new $handler;
                         $listener->setTarget($this);
                         $listener->handle($data);
-                    } throw new \RuntimeException("Class $handler not found.");
+                    } elseif ( is_array($handler) ) {
+                        $observer = $handler[0];
+                        $method = $handler[1];
+                        $observer->$method($this);
+                    }
                 }
             }
         }
@@ -146,6 +176,65 @@ trait CaptureEvents
         }
 
         return false;
+    }
+
+    /**
+     * Check if events capturing is prevented
+     * 
+     * @return bool
+     */
+    public static function isEventsCapturingPrevented() : bool
+    {
+        return !!app()->config->database('preventEventsCapturing');
+    }
+
+    /**
+     * Prevent events capturing
+     * 
+     * @return void
+     */
+    public static function preventEventsCapturing() : void
+    {
+        app()->config->set('database', ['preventEventsCapturing' => true]);
+    }
+
+    /**
+     * Allow events capturing
+     * 
+     * @return void
+     */
+    public static function allowEventsCapturing() : void
+    {
+        app()->config->set('database', ['preventEventsCapturing' => false]);
+    }
+
+    /**
+     * Mute events
+     * 
+     * @param array|null $name
+     * @return static
+     */
+    public function muteEvents(array $name = null) : static
+    {
+        if ( isset($name) ) {
+            $this->query->set('muted_events', $name);
+        } else {
+            $this->query->set('prevent_events', true);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Check if event is muted
+     * 
+     * @param string|array|null $name
+     * @return static
+     */
+    public function isEventMuted(string $name) : bool
+    {
+        if ( $this->query->getParam('prevent_events') ) return true;
+        return in_array($name, $this->query->getParam('muted_events', []));
     }
 
     protected function booted() : void

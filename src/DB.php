@@ -1,7 +1,6 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Database\Events\QueryTimeTracker;
 use Clicalmani\Foundation\Support\Facades\Log;
 use PDO;
 use PDOStatement;
@@ -18,6 +17,12 @@ use PDOStatement;
  */
 abstract class DB 
 {
+	const TRANSACTION_DIRTY_READS = 0x0;
+
+	const TRANSACTION_NON_REPEATABLE_READS = 0x0;
+
+	const TRANSACTION_PHANTOM_READS = 0x1;
+
 	/**
 	 * Stores the single database instance for all connections.
 	 * 
@@ -404,14 +409,24 @@ abstract class DB
 		}
 
 		if ( is_callable($callback) ) {
+
 			static::$pdo->beginTransaction();
-			$success = $callback();
-			if ( $success ) {
-				static::commit();
-				return $success;
-			} else {
+			
+			try {
+
+				$success = $callback();
+
+				if ( $success ) {
+					static::commit();
+					return $success;
+				}
+
 				static::rollback();
+
 				return $success;
+			} catch (\Exception $e) {
+				static::rollback();
+				return false;
 			}
 		}
 	}
@@ -462,6 +477,48 @@ abstract class DB
 	 * @return bool
 	 */
 	public static function rollback() : bool { return static::$pdo->rollback(); }
+
+	/**
+	 * Check if inside a transaction
+	 * 
+	 * @return bool
+	 */
+	public static function inTransaction() : bool { return static::$pdo->inTransaction(); }
+
+	/**
+	 * Create a save point
+	 * 
+	 * @param string $name Save point name
+	 * @return \PDOStatement
+	 */
+	public static function savePoint(string $name) : \PDOStatement { return static::statement("SAVEPOINT $name"); }
+
+	/**
+	 * Rollback to a specified save point
+	 * 
+	 * @param string $savepoint Save point name
+	 * @return \PDOStatement
+	 */
+	public static function rollbackTo(string $savepoint) { return static::statement("ROLLBACK TO SAVEPOINT $savepoint"); }
+	
+	/**
+	 * Isolate a transaction
+	 * 
+	 * @param int $isolation_lavel
+	 * @param ?string $scope
+	 * @return \PDOStatement
+	 */
+	public static function isolateTransaction(int $isolation_lavel, ?string $scope = '')
+	{
+		$query = "SET TRANSACTION ISOLATION LEVEL $scope";
+
+		return match ($isolation_lavel) {
+			self::TRANSACTION_DIRTY_READS|self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ UNCOMMITED'),
+			self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ COMMITED'),
+			self::TRANSACTION_NON_REPEATABLE_READS => static::$pdo->query($query . ' REPEATABLE READ'),
+			default => static::$pdo->query($query . ' SERIALIZABLE')
+		};
+	}
 	
 	/**
 	 * Destroy the database connection
