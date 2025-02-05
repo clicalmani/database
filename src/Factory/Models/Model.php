@@ -559,7 +559,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
          * test_user_id holds the request user ID in test mode.
          * and hash is used for url encryption.
          */
-        $filters     = with (new \Clicalmani\Foundation\Http\Requests\Request)->where(array_merge($exclude, ['test_user_id', 'hash']));
+        $filters     = with (new \Clicalmani\Foundation\Http\Request)->where(array_merge($exclude, ['test_user_id', 'hash']));
         $child_class = static::getClassName();
 
         $criteria = '1';
