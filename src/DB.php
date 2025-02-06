@@ -198,7 +198,7 @@ abstract class DB
 	{
 		if ( static::$pdo ) return static::$pdo;
 
-		if ( ! static::$connection ) {
+		if ( ! static::$connection || inConsoleMode() ) {
 			self::setConnection();
 		}
 		
