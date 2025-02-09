@@ -350,12 +350,12 @@ class DBQuery extends DB
 	 */
 	public function insert(array $options = [], ?bool $replace = false) : bool
 	{
-		if ( ! is_array($options[0])) {
+		if ( array_filter($options, fn($entry) => is_string($entry)) ) {
 			$options = [$options];
 		}
-
+		
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
-
+		
 		if ( isset( $table ) ) {
 			unset($this->params['tables']);
 			$this->params['table'] = $table;
@@ -370,7 +370,7 @@ class DBQuery extends DB
 			$this->params['fields']   = $fields;
 			$this->params['values'][] = $values;
 		}
-
+		
 		$this->set('query', (FALSE === $replace) ? self::INSERT: self::REPLACE); 
 		
 		return $this->exec()->status() === 'success';

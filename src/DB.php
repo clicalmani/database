@@ -589,7 +589,7 @@ abstract class DB
 	 */
 	public static function statement(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
 	{
-		$statement = static::$pdo->prepare($sql, ...$flags);
+		$statement = static::getPdo()->prepare($sql, ...$flags);
 		$statement->execute($options);
 		
 		return $statement;

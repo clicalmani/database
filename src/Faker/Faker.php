@@ -106,4 +106,17 @@ class Faker
     {
         return $array[array_rand($array)];
     }
+
+    /**
+     * Generate a unique value using a callback function.
+     * 
+     * @param callable $callback
+     * @param int $maxRetries
+     * @return mixed
+     * @throws \Exception
+     */
+    public static function unique(int $maxRetries = 1000) : mixed
+    {
+        return new Unique($maxRetries);
+    }
 }

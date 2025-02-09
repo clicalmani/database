@@ -6,6 +6,11 @@ use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Foundation\Exceptions\ModelException;
 
+use function enchant_broker_init;
+use function enchant_dict_quick_check;
+use function enchant_broker_request_dict;
+use function enchant_broker_dict_exists;
+
 /**
  * Class AbstractModel
  * 
@@ -407,7 +412,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
     protected function __join(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : static 
     {
-        [$foreign_key, $original_key] = $this->keyLogic($foreign_key, $original_key);
+        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key);
 
         if (is_string($model)) {
             $model = new $model;
@@ -568,10 +573,22 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         app()->database = $db_config;
     }
 
-    protected function keyLogic(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
+    protected function guessRelationshipKeys(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
     {
+        $table = strtolower($model ? (new $model)->getTable(true): $this->getTable(true));
+        $arr = explode(' ', $table);
+        $table = $arr[0];
+        $alias = count($arr) === 2 ? end($arr) : '';
+        
+        // Singular form guessing
+        $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
+        while ($table && ! class_exists($modelClass)) {
+            $table = substr($table, 0, strlen($table) - 1);
+            $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
+        }
+        
         if ( ! isset($foreign_key) ) {
-            return [strtolower($model ? (new $model)->getTable(): $this->getTable()) . '_id', 'id'];
+            return ["{$table}_id", $alias ? "{$alias}.id": 'id'];
         }
 
         $original_key = $original_key ?? $foreign_key;                              // The original key is the parent

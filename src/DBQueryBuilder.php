@@ -382,8 +382,9 @@ abstract class DBQueryBuilder
 	{
 		$this->profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
 		
-		foreach ($this->cumulative_time_listeners[$event] as $listener) {
-			$listener(new Query($this->getSQL(), $this->options, $this->profile));
-		}
+		if ($this->cumulative_time_listeners)
+			foreach ($this->cumulative_time_listeners[$event] as $listener) {
+				$listener(new Query($this->getSQL(), $this->options, $this->profile));
+			}
 	}
 }

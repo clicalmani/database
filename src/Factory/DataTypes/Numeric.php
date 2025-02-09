@@ -92,39 +92,39 @@ trait Numeric
     /**
      * Decimal data type
      * 
-     * @param int $precision
      * @param int $scale
+     * @param int $precision
      * @return static
      */
-    public function decimal(int $precision = 0, int $scale = 2) : static
+    public function decimal(int $scale = 0, int $precision = 2) : static
     {
-        $this->data .= ' DECIMAL(' . $precision . ', ' . $scale . ')';
+        $this->data .= ' DECIMAL(' . $scale . ', ' . $precision . ')';
         return $this;
     }
 
     /**
      * Mumeric data type
      * 
-     * @param int $precision
      * @param int $scale
+     * @param int $precision
      * @return static
      */
-    public function numeric(int $precision = 0, int $scale = 2) : static
+    public function numeric(int $scale = 0, int $precision = 2) : static
     {
-        $this->data .= ' NUMERIC(' . $precision . ', ' . $scale . ')';
+        $this->data .= ' NUMERIC(' . $scale . ', ' . $precision . ')';
         return $this;
     }
 
     /**
      * Fixed data type
      * 
-     * @param int $precision
      * @param int $scale
+     * @param int $precision
      * @return static
      */
-    public function fixed(int $precision = 0, int $scale = 2) : static
+    public function fixed(int $scale = 0, int $precision = 2) : static
     {
-        $this->data .= ' DECIMAL(' . $precision . ', ' . $scale . ')';
+        $this->data .= ' DECIMAL(' . $scale . ', ' . $precision . ')';
         return $this;
     }
 

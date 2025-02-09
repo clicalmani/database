@@ -16,7 +16,7 @@ trait RelationShips
      */
     protected function belongsTo(string $class, ?string $foreign_key = null, ?string $parent_key = null) : mixed
     {
-        return ( new $class )->__join($this, ...$this->keyLogic($foreign_key, $parent_key, $class))
+        return ( new $class )->__join($this, ...$this->guessRelationshipKeys($foreign_key, $parent_key, $class))
                     ->whereAnd($this->getKeySQLCondition(true))
                     ->fetch()
                     ->first();
@@ -69,7 +69,7 @@ trait RelationShips
     {
         if ( $this->isEmpty() ) return collection();
 
-        [$foreign_key, $parent_key] = $this->keyLogic($foreign_key, $parent_key);
+        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key);
 
         $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
 
@@ -92,8 +92,8 @@ trait RelationShips
     {
         if ( $this->isEmpty() ) return null;
         
-        [$foreign_key, $parent_key] = $this->keyLogic($foreign_key, $parent_key, $pivot_class); 
-        [$pivot_foreign_key, $pivot_parent_key] = $this->keyLogic($pivot_foreign_key, $pivot_parent_key); 
+        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key, $pivot_class); 
+        [$pivot_foreign_key, $pivot_parent_key] = $this->guessRelationshipKeys($pivot_foreign_key, $pivot_parent_key); 
 
         $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
 
@@ -120,8 +120,8 @@ trait RelationShips
     {
         if ( $this->isEmpty() ) return collection();
         
-        [$foreign_key, $parent_key] = $this->keyLogic($foreign_key, $parent_key, $pivot_class); 
-        [$pivot_foreign_key, $pivot_parent_key] = $this->keyLogic($pivot_foreign_key, $pivot_parent_key); 
+        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key, $pivot_class); 
+        [$pivot_foreign_key, $pivot_parent_key] = $this->guessRelationshipKeys($pivot_foreign_key, $pivot_parent_key); 
 
         $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
 
@@ -144,7 +144,7 @@ trait RelationShips
     protected function morphTo() : mixed
     {
         $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
-        return $this;
+        return $this->first();
     }
 
     /**
@@ -157,10 +157,12 @@ trait RelationShips
     protected function morphOne(string $class, string $morphic) : mixed
     {
         if ( $this->isEmpty() ) return null;
+        
+        $file = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[0]['file'];
 
         $this->query->set('tables', [(new $class)->getTable(true)]);
-        $this->query->where("{$morphic}_id = ? AND {$morphic}_type = ? ", [$this->id, strtolower(debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[1]['function'])]);
-
+        $this->query->where("{$morphic}_id = ? AND {$morphic}_type = ? ", [$this->id, strtolower(pathinfo($file, PATHINFO_FILENAME))]);
+        
         return $this->fetch($class)->first();
     }
 
@@ -237,13 +239,15 @@ trait RelationShips
      * Pivot table relationship
      * 
      * @param string $class Child model
-     * @param string $foreign_key [Optional] Pivot table foreign key
-     * @param string $parent_key [Optional] Pivot table original key
+     * @param ?string $foreign_key [Optional] Pivot table foreign key
+     * @param ?string $parent_key [Optional] Pivot table original key
      * @param string $direction [Optional] Join direction
      * @return static
      */
-    private function __pivot(string $class, string $foreign_key, string $parent_key, ?string $direction = 'left') : static
+    private function __pivot(string $class, ?string $foreign_key = null, ?string $parent_key = null, ?string $direction = 'left') : static
     {
+        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key);
+
         $this->query->join((new $class)->getTable(true), function(JoinClause $join) use ($foreign_key, $parent_key, $direction) {
             if ($direction !== 'cross') $join->{$direction}()->on("$foreign_key=$parent_key");
             else $join->{$direction}();
@@ -256,11 +260,11 @@ trait RelationShips
      * Pivot table relationship
      * 
      * @param string $class Child model
-     * @param string $foreign_key Pivot table foreign key
-     * @param string $parent_key Pivot table original key
+     * @param ?string $foreign_key Pivot table foreign key
+     * @param ?string $parent_key Pivot table original key
      * @return static
      */
-    public function pivotRight(string $class, string $foreign_key, string $parent_key) : static
+    public function pivotRight(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'right');
     }
@@ -273,7 +277,7 @@ trait RelationShips
      * @param string $parent_key Pivot table original key
      * @return static
      */
-    public function pivotLeft(string $class, string $foreign_key, string $parent_key) : static
+    public function pivotLeft(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'left');
     }
@@ -282,11 +286,11 @@ trait RelationShips
      * Pivot table relationship
      * 
      * @param string $class Child model
-     * @param string $foreign_key Pivot table foreign key
-     * @param string $parent_key Pivot table original key
+     * @param ?string $foreign_key Pivot table foreign key
+     * @param ?string $parent_key Pivot table original key
      * @return static
      */
-    public function pivotInner(string $class, string $foreign_key, string $parent_key) : static
+    public function pivotInner(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'inner');
     }
@@ -295,11 +299,11 @@ trait RelationShips
      * Pivot table relationship
      * 
      * @param string $class Child model
-     * @param string $foreign_key Pivot table foreign key
-     * @param string $parent_key Pivot table original key
+     * @param ?string $foreign_key Pivot table foreign key
+     * @param ?string $parent_key Pivot table original key
      * @return static
      */
-    public function pivotOuter(string $class, string $foreign_key, string $parent_key) : static
+    public function pivotOuter(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'outer');
     }
@@ -308,11 +312,11 @@ trait RelationShips
      * Pivot table relationship
      * 
      * @param string $class Child model
-     * @param string $foreign_key Pivot table foreign key
-     * @param string $parent_key Pivot table original key
+     * @param ?string $foreign_key Pivot table foreign key
+     * @param ?string $parent_key Pivot table original key
      * @return static
      */
-    public function pivotCross(string $class, string $foreign_key, string $parent_key) : static
+    public function pivotCross(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'cross');
     }

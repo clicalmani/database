@@ -355,6 +355,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      */
     public static function create(array $attributes = [], ?bool $replace = false) : static
     {
+        $attributes = [$attributes];
         $instance = static::getInstance();
         $instance->insert($attributes, $replace);
         

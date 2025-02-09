@@ -7,7 +7,7 @@ class Decimal extends DataType
 {
     public function __construct(mixed ...$parameters)
     {
-        $this->decimal(@ $parameters['precision'], @ $parameters['scale']);
+        $this->decimal(@ $parameters['scale'], @ $parameters['precision']);
 
         if (TRUE === @ $parameters['unsigned']) $this->unsigned();
 
