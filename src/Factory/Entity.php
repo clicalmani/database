@@ -13,7 +13,7 @@ use Clicalmani\Database\Factory\Property;
 use Clicalmani\Database\Factory\Models\Attribute;
 use Clicalmani\Database\Factory\Models\Model;
 use Clicalmani\Foundation\Support\Facades\Log;
-use Clicalmani\Foundation\Validation\Validator;
+use Clicalmani\Validation\Validator;
 
 abstract class Entity 
 {
