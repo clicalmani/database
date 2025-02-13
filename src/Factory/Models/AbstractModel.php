@@ -50,6 +50,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $table;
 
     /**
+     * Model table singular
+     * 
+     * @var ?string
+     */
+    protected $singular_table;
+
+    /**
      * Default attributes.
      * 
      * @var array
@@ -236,16 +243,32 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     /**
      * Return the model table name
      * 
-     * @param bool $keep_alias Wether to include table alias or not
+     * @param bool $keep_alias [Optional] Wether to include table alias or not
      * @return string Table name
      */
     public function getTable(bool $keep_alias = false) : string
     {
-        if ($keep_alias) return $this->table;
-       
-        @[$table, $alias] = explode(' ', $this->table);
+        return $this->__getTable($this->table, $keep_alias);
+    }
 
-        return $alias ? $table: $this->table;
+    /**
+     * Return the table singular name
+     * 
+     * @param bool $keep_alias [Optional] Wether to include table alias or not
+     * @return ?string
+     */
+    public function getTableSingular(bool $keep_alias = false) : ?string
+    {
+        return $this->__getTable($this->singular_table, $keep_alias);
+    }
+
+    private function __getTable(string $name, bool $keep_alias = false) : string
+    {
+        if ($keep_alias) return $name;
+       
+        @[$table, $alias] = explode(' ', $name);
+
+        return $alias ? $table: $name;
     }
 
     /**
@@ -580,19 +603,30 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $table = $arr[0];
         $alias = count($arr) === 2 ? end($arr) : '';
         
-        // Singular form guessing
-        $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
-        while ($table && ! class_exists($modelClass)) {
-            $table = substr($table, 0, strlen($table) - 1);
-            $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
-        }
-        
         if ( ! isset($foreign_key) ) {
+
+            if ($singular = $this->getTableSingular(true)) {
+                $arr = explode(' ', $singular);
+                $singular = $arr[0];
+                $alias = count($arr) === 2 ? end($arr) : '';
+
+                return ["{$singular}_id", $alias ? "{$alias}.id": 'id'];
+            }
+            
+            // // Singular form guessing
+            $count = 0;
+            $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
+
+            while ($count < 2 && ! class_exists($modelClass)) {
+                $table = substr($table, 0, strlen($table) - 1);
+                $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
+                $count++;
+            }
+
             return ["{$table}_id", $alias ? "{$alias}.id": 'id'];
         }
 
         $original_key = $original_key ?? $foreign_key;                              // The original key is the parent
-                                                                                    // primary key
         
         if ($original_key == $foreign_key) {
             $original_key = $this->cleanKey($original_key);
