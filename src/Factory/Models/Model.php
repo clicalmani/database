@@ -319,7 +319,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         
         $this->query->set('fields', $keys);
         $this->query->set('values', $values);
-
+        
         $success = $this->query->exec()->status() === 'success';
 
         $values = end($values);
@@ -386,7 +386,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
     public function save() : bool
     {
         $this->emit('saving');
-
+        
         $success = false;
         $data = $this->getData();
         
@@ -710,10 +710,10 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
                 sprintf("Failed to emit %s, make sure it is a registered event.", $event)
             );
 
-        while(DB::inTransaction()) self::preventEventsCapturing();
+        if (DB::inTransaction()) self::preventEventsCapturing();
 
-        self::allowEventsCapturing();
         $this->triggerEvent($event, $data);
+        self::allowEventsCapturing();
     }
 
     /**
@@ -722,7 +722,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * @param ?string $connection
      * @return static
      */
-    public static function on(string $connection = null) : static
+    public static function on(?string $connection = null) : static
     {
         $instance = static::getInstance();
         $instance->connection = $connection;

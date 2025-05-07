@@ -183,10 +183,10 @@ abstract class DB
 	{
 	    if ( ! static::$instance ) {
 			self::getPdo();
-			static::$instance = new DBQuery;
+			self::$instance = new DBQuery;
 		}
 
-		return static::$instance;
+		return self::$instance;
 	}
 
 	/**
@@ -198,7 +198,7 @@ abstract class DB
 	{
 		if ( static::$pdo ) return static::$pdo;
 
-		if ( ! static::$connection || inConsoleMode() ) {
+		if ( ! static::$connection || isConsoleMode() ) {
 			self::setConnection();
 		}
 		
@@ -376,12 +376,17 @@ abstract class DB
 	public static function errno() { return static::$pdo->errorCode(); }
 	
 	/**
+	 * @deprecated
+	 */
+	public static function insertId() : string|false { return static::$pdo->lastInsertId(); }
+
+	/**
 	 * Returns the ID of the last inserted row or sequence value.
 	 * 
 	 * @param string [optional] $name name of the sequence object from which the ID should be returned.
 	 * @return string|false 
 	 */
-	public static function insertId() : string|false { return static::$pdo->lastInsertId(); }
+	public static function lastInsertId() : string|false { return static::$pdo->lastInsertId(); }
 	
 	/**
 	 * Destroy a statement
@@ -401,7 +406,7 @@ abstract class DB
 	 * @param ?callable $callback A callback function
 	 * @return mixed 
 	 */
-	public static function transaction(?callable $callback = null) : mixed
+	public static function transaction(?callable $callback = null)
 	{
 		if ( !isset($callback) ) {
 			static::$pdo->beginTransaction(); 
@@ -409,13 +414,13 @@ abstract class DB
 		}
 
 		if ( is_callable($callback) ) {
-
+			
 			static::$pdo->beginTransaction();
 			
 			try {
 
 				$success = $callback();
-
+				
 				if ( $success ) {
 					static::commit();
 					return $success;
@@ -432,7 +437,7 @@ abstract class DB
 	}
 	
 	/**
-	 * Begins a database transaction
+	 * Alias of transaction
 	 * 
 	 * @param callable $callback A callback function
 	 * @return mixed 
@@ -450,7 +455,7 @@ abstract class DB
 	 * @param ?int $sleep Default 100ms
 	 * @return mixed
 	 */
-	public static function deadlock(callable $callback, ?int $attemps = 5, ?int $sleep = 100) : mixed
+	public static function deadlock(callable $callback, ?int $attemps = 5, ?int $sleep = 100)
 	{
 		while ($attemps--) {
 			try {

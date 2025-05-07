@@ -214,7 +214,7 @@ trait CaptureEvents
      * @param array|null $name
      * @return static
      */
-    public function muteEvents(array $name = null) : static
+    public function muteEvents(?array $name = null) : static
     {
         if ( isset($name) ) {
             $this->query->set('muted_events', $name);

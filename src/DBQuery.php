@@ -399,7 +399,7 @@ class DBQuery extends DB
 	public function insertGetId(array $options = []) : int
 	{
 		$this->insert($options);
-		return DB::insertId();
+		return DB::lastInsertId();
 	}
 
 	/**

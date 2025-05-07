@@ -6,11 +6,6 @@ use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Foundation\Exceptions\ModelException;
 
-use function enchant_broker_init;
-use function enchant_dict_quick_check;
-use function enchant_broker_request_dict;
-use function enchant_broker_dict_exists;
-
 /**
  * Class AbstractModel
  * 
@@ -48,6 +43,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * @var string Table name
      */
     protected $table;
+
+    /**
+     * Model table singular
+     * 
+     * @var string Table name
+     */
+    protected $table_singular;
 
     /**
      * Default attributes.
@@ -539,20 +541,28 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * Protect attributes from mass assignment
      * 
      * @param array &$attributes
+     * @throws \Clicalmani\Database\Exceptions\MassAssignmentException
      * @return void
      */
     protected function discardGuardedAttributes(array &$attributes) : void
     {
+        $keys = array_keys($attributes);
         $attributes_discarded = false;
-
+        
         if ( $this->guarded ) {
-            $attributes = array_diff($attributes, $this->guarded);
+            $arr = array_diff($keys, $this->guarded);
             $attributes_discarded = true;
         } elseif ( $this->fillable ) {
-            $attributes = array_intersect($attributes, $this->fillable);
+            $arr = array_intersect($keys, $this->fillable);
             $attributes_discarded = true;
         }
 
+        if ( !empty($arr) ) {
+            foreach ($arr as $key) {
+                if ( !array_key_exists($key, $attributes) ) unset($attributes[$key]);
+            }
+        }
+        
         if (TRUE === $attributes_discarded && app()->config->database('prevent_silent_discard_attribute')) {
             $class = self::class;
             throw new \Clicalmani\Database\Exceptions\MassAssignmentException(
@@ -581,11 +591,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $alias = count($arr) === 2 ? end($arr) : '';
         
         // Singular form guessing
-        $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
-        while ($table && ! class_exists($modelClass)) {
-            $table = substr($table, 0, strlen($table) - 1);
-            $modelClass = "\\App\Models\\" . join('', array_map(fn($value) => ucfirst($value), explode('_', $table)));
-        }
+        $table = $this->table_singular ?: $table;
         
         if ( ! isset($foreign_key) ) {
             return ["{$table}_id", $alias ? "{$alias}.id": 'id'];

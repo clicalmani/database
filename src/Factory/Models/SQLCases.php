@@ -23,7 +23,7 @@ trait SQLCases
      */
     public function distinct(bool $distinct = true) : static
     {
-        $this->select_distinct = $distinct;
+        $this->distinct = $distinct;
         return $this;
     }
 

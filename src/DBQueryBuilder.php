@@ -103,9 +103,11 @@ abstract class DBQueryBuilder
 	 * @var array
 	 */
 	protected const JOIN_TYPES = [
+		'join'  => 'JOIN',
 		'left'  => 'LEFT JOIN',
 		'right' => 'RIGHT JOIN',
 		'inner' => 'INNER JOIN',
+		'outer' => 'OUTER JOIN',
 		'cross' => 'CROSS JOIN'
 	];
 
@@ -132,7 +134,7 @@ abstract class DBQueryBuilder
 		$default = array(
 			'offset'    => 0, 
 			'limit'     => null,
-			'num_rows'  => 25,
+			'num_rows'  => 1000,
 			'query_str' => [],
 			'options'   => []                                        
 		);
@@ -380,11 +382,13 @@ abstract class DBQueryBuilder
 
 	public function dispatch(string $event) : void
 	{
-		$this->profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
-		
-		if ($this->cumulative_time_listeners)
+		if ($this->cumulative_time_listeners) {
+
+			$this->profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
+
 			foreach ($this->cumulative_time_listeners[$event] as $listener) {
 				$listener(new Query($this->getSQL(), $this->options, $this->profile));
 			}
+		}
 	}
 }

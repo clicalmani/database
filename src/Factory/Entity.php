@@ -164,7 +164,7 @@ abstract class Entity
         $attr->model = $this->model;
 
         /**
-         * Avoid setting custom property 
+         * Avoid setting a custom property 
          * Only set field on insert and update
          */
         if (FALSE === $attr->isCustom() && in_array($this->access, [static::ADD_RECORD, static::UPDATE_RECORD])) {
@@ -174,8 +174,7 @@ abstract class Entity
                  * Validate property
                  */
                 if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Validate::class)) {
-                    $attribute = $attributes[0];
-                    $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use($name, &$value) {
+                    $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use($name, &$value) {
                         $validator = new Validator;
                         $input = [$name => $value];
                         $validator->sanitize($input, [$name => $attribute->newInstance()->validator]);
@@ -205,8 +204,7 @@ abstract class Entity
                  * Primary key
                  */
                 if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(PrimaryKey::class)) {
-                    $attribute = $attributes[0];
-                    $this->useAttribute($attribute, function(\ReflectionAttribute $attribute) use(&$is_primary_key) {
+                    $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use(&$is_primary_key) {
                         $is_primary_key = true;
                     });
                 }
