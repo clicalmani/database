@@ -143,12 +143,6 @@ trait CaptureEvents
         }
     }
 
-    /**
-     * Check event
-     * 
-     * @param string $name
-     * @return bool
-     */
     public function isEvent(string $name) : bool
     {
         $builtin_events = [
@@ -169,7 +163,7 @@ trait CaptureEvents
         return false;
     }
 
-    public function isCustomEvent(string $name) 
+    public function isCustomEvent(string $name) : bool
     {
         foreach ($this->dispatchesEvents as $class) {
             if ($class::__NAME__ === $name) return true;
@@ -178,42 +172,21 @@ trait CaptureEvents
         return false;
     }
 
-    /**
-     * Check if events capturing is prevented
-     * 
-     * @return bool
-     */
     public static function isEventsCapturingPrevented() : bool
     {
         return !!app()->config->database('preventEventsCapturing');
     }
 
-    /**
-     * Prevent events capturing
-     * 
-     * @return void
-     */
     public static function preventEventsCapturing() : void
     {
         app()->config->set('database', ['preventEventsCapturing' => true]);
     }
 
-    /**
-     * Allow events capturing
-     * 
-     * @return void
-     */
     public static function allowEventsCapturing() : void
     {
         app()->config->set('database', ['preventEventsCapturing' => false]);
     }
 
-    /**
-     * Mute events
-     * 
-     * @param array|null $name
-     * @return static
-     */
     public function muteEvents(?array $name = null) : static
     {
         if ( isset($name) ) {
@@ -225,12 +198,6 @@ trait CaptureEvents
         return $this;
     }
 
-    /**
-     * Check if event is muted
-     * 
-     * @param string|array|null $name
-     * @return static
-     */
     public function isEventMuted(string $name) : bool
     {
         if ( $this->query->getParam('prevent_events') ) return true;

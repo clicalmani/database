@@ -1,10 +1,10 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Factory;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 
@@ -14,11 +14,11 @@ use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-class Model extends AbstractModel implements DataClauseInterface, DataOptionInterface
+class Model extends AbstractModel implements ModelInterface
 {
     use SQLClauses;
     use SQLCases;
-    use RelationShips;
+    use Relationships;
     use CaptureEvents;
     use SQLAggregate;
     use StateChange;
@@ -66,21 +66,15 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
      * Return the model instance. Usefull for static methods call.
      * 
      * @param string|array $id [optional] Primary key value
-     * @return static
+     * @return \Clicalmani\Database\Factory\Models\ModelInterface
      */
-    private static function getInstance($id = null) : static
+    private static function getInstance($id = null) : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         $class = static::getClassName();
         return with ( new $class($id) );
     }
 
-    /**
-     * Get the query results.
-     * 
-     * @param ?string $fields SQL select statement.
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    public function get(?string $fields = '*') : Collection
+    public function get(?string $fields = '*') : CollectionInterface
     {
         try {
             if ( !$this->query->getParam('where') AND $this->id) {
@@ -102,24 +96,12 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
 
-    /**
-     * Gets the query result
-     * 
-     * @param ?string $fields SQL select statement.
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    public function select(?string $fields = '*') : Collection
+    public function select(?string $fields = '*') : CollectionInterface
     {
         return $this->get($fields);
     }
 
-    /**
-     * Fetch the result set
-     * 
-     * @param ?string $class [optional] Model class
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    public function fetch(?string $class = null) : Collection
+    public function fetch(?string $class = null) : CollectionInterface
     {
         return $this->get()->map(function($row) use($class) {
             if ($class) return $class::getInstance( with( new $class )->guessKeyValue($row) );
@@ -127,11 +109,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         });
     }
 
-    /**
-     * Delete the model
-     * 
-     * @return bool true if success, false otherwise
-     */
     public function delete() : bool
     {
         if ( $this->isSoftDeletable() ) return $this->softDelete();
@@ -165,11 +142,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $success;
     }
 
-    /**
-     * Force delete the model when multiple rows must be affected.
-     * 
-     * @return bool True on success, false on failure
-     */
     public function forceDelete() : bool
     {
         /**
@@ -182,11 +154,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         throw new ModelException($error, ModelException::ERROR_3060);
     }
 
-    /**
-     * Destroy all records in the table
-     * 
-     * @return bool True on success, false on failure
-     */
     public static function destroy() : bool
     {
         $instance = static::getInstance();
@@ -194,22 +161,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $instance->query->truncate();
     }
 
-    /**
-     * Make a delete possible but never delete
-     * 
-     * @return false
-     */
     public function softDelete() : bool
     {
         return  $this->update(['deleted_at' => now()]);
     }
 
-    /**
-     * Update model
-     * 
-     * @param ?array $value Attributs values key pairs
-     * @return bool True on success, false on failure
-     */
     public function update(?array $values = []) : bool
     {
         if (empty($values)) return false;
@@ -275,12 +231,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         throw new \Exception("Can not bulk update or delete records when on safe mode");
     }
 
-    /**
-     * Insert one or more rows in the table.
-     * 
-     * @param array $fields Row attributes values
-     * @return bool True on success, false on failure
-     */
     public function insert(array $fields = [], ?bool $replace = false) : bool
     {
         if (empty($fields)) return false;
@@ -344,15 +294,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $success;
     }
 
-    /**
-     * Create a new record and return the instance.
-     * If the key is not auto incremented, the key value 
-     * will be guessed from the attributes values.
-     * 
-     * @param array $attributes Attributes values
-     * @param ?bool $replace Replace the record if exists
-     * @return static
-     */
     public static function create(array $attributes = [], ?bool $replace = false) : static
     {
         $attributes = [$attributes];
@@ -366,23 +307,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return static::find( $instance->guessKeyValue($attributes) );
     }
 
-    /**
-     * Create a new record or fail
-     * 
-     * @param ?array $fields
-     * @param ?bool $replace
-     * @return bool
-     */
     public static function createOrFail(array $fields = [], ?bool $replace = false) : bool
     {
         return DB::transaction(fn() => static::getInstance()->insert($fields, $replace));
     }
 
-    /**
-     * Save changes
-     * 
-     * @return bool True on success, false on failure
-     */
     public function save() : bool
     {
         $this->emit('saving');
@@ -417,22 +346,11 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $success;
     }
 
-    /**
-     * Save changes quietly
-     * 
-     * @return bool True on success, false on failure
-     */
     public function saveQuietly() : bool
     {
         return $this->muteEvents()->save();
     }
 
-    /**
-     * Returns the last inserted ID for auto incremented keys
-     * 
-     * @param ?array<string, string> $records A record to guess the ID from (Internal use only)
-     * @return mixed
-     */
     public function lastInsertId(?array $record = []) : mixed
     {
         $last_insert_id = DB::insertId();
@@ -444,12 +362,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $last_insert_id;
     }
 
-    /**
-     * Returns the first value in the selected result
-     * 
-     * @return static|null
-     */
-    public function first() : static|null
+    public function first() : ?\Clicalmani\Database\Factory\Models\ModelInterface
     {
         if ($row = $this->get()->first()) 
             return static::find( $this->guessKeyValue($row) );
@@ -457,11 +370,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return null;
     }
 
-    /**
-     * Returns the first value in the selected result or fail.
-     * 
-     * @return mixed Returns the model instance if found, otherwise callback result.
-     */
     public function firstOr(callable $callback) : mixed
     {
         if (NULL !== $row = $this->first()) return $row;
@@ -469,12 +377,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $callback();
     }
 
-    /**
-     * Returns the first value in the selected result or fail.
-     * 
-     * @return static
-     */
-    public function firstOrFail() : static
+    public function firstOrFail() : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         try {
             return $this->first() ?? throw new ModelNotFoundException("Model not found", 404);
@@ -483,25 +386,13 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
     
-    /**
-     * Returns a specified row defined by a specified primary key.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return static|null
-     */
-    public static function find(string|array|null $id) : static|null
+    public static function find(string|array|null $id) : ?\Clicalmani\Database\Factory\Models\ModelInterface
     {
         if (!$id) return null;
         return static::getInstance($id);
     }
 
-    /**
-     * Returns a specified row defined by a specified primary key or fail.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return static
-     */
-    public static function findOrFail(string|array|null $id) : static
+    public static function findOrFail(string|array|null $id) : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         try {
             return static::find($id) ?? throw new ModelNotFoundException("Model not found", 404);
@@ -510,12 +401,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
 
-    /**
-     * Returns a specified row defined by a specified primary key or create a new one.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return mixed Returns the model instance if found, otherwise callback result.
-     */
     public static function findOr(string|array|null $id, callable $callback) : mixed
     {
         $instance = static::getInstance($id);
@@ -525,12 +410,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $callback();
     }
 
-    /**
-     * Returns all rows from the query statement result
-     * 
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    public static function all() : Collection
+    public static function all() : CollectionInterface
     {
         $instance = static::getInstance();
         
@@ -539,16 +419,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         });
     }
 
-    /**
-     * Filter the query result by using the request parameters. Equal sign 
-     * will be used to compare the request parameter value with the column value.
-     * 
-     * @param array $exclude Parameters to exclude
-     * @param array $options Options can be used to order the result set by specifics request parameters or limit the 
-     *  number of rows to be returned in the result set.
-     * @return \Clicalmani\Foundation\Collection\Collection
-     */
-    public static function filter(?array $exclude = [], ?array $options = []) : Collection
+    public static function filter(?array $exclude = [], ?array $options = []) : CollectionInterface
     {
         $options = (object) $options;
 
@@ -587,13 +458,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
 
-    /**
-     * Insert new row or update row from request parameters
-     * 
-     * @param ?bool $nullify
-     * @return static
-     */
-    public function swap() : static
+    public function swap() : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         $db        = DB::getInstance();
         $table     = $db->getPrefix() . $this->getTable();
@@ -611,33 +476,17 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this;
     }
 
-    /**
-     * Fetch the top $row_count records from the query results set.
-     * 
-     * @param int $row_count
-     * @return static
-     */
-    public function top(int $row_count) : static
+    public function top(int $row_count) : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         return $this->limit(0, $row_count);
     }
 
-    /**
-     * Re-hydrate the model
-     * 
-     * @return static
-     */
-    public function refresh() : static
+    public function refresh() : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         return static::find($this->id);
     }
 
-    /**
-     * Override: Create a seed for the model
-     * 
-     * @return \Clicalmani\Database\Factory\Factory
-     */
-    public static function seed()
+    public static function seed() : \Clicalmani\Database\Factory\FactoryInterface
     {
         return Factory::new();
     }
@@ -647,13 +496,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return null;
     }
 
-    /**
-     * Register event
-     * 
-     * @param string $event Event name
-     * @param callable $callback Event handler
-     * @return void
-     */
     public function registerEvent(string $event, callable $callback): void
     {
         if (FALSE == self::isEventsCapturingPrevented() && FALSE === $this->isCustomEvent($event) && is_callable($callback)) {
@@ -661,13 +503,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         }
     }
 
-    /**
-     * Register observer
-     * 
-     * @param \Clicalmani\Database\Events\EventObserverInterface $observer
-     * @return void
-     * @throws \RuntimeException
-     */
     public function registerObserver(\Clicalmani\Database\Events\EventObserverInterface $observer): void
     {
         $reflection = new \ReflectionClass($observer);
@@ -695,14 +530,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this->dates && in_array('deleted_at', $this->dates);
     }
 
-    /**
-     * Emit a model event
-     * 
-     * @param string $event Event name
-     * @param mixed $data Event data
-     * @return bool
-     * @throws \RuntimeException
-     */
     public function emit(string $event, mixed $data = null): void
     {
         if ( FALSE === $this->isEvent($event) ) 
@@ -716,25 +543,13 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         self::allowEventsCapturing();
     }
 
-    /**
-     * Switch model connection
-     * 
-     * @param ?string $connection
-     * @return static
-     */
-    public static function on(?string $connection = null) : static
+    public static function on(?string $connection = null) : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         $instance = static::getInstance();
         $instance->connection = $connection;
         return $instance;
     }
 
-    /**
-     * Get the model original state
-     * 
-     * @param ?string $attribute
-     * @return string
-     */
     public function getOriginal(?string $attribute = null) : mixed
     {
         $manipulated = $this->getData();
@@ -748,13 +563,7 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return null;
     }
 
-    /**
-     * Mass assignment
-     * 
-     * @param array $attributes
-     * @return static
-     */
-    public function fill(array $attributes) : static
+    public function fill(array $attributes) : \Clicalmani\Database\Factory\Models\ModelInterface
     {
         $this->discardGuardedAttributes($attributes);
 
@@ -765,12 +574,6 @@ class Model extends AbstractModel implements DataClauseInterface, DataOptionInte
         return $this;
     }
 
-    /**
-     * Get the first value of a field in the query result
-     * 
-     * @param string $field Field to first
-     * @return mixed
-     */
     public function firstValue(string $field) : mixed
     {
         return $this->query->firstValue($field);

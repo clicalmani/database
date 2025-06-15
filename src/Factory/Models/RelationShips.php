@@ -2,8 +2,9 @@
 namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Database\JoinClause;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 
-trait RelationShips
+trait Relationships
 {
     /**
      * The current model inherit a foreign key
@@ -45,9 +46,9 @@ trait RelationShips
      * @param string $class Child model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $parent_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function hasMany(string $class, ?string $foreign_key = null, ?string $parent_key = null) : \Clicalmani\Foundation\Collection\Collection
+    protected function hasMany(string $class, ?string $foreign_key = null, ?string $parent_key = null) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
         
@@ -63,9 +64,9 @@ trait RelationShips
      * @param string $class Child model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $parent_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function belongsToMany(string $class, ?string $foreign_key = null, ?string $parent_key = null) : \Clicalmani\Foundation\Collection\Collection
+    protected function belongsToMany(string $class, ?string $foreign_key = null, ?string $parent_key = null) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
 
@@ -114,9 +115,9 @@ trait RelationShips
      * @param string $class Child model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $parent_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function hasManyThrough(string $class, string $pivot_class, ?string $foreign_key = null, ?string $parent_key = null, ?string $pivot_foreign_key = null, ?string $pivot_parent_key = null) : \Clicalmani\Foundation\Collection\Collection
+    protected function hasManyThrough(string $class, string $pivot_class, ?string $foreign_key = null, ?string $parent_key = null, ?string $pivot_foreign_key = null, ?string $pivot_parent_key = null) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
         
@@ -171,9 +172,9 @@ trait RelationShips
      * 
      * @param string $class Child model
      * @param string $morphic Morphic association
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function morphMany(string $class, string $morphic) : \Clicalmani\Foundation\Collection\Collection
+    protected function morphMany(string $class, string $morphic) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
 
@@ -188,9 +189,9 @@ trait RelationShips
      * 
      * @param string $class 
      * @param string $morphic Morphic association
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function morphToMany(string $class, string $morphic) : \Clicalmani\Foundation\Collection\Collection
+    protected function morphToMany(string $class, string $morphic) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
 
@@ -214,9 +215,9 @@ trait RelationShips
      * 
      * @param string $class 
      * @param string $morphic Morphic association
-     * @return \Clicalmani\Foundation\Collection\Collection
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    protected function morphedByMany(string $class, string $morphic) : \Clicalmani\Foundation\Collection\Collection
+    protected function morphedByMany(string $class, string $morphic) : CollectionInterface
     {
         if ( $this->isEmpty() ) return collection();
 
@@ -256,66 +257,26 @@ trait RelationShips
         return $this;
     }
 
-    /**
-     * Pivot table relationship
-     * 
-     * @param string $class Child model
-     * @param ?string $foreign_key Pivot table foreign key
-     * @param ?string $parent_key Pivot table original key
-     * @return static
-     */
     public function pivotRight(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'right');
     }
 
-    /**
-     * Pivot table relationship
-     * 
-     * @param string $class Child model
-     * @param string $foreign_key Pivot table foreign key
-     * @param string $parent_key Pivot table original key
-     * @return static
-     */
     public function pivotLeft(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'left');
     }
 
-    /**
-     * Pivot table relationship
-     * 
-     * @param string $class Child model
-     * @param ?string $foreign_key Pivot table foreign key
-     * @param ?string $parent_key Pivot table original key
-     * @return static
-     */
     public function pivotInner(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'inner');
     }
 
-    /**
-     * Pivot table relationship
-     * 
-     * @param string $class Child model
-     * @param ?string $foreign_key Pivot table foreign key
-     * @param ?string $parent_key Pivot table original key
-     * @return static
-     */
     public function pivotOuter(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'outer');
     }
 
-    /**
-     * Pivot table relationship
-     * 
-     * @param string $class Child model
-     * @param ?string $foreign_key Pivot table foreign key
-     * @param ?string $parent_key Pivot table original key
-     * @return static
-     */
     public function pivotCross(string $class, ?string $foreign_key = null, ?string $parent_key = null) : static
     {
         return $this->__pivot($class, $foreign_key, $parent_key, 'cross');

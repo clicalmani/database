@@ -7,7 +7,7 @@ namespace Clicalmani\Database\Factory;
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Factory
+class Factory implements FactoryInterface
 {
     /**
      * The name of the factory corresponding model.
@@ -59,11 +59,6 @@ class Factory
         return $seed;
     }
 
-    /**
-     * Override: Factory seed
-     * 
-     * @return array<string, mixed>
-     */
     public function definition() : array
     {
         return [
@@ -71,25 +66,12 @@ class Factory
         ];
     }
 
-    /**
-     * Manipulate factory states
-     * 
-     * @param callable $callback A callable function that receive default attributes and return the 
-     * attributes to override.
-     * @return static
-     */
     public function state(?callable $callback) : static
     {
         $this->override( $callback($this->definition()) );
         return $this;
     }
 
-    /**
-     * Manipulate multiple states at the same time
-     * 
-     * @param Sequence $states
-     * @return static
-     */
     public function states(Sequence $seqs) : static
     {
         foreach (range(1, $seqs->count) as $num) {  
@@ -99,34 +81,18 @@ class Factory
         return $this;
     }
 
-    /**
-     * Returns an instance of the factory
-     * 
-     * @return static
-     */
     public static function new() : static
     {
         $factory = get_called_class();
         return new $factory;
     }
 
-    /**
-     * Repeat the seed operation n times.
-     * 
-     * @param int $num Counter
-     * @return $this
-     */
     public function count($num = 1) : static
     {
         $this->counter = $num;
         return $this;
     }
 
-    /**
-     * Start seeding
-     * 
-     * @return void
-     */
     public function make($attributes = []) : void
     {
         $seeds = [];
@@ -143,11 +109,6 @@ class Factory
         return new \Clicalmani\Database\Faker\Faker;
     }
 
-    /**
-     * Returns a new sequence
-     * 
-     * @return Sequence
-     */
     public function sequence()
     {
         return new Sequence;

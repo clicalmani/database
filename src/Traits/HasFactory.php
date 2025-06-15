@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Traits;
 
 trait HasFactory
 {
-    public static function seed()
+    public static function seed() : \Clicalmani\Database\Factory\FactoryInterface
     {
         $className = get_called_class();
         $model = substr($className, strrpos($className, "\\") + 1);

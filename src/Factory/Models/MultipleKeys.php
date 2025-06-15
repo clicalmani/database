@@ -27,8 +27,9 @@ Trait MultipleKeys
      * Guess key value
      * 
      * @param array $row
+     * @return string|array|null
      */
-    public function guessKeyValue(array $row)
+    public function guessKeyValue(array $row) : string|array|null
     {
         $key = $this->cleanKey( $this->getKey() );
         
