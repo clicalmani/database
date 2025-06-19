@@ -21,9 +21,9 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 		if ( isset($this->params['signatures']) AND is_array($this->params['signatures']) ) {
 			$this->sql .= join(',', $this->params['signatures']) . ' ';
 		}
-
+		
 		if ( isset($this->params['tables']) AND is_array($this->params['tables']) ) {
-			if ( count($this->params['tables']) > 1 OR isset($this->params['join']) ) {
+			if ( count($this->params['tables']) > 1 OR isset($this->params['join']) AND $this->params['join'] ) {
 				/**
 				 * Multiple tables delete
 				 */

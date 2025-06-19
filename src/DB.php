@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Database\Interfaces\QueryInterface;
 use Clicalmani\Foundation\Support\Facades\Log;
 use PDO;
 use PDOStatement;
@@ -68,10 +69,10 @@ abstract class DB
 	/**
 	 * Returns a database connection by specifying the driver as argument.
 	 * 
-	 * @param ?string $driver Database driver
+	 * @param string $driver Database driver
 	 * @return void
 	 */
-	public static function setConnection(?string $driver = '') : void
+	public static function setConnection(string $driver = '') : void
 	{
 		/** @var array<string|array> */
 		static::$db_config = app()->config->database();
@@ -172,7 +173,7 @@ abstract class DB
 	 * oui
 	 * @return string Database table prefix
 	 */
-	public static function getPrefix() { return static::$prefix; }
+	public static function getPrefix() : string { return static::$prefix; }
 	
 	/**
 	 * Returns a single database instance.
@@ -405,6 +406,7 @@ abstract class DB
 	 * 
 	 * @param ?callable $callback A callback function
 	 * @return mixed 
+	 * @throws \Exception
 	 */
 	public static function transaction(?callable $callback = null)
 	{
@@ -431,7 +433,7 @@ abstract class DB
 				return $success;
 			} catch (\Exception $e) {
 				static::rollback();
-				return false;
+				throw new \Exception($e->getMessage(), $e->getCode(), $e);
 			}
 		}
 	}
@@ -451,11 +453,11 @@ abstract class DB
 	 * Handle transaction deadlock
 	 * 
 	 * @param callable $callback
-	 * @param ?int $attemps Default 5
-	 * @param ?int $sleep Default 100ms
+	 * @param int $attemps Default 5
+	 * @param int $sleep Default 100ms
 	 * @return mixed
 	 */
-	public static function deadlock(callable $callback, ?int $attemps = 5, ?int $sleep = 100)
+	public static function deadlock(callable $callback, int $attemps = 5, int $sleep = 100)
 	{
 		while ($attemps--) {
 			try {
@@ -536,9 +538,9 @@ abstract class DB
 	 * Select a database table on which to execute a SQL query.
 	 * 
 	 * @param array|string $tables Database table(s) name(s)
-	 * @return \Clicalmani\Database\DBQuery Object
+	 * @return \Clicalmani\Database\Interfaces\QueryInterface Object
 	 */
-	public static function table(array|string $tables) : DBQuery
+	public static function table(array|string $tables) : QueryInterface
 	{
 		$builder = new DBQuery;
 		$builder->set('query', DBQuery::SELECT);
@@ -615,9 +617,9 @@ abstract class DB
 	 * Establish a database connection
 	 * 
 	 * @param string $driver Database driver
-	 * @return \Clicalmani\Database\DBQuery Object
+	 * @return \Clicalmani\Database\Interfaces\QueryInterface Object
 	 */
-	public static function connection(string $driver = '') : DBQuery
+	public static function connection(string $driver = '') : QueryInterface
 	{
 		if ( ! empty($driver) ) {
 			self::close();

@@ -5,6 +5,7 @@ use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
+use Clicalmani\Database\Interfaces\JoinClauseInterface;
 use Clicalmani\Foundation\Collection\Map;
 
 /**
@@ -15,7 +16,7 @@ use Clicalmani\Foundation\Collection\Map;
  * @package Clicalmani\Database
  * @author clicalmani
  */
-class DBQuery extends DB
+class DBQuery extends DB implements Interfaces\QueryInterface
 {
 	/**
 	 * Query builder parameters
@@ -128,14 +129,7 @@ class DBQuery extends DB
 		$this->query = $query;
 	}
 	
-	/**
-	 * Sets query parameter
-	 * 
-	 * @param string $param parameter name
-	 * @param mixed $value parameter value
-	 * @return static
-	 */
-	public function set(string $param, mixed $value) : static
+	public function set(string $param, mixed $value) : self
 	{ 
 		if ($param == 'type') {
 			$this->query = $value;
@@ -144,36 +138,18 @@ class DBQuery extends DB
 		return $this;
 	}
 
-	/**
-	 * Unset a query parameter
-	 * 
-	 * @param string $param Parameter name
-	 * @return static
-	 */
-	public function unset(string $param) : static
+	public function unset(string $param) : self
 	{
 		unset($this->params[$param]);
 		return $this;
 	}
 
-	/**
-	 * Binds query parameters.
-	 * 
-	 * @param array $options 
-	 * @return void
-	 */
 	public function setOptions(array $options) : void
 	{
 		$this->options = $options;
 	}
 
-	/**
-	 * Gets query the specified parameter value
-	 * 
-	 * @param string $param Parameter name
-	 * @return mixed Parameter value, or null on failure.
-	 */
-	public function getParam(string $param, mixed $default = null)
+	public function getParam(string $param, mixed $default = null) : mixed
 	{
 		if (isset($this->params[$param])) {
 			return $this->params[$param] ?? $default;
@@ -182,11 +158,6 @@ class DBQuery extends DB
 		return $default;
 	}
 
-	/**
-	 * Execute a SQL query command
-	 * 
-	 * @return \Clicalmani\Database\DBQueryBuilder
-	 */
 	public function exec() : \Clicalmani\Database\DBQueryBuilder
 	{ 
 		$this->query = isset($this->params['query'])? $this->params['query']: $this->query;
@@ -266,22 +237,12 @@ class DBQuery extends DB
 		return $this->builder;
 	}
 
-	/**
-	 * Performs a delete request.
-	 * 
-	 * @return static
-	 */
 	public function delete() : static
 	{
 		$this->query = static::DELETE;
 		return $this;
 	}
 
-	/**
-	 * Perform a truncate request.
-	 * 
-	 * @return bool true on success, false on failure
-	 */
 	public function truncate() : bool
 	{
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
@@ -296,12 +257,6 @@ class DBQuery extends DB
 		return $this->exec()->status() === 'success';
 	}
 
-	/**
-	 * Perform an update request.
-	 * 
-	 * @param array $option [optional] New attribute values
-	 * @return bool true on success, false on failure
-	 */
 	public function update(array $options = []) : bool
 	{
 		$this->set('query', DBQuery::UPDATE);
@@ -315,40 +270,17 @@ class DBQuery extends DB
 		return $this->exec()->status() === 'success';
 	}
 
-	/**
-	 * Increment a field value by a specified value.
-	 * 
-	 * @param string $field Field name
-	 * @param int $value [optional] Increment value. Default is 1
-	 * @param ?array $fields [optional] Additional fields to be updated
-	 * @return bool true on success, false on failure
-	 */
 	public function increment(string $field, int $value = 1, ?array $fields = []) : bool
 	{
 		return $this->update( array_merge($fields, [$field => $field . ' + ' . $value]) );
 	}
 
-	/**
-	 * Decrement a field value by a specified value.
-	 * 
-	 * @param string $field Field name
-	 * @param int $value [optional] Decrement value. Default is 1
-	 * @param ?array $fields [optional] Additional fields to be updated
-	 * @return bool true on success, false on failure
-	 */
-	public function decrement(string $field, int $value = 1, ?array $fields = []) : bool
+	public function decrement(string $field, int $value = 1, array $fields = []) : bool
 	{
 		return $this->update( array_merge($fields, [$field => $field . ' - ' . $value]) );
 	}
 
-	/**
-	 * Insert new record to the selected database table. 
-	 * 
-	 * @param array $options [optional] New values to be inserted.
-	 * @param ?bool $replace Run REPLACE query if record exists
-	 * @return bool true on success, false on failure
-	 */
-	public function insert(array $options = [], ?bool $replace = false) : bool
+	public function insert(array $options = [], bool $replace = false) : bool
 	{
 		if ( array_filter($options, fn($entry) => is_string($entry)) ) {
 			$options = [$options];
@@ -376,11 +308,6 @@ class DBQuery extends DB
 		return $this->exec()->status() === 'success';
 	}
 
-	/**
-	 * Insert new record to the selected table or fail.
-	 * 
-	 * @return bool true on success, false on failure
-	 */
 	public function insertOrFail(array $options = []) : bool
 	{
 		try {
@@ -390,25 +317,12 @@ class DBQuery extends DB
 		}
 	}
 
-	/**
-	 * Insert new record to the selected table and return the last inserted id.
-	 * 
-	 * @param array $options [optional] New values to be inserted.
-	 * @return int
-	 */
 	public function insertGetId(array $options = []) : int
 	{
 		$this->insert($options);
 		return DB::lastInsertId();
 	}
 
-	/**
-	 * Insert new record or update the existing one
-	 * 
-	 * @deprecated
-	 * @param array $options
-	 * @return void
-	 */
 	public function insertOrUpdate(array $options) : void
 	{
 		if (false === $this->insertOrFail($options)) {
@@ -420,13 +334,7 @@ class DBQuery extends DB
 		}
 	}
 
-	/**
-	 * Specify the query where condition. 
-	 * 
-	 * @param array ...$args Takes one, two or three parameters
-	 * @return static
-	 */
-	public function where( ...$args ) : static
+	public function where( ...$args ) : self
 	{
 		switch(count($args)) {
 			case 1:
@@ -465,13 +373,7 @@ class DBQuery extends DB
 		return $this;
 	}
 
-	/**
-	 * Specify the query having condition
-	 * 
-	 * @param string $criteria a SQL query having condition
-	 * @return static
-	 */
-	public function having(string $criteria) : static
+	public function having(string $criteria) : self
 	{
 		if ( !isset($this->params['having']) ) {
 			$this->params['having'] = $criteria;
@@ -482,62 +384,31 @@ class DBQuery extends DB
 		return $this;
 	}
 
-	/**
-	 * Orders the query result set.
-	 * 
-	 * @param string $order_by a SQL query order by statement
-	 * @return static
-	 */
 	public function orderBy(string $order_by) : static
 	{
 		$this->params['order_by'] = $order_by;
 		return $this;
 	}
 
-	/**
-	 * Group the query result set by a specified parameter
-	 * 
-	 * @param string $group_by a SQL query group by statement
-	 * @return static
-	 */
 	public function groupBy(string $group_by) : static
 	{
 		$this->params['group_by'] = $group_by;
 		return $this;
 	}
 
-	/**
-	 * Wheter to return a distinct result set.
-	 * 
-	 * @param bool $distinct [optional] default true
-	 * @return static
-	 */
-	public function distinct($distinct = true) : static
+	public function distinct(bool $distinct = true) : static
 	{
 		$this->params['distinct'] = $distinct;
 		return $this;
 	}
 
-	/**
-	 * SQL from statement when deleting from joined tables.
-	 * 
-	 * @param string $fields 
-	 * @return static
-	 */
 	public function from(string $fields) : static
 	{
 		$this->params['fields'] = $fields;
 		return $this;
 	}
 
-	/**
-	 * Gets a database query result set. An optional comma separated list of request fields can be specified as 
-	 * the unique argument.
-	 * 
-	 * @param string $fields a list of request fields separated by comma.
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function get(string $fields = '*') : Collection
+	public function get(string $fields = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		$this->params['fields'] = $fields;
 		$result = $this->exec();
@@ -550,24 +421,12 @@ class DBQuery extends DB
 		return $collection;
 	}
 
-	/**
-	 * Fetch all rows in a query result set.
-	 * 
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function all() : Collection
+	public function all() : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		$this->params['where'] = 'TRUE';
 		return $this->exec()->result();
 	}
 
-	/**
-	 * Limit the number of rows to be returned in a query result set.
-	 * 
-	 * @param int $offset [Optional] the starting index to fetch from. Default is 0
-	 * @param int $limit [Optional] The number of result to be returned. Default is 1
-	 * @return static
-	 */
 	public function limit(int $offset = 0, int $limit = 1) : static
 	{
 		$this->params['calc'] = true;
@@ -577,25 +436,12 @@ class DBQuery extends DB
 		return $this;
 	}
 
-	/**
-	 * Limit the number of rows to be returned in a query result set.
-	 * 
-	 * @param int $limit [Optional] The number of result to be returned. Default is 1
-	 * @return static
-	 */
 	public function top(int $limit = 1) : static
 	{
 		$this->params['limit'] = $limit;
 		return $this;
 	}
 
-	/**
-	 * Joins a database table to the current selected table. 
-	 * 
-	 * @param mixed $table Table name
-	 * @param ?callable $callback [optional] A callback function
-	 * @return static
-	 */
 	public function join(mixed $table, ?callable $callback = null) : static
 	{
 		if (NULL === $callback && is_string($table)) $this->params['tables'][] = $table;
@@ -630,7 +476,7 @@ class DBQuery extends DB
 	{
 		if ( ! isset($foreign_key) ) $foreign_key = strtolower($table).'_id';
 
-		return $this->join($table, function(JoinClause $join) use ($foreign_key, $is_crossed, $original_key, $type, $operator) {
+		return $this->join($table, function(JoinClauseInterface $join) use ($foreign_key, $is_crossed, $original_key, $type, $operator) {
 			$join->type($type);
 			if ($is_crossed) $join->on('');
 			else if ($foreign_key != $original_key) $join->on($foreign_key . $operator . $original_key);
@@ -638,63 +484,26 @@ class DBQuery extends DB
 		});
 	}
 
-	/**
-	 * Left join a database table to the current selected table. 
-	 * 
-	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
-	 * @return static
-	 */
-	public function joinLeft(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
+	public function joinLeft(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
 	{
 		return $this->__join($table, $foreign_key, $original_key);
 	}
 
-	/**
-	 * Right join a database table to the current selected table. 
-	 * 
-	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
-	 * @return static
-	 */
-	public function joinRight(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
+	public function joinRight(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
 	{
 		return $this->__join($table, $foreign_key, $original_key, 'RIGHT');
 	}
 
-	/**
-	 * Inner join a database table to the current selected table. 
-	 * 
-	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
-	 * @return static
-	 */
-	public function joinInner(string $table, ?string $foreign_key = null, ?string $original_key = null) : static
+	public function joinInner(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
 	{
 		return $this->__join($table, $foreign_key, $original_key, 'INNER');
 	}
 
-	/**
-	 * Cross join
-	 * 
-	 * @param string $table Table name
-	 * @return static
-	 */
-	public function joinCross(string $table) : static
+	public function joinCross(string $table) : self
 	{
 		return $this->__join($table, '', '', 'CROSS', true);
 	}
 
-	/**
-	 * Lock table in writing mode
-	 * 
-	 * @param ?string $type [optional] Lock type. Default is 'WRITE'
-	 * @param ?bool $disable_keys [optional] Disable foreign keys check. Default is false
-	 * @return bool
-	 */
 	public function lock(?string $type = 'WRITE', ?bool $disable_keys = false) : bool
 	{
 		if ( ! in_array($type, ['READ', 'READ LOCAL', 'WRITE']) ) $type = 'WRITE';
@@ -705,12 +514,6 @@ class DBQuery extends DB
 		return $this->exec()->status() === 'success';
 	}
 
-	/**
-	 * Unlock a locked table in writing mode
-	 * 
-	 * @param ?bool $enable_keys [optional] Enable foreign keys check. Default is false
-	 * @return bool
-	 */
 	public function unlock(?bool $enable_keys = false) : bool
 	{
 		$this->query = static::UNLOCK_TABLE;
@@ -718,31 +521,16 @@ class DBQuery extends DB
 		return $this->exec()->status() === 'success';
 	}
 
-	/**
-	 * Returns the query result set.
-	 * 
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function getBuilderResult() : Collection
+	public function getBuilderResult() : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		return $this->builder->result();
 	}
 
-	/**
-	 * Returns the query builder object.
-	 * 
-	 * @return \Clicalmani\Database\DBQueryBuilder|null
-	 */
-	public function getBuilder() : DBQueryBuilder|null
+	public function getBuilder() : ?\Clicalmani\Database\Interfaces\BuilderInterface
 	{
 		return $this->builder;
 	}
 
-	/**
-	 * Returns the first row in a query result set.
-	 * 
-	 * @return mixed
-	 */
 	public function first() : mixed
 	{
 		$this->params['limit'] = 1;
@@ -750,12 +538,6 @@ class DBQuery extends DB
 		return (object) $result->result()->first();
 	}
 
-	/**
-	 * Returns the first value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be returned
-	 * @return mixed
-	 */
 	public function firstValue(string $field) : mixed
 	{
 		$this->params['fields'] = $field;
@@ -764,11 +546,6 @@ class DBQuery extends DB
 		return $result->result()->first()[$field];
 	}
 
-	/**
-	 * Returns the first row in a query result set or fail.
-	 * 
-	 * @return mixed
-	 */
 	public function firstOrFail() : mixed
 	{
 		$result = $this->first();
@@ -786,25 +563,13 @@ class DBQuery extends DB
 		return $result->result()->first()[$field];
 	}
 
-	/**
-	 * Count the number of rows in a query result set.
-	 * 
-	 * @param ?string $field [optional] The field to be counted. Default is '*'
-	 * @return int
-	 */
-	public function count(?string $field = '*') : int
+	public function count(string $field = '*') : int
 	{
 		$this->params['fields'] = "COUNT($field)";
 		$result = $this->exec();
 		return (int) $result->result()->first()["COUNT($field)"];
 	}
 
-	/**
-	 * Sum the values of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
-	 */
 	public function sum(string $field) : int
 	{
 		$this->params['fields'] = "SUM($field)";
@@ -812,12 +577,6 @@ class DBQuery extends DB
 		return (int) $result->result()->first()["SUM($field)"];
 	}
 
-	/**
-	 * Get the maximum value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
-	 */
 	public function max(string $field) : int
 	{
 		$this->params['fields'] = "MAX($field)";
@@ -825,12 +584,6 @@ class DBQuery extends DB
 		return (int) $result->result()->first()["MAX($field)"];
 	}
 
-	/**
-	 * Get the minimum value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
-	 */
 	public function min(string $field) : int
 	{
 		$this->params['fields'] = "MIN($field)";
@@ -838,12 +591,6 @@ class DBQuery extends DB
 		return (int) $result->result()->first()["MIN($field)"];
 	}
 
-	/**
-	 * Get the average value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
-	 */
 	public function avg(string $field) : int
 	{
 		$this->params['fields'] = "AVG($field)";
@@ -851,13 +598,6 @@ class DBQuery extends DB
 		return (int) $result->result()->first()["AVG($field)"];
 	}
 
-	/**
-	 * Find a record by its id
-	 * 
-	 * @param int $id Record id
-	 * @param ?string $column [optional] Column name. Default is 'id'
-	 * @return mixed
-	 */
 	public function find(int $id, ?string $column = 'id') : mixed
 	{
 		$this->params['where'] = "$column = :id";
@@ -865,13 +605,6 @@ class DBQuery extends DB
 		return $this->exec()->result()->first();
 	}
 
-	/**
-	 * Chunk the results of the query.
-	 * 
-	 * @param int $size Chunk size
-	 * @param collable $callback Callback function
-	 * @return void
-	 */
 	public function chunk(int $size, callable $callback) : void
 	{
 		$offset = 0;
@@ -889,14 +622,6 @@ class DBQuery extends DB
 		} while ( $result->count() > 0 );
 	}
 
-	/**
-	 * Chunk the results of the query by id.
-	 * 
-	 * @param int $size Chunk size
-	 * @param collable $callback Callback function
-	 * @param ?string $column [optional] Column name. Default is 'id'
-	 * @return void
-	 */
 	public function chunkById(int $size, callable $callback, ?string $column = 'id') : void
 	{
 		$offset = 0;
@@ -915,14 +640,7 @@ class DBQuery extends DB
 		} while ( $result->count() > 0 );
 	}
 
-	/**
-	 * Paginate the query result set.
-	 * 
-	 * @param int $page Page number
-	 * @param int $size Page size
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function paginate(int $page, int $size) : Collection
+	public function paginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		$offset = ($page - 1) * $size;
 		$this->params['offset'] = $offset;
@@ -930,14 +648,7 @@ class DBQuery extends DB
 		return $this->exec()->result();
 	}
 
-	/**
-	 * Paginate the query result set without FOUND_ROWS.
-	 * 
-	 * @param int $page Page number
-	 * @param int $size Page size
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function simplePaginate(int $page, int $size) : Collection
+	public function simplePaginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		$offset = ($page - 1) * $size;
 		$this->params['offset'] = $offset;
@@ -946,23 +657,11 @@ class DBQuery extends DB
 		return $this->exec()->result();
 	}
 
-	/**
-	 * Lazy load the query result set.
-	 * 
-	 * @return \Clicalmani\Foundation\Collection\Collection
-	 */
-	public function lazy() : Collection
+	public function lazy() : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		return $this->exec()->result();
 	}
 
-	/**
-	 * Get the query result set as a map.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
-	 */
 	public function pluck(string $field, ?string $key = null) : Map
 	{
 		$this->params['fields'] = $field;
@@ -977,13 +676,6 @@ class DBQuery extends DB
 		return $collection;
 	}
 
-	/**
-	 * Lazy load the query result set by a specified field.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
-	 */
 	public function lazyBy(string $field, ?string $key = null) : Map
 	{
 		$this->params['fields'] = $field;
@@ -998,13 +690,6 @@ class DBQuery extends DB
 		return $collection;
 	}
 
-	/**
-	 * Lazy load the query result set by a specified field in descending order.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
-	 */
 	public function lazyByDesc(string $field, ?string $key = null) : Map
 	{
 		$this->params['fields'] = $field;
@@ -1020,46 +705,22 @@ class DBQuery extends DB
 		return $collection;
 	}
 
-	/**
-	 * Check if a record exists in the query result set.
-	 * 
-	 * @return bool
-	 */
 	public function exists() : bool
 	{
 		return $this->count() > 0;
 	}
 
-	/**
-	 * Check if a record does not exist in the query result set.
-	 * 
-	 * @return bool
-	 */
 	public function doesntExist() : bool
 	{
 		return $this->count() === 0;
 	}
 
-	/**
-	 * Check if a record exists in the query result set.
-	 * 
-	 * @param bool $condition
-	 * @param callable $callback
-	 * @return bool
-	 */
 	public function when(bool $condition, callable $callback) : static
 	{
 		if ($condition) $callback($this->query);
 		return $this;
 	}
 
-	/**
-	 * Check if a record does not exist in the query result set.
-	 * 
-	 * @param bool $condition
-	 * @param callable $callback
-	 * @return bool
-	 */
 	public function unless(bool $condition, callable $callback) : static
 	{
 		if (!$condition) $callback($this->query);

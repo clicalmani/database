@@ -401,10 +401,10 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->attributes[$name] ?? null;
     }
 
-    public function join(Model|string|callable $model, ?callable $callback = null): static
+    public function join(string|callable|Elegant $model, ?callable $callback = null): self
     {
         if (is_string($model)) {
-            /** @var \Clicalmani\Database\Factory\Models\Model */
+            /** @var \Clicalmani\Database\Factory\Models\Elegant */
             $model = new $model;
             $this->query->join($model->getTable(true), $callback);
         } elseif (is_callable($model)) $this->query->join($model);
@@ -412,7 +412,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this;
     }
 
-    protected function __join(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : static 
+    protected function __join(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : self 
     {
         [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key);
 
@@ -443,22 +443,22 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this;
     }
 
-    public function leftJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
+    public function leftJoin(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
         return $this->__join($model, $foreign_key, $original_key, 'LEFT', $operator);
     }
 
-    public function rightJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
+    public function rightJoin(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
         return $this->__join($model, $foreign_key, $original_key, 'RIGHT', $operator);
     }
 
-    public function innerJoin(Model|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
+    public function innerJoin(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $operator = '='): static
     {
         return $this->__join($model, $foreign_key, $original_key, 'INNER', $operator);
     }
 
-    public function crossJoin(Model|string $model): static
+    public function crossJoin(Elegant|string $model): static
     {
         return $this->__join($model, null, null, 'CROSS');
     }

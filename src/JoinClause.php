@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-class JoinClause
+class JoinClause implements Interfaces\JoinClauseInterface
 {
     /**
      * ON statement
@@ -38,94 +38,56 @@ class JoinClause
      */
     public array $binding = [];
 
-    public function on(string $on) : static
+    public function on(string $on) : self
     {
         $this->on = "ON($on)";
         return $this;
     }
 
-    /**
-     * Using statement
-     * 
-     * @param string $using
-     * @return static
-     */
-    public function using(string $using) : static
+    public function using(string $using) : self
     {
         $this->on = "USING($using)";
         return $this;
     }
 
-    public function as(string $alias) : static
+    public function as(string $alias) : self
     {
         $this->alias = $alias;
         return $this;
     }
 
-    public function type(string $type) : static
+    public function type(string $type) : self
     {
         $this->type = $type;
         return $this;
     }
 
-    /**
-     * Left join
-     * 
-     * @return static
-     */
-    public function left() : static
+    public function left() : self
     {
         return $this->type('LEFT');
     }
 
-    /**
-     * Right join
-     * 
-     * @return static
-     */
-    public function right() : static
+    public function right() : self
     {
         return $this->type('RIGHT');
     }
 
-    /**
-     * Inner join
-     * 
-     * @return static
-     */
-    public function inner() : static
+    public function inner() : self
     {
         return $this->type('INNER');
     }
 
-    /**
-     * Inner join
-     * 
-     * @return static
-     */
-    public function outer() : static
+    public function outer() : self
     {
         return $this->type('OUTER');
     }
 
-    /**
-     * Cross join
-     * 
-     * @return static
-     */
-    public function cross() : static
+    public function cross() : self
     {
         return $this->type('CROSS');
     }
 
-    /**
-     * Sub query
-     * 
-     * @param string $query
-     * @param ?array $binding
-     * @return static
-     */
-    public function sub(string $query, ?array $binding = []) : static
+    public function sub(string $query, ?array $binding = []) : self
     {
         $this->sub_query = $query;
         $this->binding = $binding;

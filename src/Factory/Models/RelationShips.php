@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Database\JoinClause;
+use Clicalmani\Database\Interfaces\JoinClauseInterface;
 use Clicalmani\Foundation\Collection\CollectionInterface;
 
 trait Relationships
@@ -74,7 +74,7 @@ trait Relationships
 
         $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
 
-        $this->query->join((new $class)->getTable(true), function(JoinClause $join) use ($foreign_key, $parent_key) {
+        $this->query->join((new $class)->getTable(true), function(JoinClauseInterface $join) use ($foreign_key, $parent_key) {
             $join->right()->on("$foreign_key=$parent_key");
         });
 
@@ -197,13 +197,13 @@ trait Relationships
 
         $this->query->where("{$morphic}_id = ? {$morphic}_type = ? ", [$this->id, strtolower(debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[1]['function'])]);
 
-        $this->query->join("{$morphic}s", function(JoinClause $join) {
+        $this->query->join("{$morphic}s", function(JoinClauseInterface $join) {
             $join->right()->using($this->getKey());
         });
 
         $obj = new $class;
 
-        $this->query->join($obj->getTable(true), function(JoinClause $join) use($obj, $morphic) {
+        $this->query->join($obj->getTable(true), function(JoinClauseInterface $join) use($obj, $morphic) {
             $join->right()->on("{$morphic}_id = {$obj->getKey()}");
         });
 
@@ -225,11 +225,11 @@ trait Relationships
 
         $obj = new $class;
 
-        $this->query->join("{$morphic}s", function(JoinClause $join) use($obj, $morphic) {
+        $this->query->join("{$morphic}s", function(JoinClauseInterface $join) use($obj, $morphic) {
             $join->right()->on("{$morphic}_id = {$obj->getKey()}");
         });
 
-        $this->query->join((new $class)->getTable(true), function(JoinClause $join) {
+        $this->query->join((new $class)->getTable(true), function(JoinClauseInterface $join) {
             $join->right()->using($this->getKey());
         });
 
@@ -249,7 +249,7 @@ trait Relationships
     {
         [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key);
 
-        $this->query->join((new $class)->getTable(true), function(JoinClause $join) use ($foreign_key, $parent_key, $direction) {
+        $this->query->join((new $class)->getTable(true), function(JoinClauseInterface $join) use ($foreign_key, $parent_key, $direction) {
             if ($direction !== 'cross') $join->{$direction}()->on("$foreign_key=$parent_key");
             else $join->{$direction}();
         });

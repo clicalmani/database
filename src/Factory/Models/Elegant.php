@@ -9,12 +9,12 @@ use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 
 /**
- * Class Model
+ * Class Elegant
  * 
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-class Model extends AbstractModel implements ModelInterface
+class Elegant extends AbstractModel implements ModelInterface
 {
     use SQLClauses;
     use SQLCases;
@@ -66,15 +66,15 @@ class Model extends AbstractModel implements ModelInterface
      * Return the model instance. Usefull for static methods call.
      * 
      * @param string|array $id [optional] Primary key value
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    private static function getInstance($id = null) : \Clicalmani\Database\Factory\Models\ModelInterface
+    private static function getInstance($id = null) : self
     {
         $class = static::getClassName();
         return with ( new $class($id) );
     }
 
-    public function get(?string $fields = '*') : CollectionInterface
+    public function get(string $fields = '*') : CollectionInterface
     {
         try {
             if ( !$this->query->getParam('where') AND $this->id) {
@@ -96,7 +96,7 @@ class Model extends AbstractModel implements ModelInterface
         }
     }
 
-    public function select(?string $fields = '*') : CollectionInterface
+    public function select(string $fields = '*') : CollectionInterface
     {
         return $this->get($fields);
     }
@@ -104,8 +104,13 @@ class Model extends AbstractModel implements ModelInterface
     public function fetch(?string $class = null) : CollectionInterface
     {
         return $this->get()->map(function($row) use($class) {
-            if ($class) return $class::getInstance( with( new $class )->guessKeyValue($row) );
-            return static::getInstance( with( static::getInstance() )->guessKeyValue($row) );
+            /** @var self */
+            $instance = $class ? $class::getInstance( with( new $class )->guessKeyValue($row) ) : 
+                                    static::getInstance( with( static::getInstance() )->guessKeyValue($row) );
+
+            $instance->query->set('join', []);
+            $instance->query->set('where', null);
+            return $instance;
         });
     }
 
@@ -166,15 +171,11 @@ class Model extends AbstractModel implements ModelInterface
         return  $this->update(['deleted_at' => now()]);
     }
 
-    public function update(?array $values = []) : bool
+    public function update(array $values = []) : bool
     {
         if (empty($values)) return false;
         
-        if (FALSE === $this->isEmpty()) {
-            $criteria = $this->getKeySQLCondition();
-        } else {
-            $criteria = $this->query->getParam('where');
-        }
+        $criteria = !$this->isEmpty() ? $this->getKeySQLCondition() : $criteria = $this->query->getParam('where');
         
         if ( !empty( $criteria ) ) {
 
@@ -228,7 +229,7 @@ class Model extends AbstractModel implements ModelInterface
             return $success;
         } 
         
-        throw new \Exception("Can not bulk update or delete records when on safe mode");
+        throw new \Clicalmani\Foundation\Exceptions\ModelException("Can not bulk update or delete records when on safe mode");
     }
 
     public function insert(array $fields = [], ?bool $replace = false) : bool
@@ -294,17 +295,17 @@ class Model extends AbstractModel implements ModelInterface
         return $success;
     }
 
-    public static function create(array $attributes = [], ?bool $replace = false) : static
+    public static function create(array $attributes = [], ?bool $replace = false) : self
     {
         $attributes = [$attributes];
+        /** @var self */
         $instance = static::getInstance();
-        $instance->insert($attributes, $replace);
         
-        if ($last_insert_id = $instance->lastInsertId()) {
-            return static::find($last_insert_id);
+        if ($id = $instance->getQuery()->insertGetId($attributes) ?: $instance->guessKeyValue($attributes)) {
+            return self::find($id);
         }
-
-        return static::find( $instance->guessKeyValue($attributes) );
+        
+        return new self;
     }
 
     public static function createOrFail(array $fields = [], ?bool $replace = false) : bool
@@ -362,7 +363,7 @@ class Model extends AbstractModel implements ModelInterface
         return $last_insert_id;
     }
 
-    public function first() : ?\Clicalmani\Database\Factory\Models\ModelInterface
+    public function first() : ?self
     {
         if ($row = $this->get()->first()) 
             return static::find( $this->guessKeyValue($row) );
@@ -377,7 +378,7 @@ class Model extends AbstractModel implements ModelInterface
         return $callback();
     }
 
-    public function firstOrFail() : \Clicalmani\Database\Factory\Models\ModelInterface
+    public function firstOrFail() : self
     {
         try {
             return $this->first() ?? throw new ModelNotFoundException("Model not found", 404);
@@ -386,13 +387,13 @@ class Model extends AbstractModel implements ModelInterface
         }
     }
     
-    public static function find(string|array|null $id) : ?\Clicalmani\Database\Factory\Models\ModelInterface
+    public static function find(string|array|null $id) : ?self
     {
         if (!$id) return null;
         return static::getInstance($id);
     }
 
-    public static function findOrFail(string|array|null $id) : \Clicalmani\Database\Factory\Models\ModelInterface
+    public static function findOrFail(string|array|null $id) : self
     {
         try {
             return static::find($id) ?? throw new ModelNotFoundException("Model not found", 404);
@@ -419,7 +420,7 @@ class Model extends AbstractModel implements ModelInterface
         });
     }
 
-    public static function filter(?array $exclude = [], ?array $options = []) : CollectionInterface
+    public static function filter(array $exclude = [], array $options = []) : CollectionInterface
     {
         $options = (object) $options;
 
@@ -434,7 +435,7 @@ class Model extends AbstractModel implements ModelInterface
         $filters     = with (new \Clicalmani\Foundation\Http\Request)->where(array_merge($exclude, ['test_user_id', 'hash']));
         $child_class = static::getClassName();
 
-        $criteria = '1';
+        $criteria = true;
         
         if ( $filters ) {
             $criteria = join(' AND ', $filters);
@@ -458,7 +459,7 @@ class Model extends AbstractModel implements ModelInterface
         }
     }
 
-    public function swap() : \Clicalmani\Database\Factory\Models\ModelInterface
+    public function swap() : void
     {
         $db        = DB::getInstance();
         $table     = $db->getPrefix() . $this->getTable();
@@ -472,16 +473,14 @@ class Model extends AbstractModel implements ModelInterface
                 }
             }
         }
-        
-        return $this;
     }
 
-    public function top(int $row_count) : \Clicalmani\Database\Factory\Models\ModelInterface
+    public function top(int $row_count) : self
     {
         return $this->limit(0, $row_count);
     }
 
-    public function refresh() : \Clicalmani\Database\Factory\Models\ModelInterface
+    public function refresh() : self
     {
         return static::find($this->id);
     }
@@ -543,7 +542,7 @@ class Model extends AbstractModel implements ModelInterface
         self::allowEventsCapturing();
     }
 
-    public static function on(?string $connection = null) : \Clicalmani\Database\Factory\Models\ModelInterface
+    public static function on(?string $connection = null) : self
     {
         $instance = static::getInstance();
         $instance->connection = $connection;
@@ -563,7 +562,7 @@ class Model extends AbstractModel implements ModelInterface
         return null;
     }
 
-    public function fill(array $attributes) : \Clicalmani\Database\Factory\Models\ModelInterface
+    public function fill(array $attributes) : self
     {
         $this->discardGuardedAttributes($attributes);
 

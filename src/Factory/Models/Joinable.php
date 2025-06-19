@@ -6,49 +6,49 @@ interface Joinable
     /**
      * Custom join
      * 
-     * @param callable|string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param string|callable|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?callable $callback A callback function
-     * @return static
+     * @return self
      */
-    public function join(Model|string|callable $model, ?callable $callback = null): static;
+    public function join(string|callable|Elegant $model, ?callable $callback = null): self;
 
     /**
      * Left join models
      * 
-     * @param string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param string|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?string $foreign_key [Optional] Foreign key
      * @param ?string $original_key [Optional] Original key
      * @return static
      */
-    public function leftJoin(Model|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
+    public function leftJoin(Elegant|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
 
     /**
      * Right join models
      * 
-     * @param string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param string|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?string $foreign_key [Optional] Foreign key
      * @param ?string $original_key [Optional] Original key
      * @return static
      */
-    public function rightJoin(Model|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
+    public function rightJoin(Elegant|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
 
     /**
      * Inner join models
      * 
-     * @param string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param string|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?string $foreign_key [Optional] Foreign key
      * @param ?string $original_key [Optional] Original key
      * @return static
      */
-    public function innerJoin(Model|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
+    public function innerJoin(Elegant|string $model, string|null $foreign_key = null, string|null $original_key = null) : static;
 
     /**
      * Cross join models
      * 
-     * @param string|\Clicalmani\Database\Factory\Models\Model $model Specified model
+     * @param string|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?string $foreign_key [Optional] Foreign key
      * @param ?string $original_key [Optional] Original key
      * @return static
      */
-    public function crossJoin(Model|string $model) : static;
+    public function crossJoin(Elegant|string $model) : static;
 }

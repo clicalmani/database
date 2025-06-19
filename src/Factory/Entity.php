@@ -11,7 +11,7 @@ use Clicalmani\Database\Factory\Maker;
 use Clicalmani\Database\Factory\PrimaryKey;
 use Clicalmani\Database\Factory\Property;
 use Clicalmani\Database\Factory\Models\Attribute;
-use Clicalmani\Database\Factory\Models\Model;
+use Clicalmani\Database\Factory\Models\Elegant;
 use Clicalmani\Foundation\Support\Facades\Log;
 use Clicalmani\Validation\Validator;
 
@@ -41,9 +41,9 @@ abstract class Entity
     /**
      * Entity model
      * 
-     * @var \Clicalmani\Database\Factory\Models\Model
+     * @var \Clicalmani\Database\Factory\Models\Elegant
      */
-    protected \Clicalmani\Database\Factory\Models\Model $model;
+    protected \Clicalmani\Database\Factory\Models\Elegant $model;
 
     /**
      * Entity access mode
@@ -133,9 +133,9 @@ abstract class Entity
     /**
      * Model getter
      * 
-     * @return \Clicalmani\Database\Factory\Models\Model
+     * @return \Clicalmani\Database\Factory\Models\Elegant
      */
-    public function getModel() : Model
+    public function getModel() : Elegant
     {
         return $this->model;
     }
@@ -143,10 +143,10 @@ abstract class Entity
     /**
      * Model setter
      * 
-     * @param \Clicalmani\Database\Factory\Models\Model $model
+     * @param \Clicalmani\Database\Factory\Models\Elegant $model
      * @return void
      */
-    public function setModel(Model $model) : void
+    public function setModel(Elegant $model) : void
     {
         $this->model = $model;
     }

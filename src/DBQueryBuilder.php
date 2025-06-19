@@ -11,7 +11,7 @@ use Clicalmani\Foundation\Collection\Collection;
  * @package Clicaomani\Database
  * @author @clicalmani
  */
-abstract class DBQueryBuilder 
+abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 {
 	/**
 	 * Holds the generated SQL statement to be executed.

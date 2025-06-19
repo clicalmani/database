@@ -5,6 +5,6 @@ trait PreventEventsCapturing
 {
     public function __construct()
     {
-        \Clicalmani\Database\Factory\Models\Model::preventEventsCapturing();
+        \Clicalmani\Database\Factory\Models\Elegant::preventEventsCapturing();
     }
 }

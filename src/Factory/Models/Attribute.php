@@ -48,7 +48,7 @@ class Attribute
     /**
      * Model
      * 
-     * @var \Clicalmani\Database\Factory\Models\Model
+     * @var \Clicalmani\Database\Factory\Models\Elegant
      */
     private $model;
 

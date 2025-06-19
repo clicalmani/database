@@ -8,18 +8,19 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     /**
      * Get the query results.
      * 
-     * @param ?string $fields SQL select statement.
+     * @param string $fields SQL select statement.
      * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @throws \Clicalmani\Database\Exceptions\DBQueryException
      */
-    public function get(?string $fields = '*') : CollectionInterface;
+    public function get(string $fields = '*') : CollectionInterface;
 
     /**
      * Gets the query result
      * 
-     * @param ?string $fields SQL select statement.
+     * @param string $fields SQL select statement.
      * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    public function select(?string $fields = '*') : CollectionInterface;
+    public function select(string $fields = '*') : CollectionInterface;
 
     /**
      * Fetch the result set
@@ -53,16 +54,18 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     /**
      * Update model
      * 
-     * @param ?array $value Attributs values key pairs
+     * @param array $value Attributs values key pairs
      * @return bool True on success, false on failure
+     * @throws \Clicalmani\Foundation\Exceptions\ModelException
      */
-    public function update(?array $values = []) : bool;
+    public function update(array $values = []) : bool;
 
     /**
      * Insert one or more rows in the table.
      * 
      * @param array $fields Row attributes values
      * @return bool True on success, false on failure
+     * @throws \Clicalmani\Foundation\Exceptions\ModelException
      */
     public function insert(array $fields = [], ?bool $replace = false) : bool;
 
@@ -72,10 +75,10 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * will be guessed from the attributes values.
      * 
      * @param array $attributes Attributes values
-     * @param ?bool $replace Replace the record if exists
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @param bool $replace Replace the record if exists
+     * @return self
      */
-    public static function create(array $attributes = [], ?bool $replace = false) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public static function create(array $attributes = [], bool $replace = false) : self;
 
     /**
      * Create a new record or fail
@@ -111,9 +114,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     /**
      * Returns the first value in the selected result
      * 
-     * @return ?\Clicalmani\Database\Factory\Models\ModelInterface
+     * @return ?self
      */
-    public function first() : ?\Clicalmani\Database\Factory\Models\ModelInterface;
+    public function first() : ?self;
 
     /**
      * Returns the first value in the selected result or fail.
@@ -125,25 +128,25 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     /**
      * Returns the first value in the selected result or fail.
      * 
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public function firstOrFail() : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function firstOrFail() : self;
 
     /**
      * Returns a specified row defined by a specified primary key.
      * 
      * @param string|array|null $id Primary key value
-     * @return ?\Clicalmani\Database\Factory\Models\ModelInterface
+     * @return ?self
      */
-    public static function find(string|array|null $id) : ?\Clicalmani\Database\Factory\Models\ModelInterface;
+    public static function find(string|array|null $id) : ?self;
 
     /**
      * Returns a specified row defined by a specified primary key or fail.
      * 
      * @param string|array|null $id Primary key value
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public static function findOrFail(string|array|null $id) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public static function findOrFail(string|array|null $id) : self;
 
     /**
      * Returns a specified row defined by a specified primary key or create a new one.
@@ -169,30 +172,30 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      *  number of rows to be returned in the result set.
      * @return \Clicalmani\Foundation\Collection\CollectionInterface
      */
-    public static function filter(?array $exclude = [], ?array $options = []) : CollectionInterface;
+    public static function filter(array $exclude = [], array $options = []) : CollectionInterface;
 
     /**
      * Insert new row or update row from request parameters
      * 
      * @param ?bool $nullify
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return void
      */
-    public function swap() : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function swap() : void;
 
     /**
      * Fetch the top $row_count records from the query results set.
      * 
      * @param int $row_count
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public function top(int $row_count) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function top(int $row_count) : self;
 
     /**
      * Re-hydrate the model
      * 
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public function refresh() : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function refresh() : self;
 
     /**
      * Override: Create a seed for the model
@@ -233,9 +236,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * Switch model connection
      * 
      * @param ?string $connection
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public static function on(?string $connection = null) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public static function on(?string $connection = null) : self;
 
     /**
      * Get the model original state
@@ -249,9 +252,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * Mass assignment
      * 
      * @param array $attributes
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public function fill(array $attributes) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function fill(array $attributes) : self;
 
     /**
      * Get the first value of a field in the query result

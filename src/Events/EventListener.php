@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database\Events;
 
-use Clicalmani\Database\Factory\Models\Model;
+use Clicalmani\Database\Factory\Models\Elegant;
 
 abstract class EventListener implements EventListenerInterface
 {
@@ -15,7 +15,7 @@ abstract class EventListener implements EventListenerInterface
     /**
      * Event model
      * 
-     * @var \Clicalmani\Database\Factory\Models\Model
+     * @var \Clicalmani\Database\Factory\Models\Elegant
      */
     protected $target;
 
@@ -52,10 +52,10 @@ abstract class EventListener implements EventListenerInterface
     /**
      * Target setter
      * 
-     * @param \Clicalmani\Database\Factory\Models\Model $target
+     * @param \Clicalmani\Database\Factory\Models\Elegant $target
      * @return void
      */
-    public function setTarget(Model $target) : void
+    public function setTarget(Elegant $target) : void
     {
         $this->target = $target;
     }

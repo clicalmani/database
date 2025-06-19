@@ -123,8 +123,8 @@ class Index
     )
     {
         if (is_string($references)) {
-            if (is_subclass_of($references, \Clicalmani\Database\Factory\Models\Model::class)) {
-                /** @var \Clicalmani\Database\Factory\Models\Model */
+            if (is_subclass_of($references, \Clicalmani\Database\Factory\Models\Elegant::class)) {
+                /** @var \Clicalmani\Database\Factory\Models\Elegant */
                 $model = new $references;
                 $table = $model->getTable();
                 $primary_key = $model->getKey();
@@ -132,7 +132,7 @@ class Index
                 if ( is_array($primary_key) ) throw new \TypeError("Expected string; array given. Reference table should not have multiple keys.");
 
                 $references = ['table' => $table, 'key' => $primary_key];
-            } else throw new \TypeError(sprintf("Expected type of %s; got %s.", \Clicalmani\Database\Factory\Models\Model::class, $references));
+            } else throw new \TypeError(sprintf("Expected type of %s; got %s.", \Clicalmani\Database\Factory\Models\Elegant::class, $references));
         }
 
         $this->name = $name;
