@@ -6,7 +6,7 @@
         "php": ">=8.0",
         "joshtronic/php-loremipsum": "^2.1.0"
     },
-    "license": "proprietary",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Clicalmani\\Database\\": "src/"
