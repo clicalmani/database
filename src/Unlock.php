@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Foundation\Support\Facades\DB;
+
 /**
  * Class Unlock
  * 
@@ -37,7 +39,7 @@ class Unlock extends DBQueryBuilder implements \IteratorAggregate
 		$this->status     = $success;
 	    $this->error_code = DB::errno();
 	    $this->error_msg  = DB::error();
-		$this->insert_id  = DB::insertId();
+		$this->insert_id  = DB::lastInsertId();
 
 		$statement = null;
 	}

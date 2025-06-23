@@ -1,12 +1,12 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Factory;
 use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
+use Clicalmani\Foundation\Support\Facades\DB;
 
 /**
  * Class Elegant
@@ -295,7 +295,7 @@ class Elegant extends AbstractModel implements ModelInterface
         return $success;
     }
 
-    public static function create(array $attributes = [], ?bool $replace = false) : self
+    public static function create(array $attributes = [], bool $replace = false) : self
     {
         $attributes = [$attributes];
         /** @var self */
@@ -461,11 +461,10 @@ class Elegant extends AbstractModel implements ModelInterface
 
     public function swap() : void
     {
-        $db        = DB::getInstance();
-        $table     = $db->getPrefix() . $this->getTable();
-        $statement = $db->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" . env('DB_NAME', '') . "' AND TABLE_NAME = '$table'");
+        $table     = DB::getPrefix() . $this->getTable();
+        $statement = DB::query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" . env('DB_NAME', '') . "' AND TABLE_NAME = '$table'");
         
-        while($row = $db->fetch($statement, \PDO::FETCH_NUM)) {
+        while($row = DB::fetch($statement, \PDO::FETCH_NUM)) {
             foreach (array_keys(request()) as $attribute) {
                 if ($row[0] == $attribute) {
                     $this->{$attribute} = request($attribute);

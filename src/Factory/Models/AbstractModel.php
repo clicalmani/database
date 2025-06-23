@@ -1,10 +1,10 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Database\DB;
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Foundation\Exceptions\ModelException;
+use Clicalmani\Foundation\Support\Facades\DB;
 
 /**
  * Class AbstractModel

@@ -2,6 +2,7 @@
 namespace Clicalmani\Database;
 
 use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Foundation\Support\Facades\DB;
 
 /**
  * Class Database Query Builder

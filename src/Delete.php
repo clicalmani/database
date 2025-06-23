@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Foundation\Support\Facades\DB;
+
 /**
  * Class Delete
  * 

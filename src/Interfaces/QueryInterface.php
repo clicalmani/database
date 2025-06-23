@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Interfaces;
 
 use Clicalmani\Foundation\Collection\Map;
 
-interface QueryInterface
+interface QueryInterface extends DBInterface
 {
     /**
 	 * Sets query parameter

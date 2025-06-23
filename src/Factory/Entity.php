@@ -178,7 +178,6 @@ abstract class Entity
                         $validator = new Validator;
                         $input = [$name => $value];
                         $validator->sanitize($input, [$name => $attribute->newInstance()->validator]);
-                        $validator->passed($name);
                         $value = $input[$name];
                     });
                 }
@@ -443,7 +442,7 @@ abstract class Entity
      */
     public function drop(?bool $foreign_key_check = false) : bool
     {
-        if ($foreign_key_check) \Clicalmani\Database\DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
+        if ($foreign_key_check) \Clicalmani\Foundation\Support\Facades\DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
         return with( new Maker($this->model->getTable(), Maker::DROP_TABLE_IF_EXISTS) )->make();
     }
 
