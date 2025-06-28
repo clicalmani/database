@@ -11,6 +11,11 @@ namespace Clicalmani\Database\Faker;
  */
 trait Person
 {
+    private static function singleName()
+    {
+        $names = json_decode( file_get_contents( __DIR__ . '/data/names.json') ) ?? [];
+        return @ $names[self::integer(0, count($names) - 1)];
+    }
     /**
      * Person name generator
      * 
@@ -18,8 +23,27 @@ trait Person
      */
     public static function name() : string
     {
-        $names = json_decode( file_get_contents( __DIR__ . '/data/names.json') ) ?? [];
-        return @ $names[self::integer(0, count($names) - 1)];
+        return self::singleName() . ' ' . self::singleName();
+    }
+
+    /**
+     * Generate a person first name
+     * 
+     * @return string
+     */
+    public static function firstName() : string
+    {
+        return self::singleName();
+    }
+
+    /**
+     * Generate a person last name
+     * 
+     * @return string
+     */
+    public static function lastName() : string
+    {
+        return self::singleName();
     }
 
     /**

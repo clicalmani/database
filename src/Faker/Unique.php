@@ -33,9 +33,9 @@ class Unique
         return faker()->alpha();
     }
 
-    private function safeAlphaNum()
+    private function safeUserName()
     {
-        return faker()->alphaNum();
+        return faker()->name() . faker()->num(self::integer(3, 5));
     }
 
     public function __get(string $name)
