@@ -349,11 +349,11 @@ abstract class DB implements Interfaces\DBInterface
 		return null;
 	}
 
-	public function commit() : bool { return static::$pdo->commit(); }
+	public function commit() : bool { return !!static::$pdo?->commit(); }
 
-	public function rollback() : bool { return static::$pdo->rollback(); }
+	public function rollback() : bool { return !!static::$pdo?->rollback(); }
 
-	public function inTransaction() : bool { return static::$pdo->inTransaction(); }
+	public function inTransaction() : bool { return !!static::$pdo?->inTransaction(); }
 
 	public function savePoint(string $name) : \PDOStatement { return static::statement("SAVEPOINT $name"); }
 

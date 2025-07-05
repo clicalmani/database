@@ -36,7 +36,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 				$tables[] = DB::getPrefix() . $joint['table'];
 			}
 
-			$this->sql .= ', ' . join(',', $tables);
+			if ($tables) $this->sql .= ', ' . join(',', $tables);
 		}
 		
 		$this->sql .= ' SET ' . collection()->exchange($this->params['fields'])->map(function($field, $index) {
@@ -62,7 +62,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 		$statement = DB::prepare($this->sql, $this->params['options']);
 
 		$this->dispatch('query');
-
+		
 		foreach ($this->params['values'] as $i => $type) {
 			if ( is_subclass_of($type, \Clicalmani\Database\Factory\DataTypes\DataType::class) ) $value = $type->getValue();
 			else $value = $type;

@@ -175,7 +175,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return static|null
      */
-    protected abstract function resolveRouteBinding(mixed $value, ?string $field = null) : static|null;
+    protected abstract function resolveRouteBinding(mixed $value, ?string $field = null) : ?self;
 
     /**
      * Emit event
@@ -467,9 +467,11 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     {
         if (!$this->id) return null;
 
-        $row = DB::table($this->getTable())->where($this->getKeySQLCondition())->get()->first();
+        if ($this->isSoftDeletable()) {
+            $this->query->set('recycle', $this->query->getParam('recycle') ?? 1);
+        }
         
-        if ( !$row ) return null;
+        if (NULL === $row = $this->query->where($this->getKeySQLCondition())->get()->first()) return null;
 
         $entity = $this->getEntity();
         $entity->setModel($this);
@@ -720,5 +722,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     public function __unset(string $name) : void
     {
         unset($this->{$name});
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isSoftDeletable() : bool
+    {
+        return !!@class_uses($this)[\Clicalmani\Database\Traits\SoftDelete::class];
     }
 }

@@ -8,11 +8,9 @@ trait SoftDelete
      * 
      * @return static
      */
-    public static function withTrashed() : static
+    public function withTrashed() : static
     {
-        return tap(static::getInstance(), fn($instance) => $instance->getQuery()->where(
-            str_replace('deleted_at IS NULL', '', $instance->getQuery()->getParam('where'))
-        ));
+        return tap($this, fn(self $instance) => $instance->query->set('recycle', 0));
     }
 
     /**
@@ -20,11 +18,9 @@ trait SoftDelete
      * 
      * @return static
      */
-    public static function onlyTrashed() : static
+    public function onlyTrashed() : static
     {
-        return tap(static::getInstance(), fn($instance) => $instance->getQuery()->where(
-            str_replace('deleted_at IS NULL', 'deleted_at IS NOT NULL', $instance->getQuery()->getParam('where'))
-        ));
+        return tap($this, fn(self $instance) => $instance->query->set('recycle', 2));
     }
 
     /**

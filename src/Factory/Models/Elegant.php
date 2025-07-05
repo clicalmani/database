@@ -83,7 +83,7 @@ class Elegant extends AbstractModel implements ModelInterface
 
             // Exclude soft deleted records from the query results.
             if ( $this->isSoftDeletable() ) {
-                $this->getQuery()->where('deleted_at IS NULL');
+                $this->query->set('recycle', $this->query->getParam('recycle') ?? 1);
             }
     
             $this->query->set('distinct', $this->distinct); // Set SQL DISTINCT flag
@@ -389,17 +389,13 @@ class Elegant extends AbstractModel implements ModelInterface
     
     public static function find(string|array|null $id) : ?self
     {
-        if (!$id) return null;
         return static::getInstance($id);
     }
 
     public static function findOrFail(string|array|null $id) : self
     {
-        try {
-            return static::find($id) ?? throw new ModelNotFoundException("Model not found", 404);
-        } catch (ModelNotFoundException $e) {
-            throw $e;
-        }
+        $instance = self::find($id);
+        return @$instance->get()->{$instance->getKey()} ? $instance: throw new ModelNotFoundException("Model not found", 404);
     }
 
     public static function findOr(string|array|null $id, callable $callback) : mixed
@@ -489,7 +485,7 @@ class Elegant extends AbstractModel implements ModelInterface
         return Factory::new();
     }
 
-    protected function resolveRouteBinding(mixed $value, ?string $field = null) : static|null
+    protected function resolveRouteBinding(mixed $value, ?string $field = null) : ?self
     {
         return null;
     }
@@ -518,14 +514,6 @@ class Elegant extends AbstractModel implements ModelInterface
                 $this->observers[$method->name] = [$observer, $method->name];
             }
         }
-    }
-
-    /**
-     * @return bool
-     */
-    private function isSoftDeletable() : bool
-    {
-        return $this->dates && in_array('deleted_at', $this->dates);
     }
 
     public function emit(string $event, mixed $data = null): void

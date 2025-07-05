@@ -133,11 +133,11 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 		$this->params = $params; 
 		
 		$default = array(
-			'offset'    => 0, 
-			'limit'     => null,
-			'num_rows'  => 1000,
-			'query_str' => [],
-			'options'   => []                                        
+			'offset'   => 0, 
+			'limit'    => null,
+			'num_rows' => 1000,
+			'recycle'  => 0,
+			'options'  => []                                        
 		);
 		
 		foreach ($default as $key => $option){

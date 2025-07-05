@@ -11,6 +11,8 @@ class VarChar extends DataType
 
         $this->varchar($length);
 
+        if (isset($parameters['binary']) AND $parameters['binary']) $this->data .= ' BINARY';
+
         if ($charset = @ $parameters['charset']) $this->charset($charset);
 
         if ($collate = @ $parameters['collate']) $this->collation($collate);

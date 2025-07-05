@@ -41,8 +41,14 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 				$this->sql .= $this->addJoint($joint) . ' ';
 			}
 		}
+
+		$this->sql .= ' WHERE';
 		
-		$this->sql .= ' WHERE TRUE ';
+		$this->sql .= match ($this->params['recycle']) {
+			1 => ' deleted_at IS NULL',
+			2 => ' deleted_at IS NOT NULL',
+			default => ' TRUE'
+		};
 		
 		if (isset($this->params['where'])) {
 			$this->sql .= ' AND ' . $this->params['where'];
