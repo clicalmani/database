@@ -54,7 +54,7 @@ trait Person
      */
     public static function email(?string $host = 'exemple.com') : string 
     {
-        return strtolower(self::name() . '.' . self::name()) . "@$host";
+        return strtolower(self::firstName() . '.' . self::lastName()) . "@$host";
     }
 
     /**

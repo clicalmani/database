@@ -65,4 +65,9 @@ class Sequence implements \Countable
     {
         return $this->__invoke();
     }
+
+    public function __toString()
+    {
+        return $this->next();
+    }
 }
