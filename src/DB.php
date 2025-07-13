@@ -162,7 +162,7 @@ abstract class DB implements Interfaces\DBInterface
 		}
 	}
 	
-	public function getPrefix() : string { return static::$prefix; }
+	public function getPrefix() : string { return static::$prefix ?? env('DB_TABLE_PREFIX'); }
 	
 	public function getInstance() : \Clicalmani\Database\Interfaces\QueryInterface
 	{
@@ -276,7 +276,7 @@ abstract class DB implements Interfaces\DBInterface
 			Log::debug($sql);
 		}
 		
-		return static::$pdo->prepare(DBQueryBuilder::bindVars($sql), $options);
+		return self::$pdo->prepare(DBQueryBuilder::bindVars($sql), $options);
 	}
 	
 	public function error() : array { return static::$pdo->errorInfo(); }

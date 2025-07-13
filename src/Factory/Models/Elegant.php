@@ -104,13 +104,8 @@ class Elegant extends AbstractModel implements ModelInterface
     public function fetch(?string $class = null) : CollectionInterface
     {
         return $this->get()->map(function($row) use($class) {
-            /** @var self */
-            $instance = $class ? $class::getInstance( with( new $class )->guessKeyValue($row) ) : 
-                                    static::getInstance( with( static::getInstance() )->guessKeyValue($row) );
-
-            $instance->query->set('join', []);
-            $instance->query->set('where', null);
-            return $instance;
+            if ($class) return $class::getInstance( with( new $class )->guessKeyValue($row) );
+            return static::getInstance( with( static::getInstance() )->guessKeyValue($row) );
         });
     }
 

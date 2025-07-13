@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
+use Clicalmani\Foundation\Support\Facades\DB;
+
 Trait MultipleKeys
 {
     /**
@@ -70,7 +72,11 @@ Trait MultipleKeys
              */
             if ( is_array($this->id) ) throw new \InvalidArgumentException("String expected for $keys; got array " . json_encode($this->id));
             
-            $criteria = $keys . ' = "' . $this->id . '"';
+            @[$table, $alias] = explode(' ', $this->getTable(true), 2);
+            
+            $table = isset($alias) ? $alias: DB::getInstance()->getPrefix() . $table;
+            $keys = $this->substractKey($keys);
+            $criteria = "$table.$keys" . ' = "' . $this->id . '"';
         
         } elseif ( is_array($keys) ) {
 
