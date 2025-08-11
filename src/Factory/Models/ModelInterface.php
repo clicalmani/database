@@ -114,9 +114,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     /**
      * Returns the first value in the selected result
      * 
-     * @return ?self
+     * @return ?static
      */
-    public function first() : ?self;
+    public function first() : ?static;
 
     /**
      * Returns the first value in the selected result or fail.

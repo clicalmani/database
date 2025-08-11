@@ -358,7 +358,7 @@ class Elegant extends AbstractModel implements ModelInterface
         return $last_insert_id;
     }
 
-    public function first() : ?self
+    public function first() : ?static
     {
         if ($row = $this->get()->first()) 
             return static::find( $this->guessKeyValue($row) );
