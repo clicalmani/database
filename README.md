@@ -1,6 +1,6 @@
 # Tonka PHP Framework Database ORM
 
-![Tonka Logo](https://clicalmani.github.io/tonka/logo-dark.pnghttps://clicalmani.github.io/tonka/logo-dark.png)
+![Tonka Logo](https://clicalmani.github.io/tonka/logo-dark.png)
 
 ## Overview
 
