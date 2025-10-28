@@ -272,6 +272,8 @@ abstract class DB implements Interfaces\DBInterface
 
 	public function prepare(string $sql, ?array $options = []) : PDOStatement
 	{
+		if (!static::$pdo) self::getPdo();
+		
 		if ( static::$logQuery ) {
 			Log::debug($sql);
 		}
