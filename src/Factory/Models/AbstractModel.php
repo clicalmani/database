@@ -414,11 +414,11 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
     protected function __join(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : self 
     {
-        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key);
-
         if (is_string($model)) {
             $model = new $model;
         }
+        
+        $table = $model->getTable(true);
 
         /**
          * Duplicate joints
@@ -426,19 +426,21 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
          * If table is already joint, the first joint will be maintained
          */
         $joints = $this->query->getParam('join');
-
+        
         if ( $joints ) {
             foreach ($joints as $joint) {
-                if (@ $joint['table'] == $model->getTable(true)) {                            // Table already joint
+                if (@ $joint['table'] == $table) {                            // Table already joint
                     return $this;
                 }
             }
         }
-
+        
+        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key, (!$foreign_key && !$joints) ? $this::class: $model::class);
+        
         $type = ucfirst(strtolower($type));
 
-        if ($type === 'Cross') $this->query->{'join' . $type}($model->getTable(true));
-        else $this->query->{'join' . $type}($model->getTable(true), $foreign_key, $original_key, $operator);
+        if ($type === 'Cross') $this->query->{'join' . $type}($table);
+        else $this->query->{'join' . $type}($table, $foreign_key, $original_key, $operator);
 
         return $this;
     }

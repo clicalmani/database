@@ -475,7 +475,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	private function __join(string $table, ?string $foreign_key = null, ?string $original_key = null, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
 	{
 		if ( ! isset($foreign_key) ) $foreign_key = strtolower($table).'_id';
-
+		
 		return $this->join($table, function(JoinClauseInterface $join) use ($foreign_key, $is_crossed, $original_key, $type, $operator) {
 			$join->type($type);
 			if ($is_crossed) $join->on('');
