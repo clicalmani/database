@@ -239,7 +239,19 @@ abstract class Entity
         $property = ( new \ReflectionProperty($this, $name) );
 
         if (property_exists($this, $name) && $property->hasType()) {
-            return $property->getType()->getName();
+            
+            $type = $property->getType();
+
+            if ($type instanceof \ReflectionUnionType) {
+                $types = $property->getType()->getTypes();
+                foreach ($types as $tp) {
+                    if ($tp instanceof \ReflectionNamedType) {
+                        return $tp->getName();
+                    }
+                }
+            }
+
+            return $type->getName();
         }
         
         throw new \Exception();
@@ -287,6 +299,7 @@ abstract class Entity
         foreach (( new \ReflectionClass($this) )->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
             $name = $property->getName();
             $default_value = $property->getDefaultValue();
+            $allow_null = $property->getType()->allowsNull();
             $class = $this->getPropertyType($name);
 
             if ( is_subclass_of($class, DataType::class) ) {
@@ -303,7 +316,12 @@ abstract class Entity
                         $args = $attribute->newInstance()->args;
                     });
                 }
-                // if (NULL !== $default_value) $args['default'] = $default_value; // Default value
+
+                if (NULL !== $default_value) $args['default'] = $default_value; // Default value
+
+                if ($allow_null) $args['nullable'] = true; // Nullable
+                else $args['nullable'] = false;
+
                 $type = new $class( ...$args );
 
                 /**
