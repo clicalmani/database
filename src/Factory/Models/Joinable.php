@@ -8,9 +8,9 @@ interface Joinable
      * 
      * @param string|callable|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
      * @param ?callable $callback A callback function
-     * @return self
+     * @return static
      */
-    public function join(string|callable|Elegant $model, ?callable $callback = null): self;
+    public function join(string|callable|Elegant $model, ?callable $callback = null): static;
 
     /**
      * Left join models

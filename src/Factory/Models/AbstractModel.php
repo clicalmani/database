@@ -401,7 +401,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->attributes[$name] ?? null;
     }
 
-    public function join(string|callable|Elegant $model, ?callable $callback = null): self
+    public function join(string|callable|Elegant $model, ?callable $callback = null): static
     {
         if (is_string($model)) {
             /** @var \Clicalmani\Database\Factory\Models\Elegant */

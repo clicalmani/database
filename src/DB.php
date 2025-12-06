@@ -323,7 +323,7 @@ abstract class DB implements Interfaces\DBInterface
 				return $success;
 			} catch (\Exception $e) {
 				static::rollback();
-				throw new \Exception($e->getMessage(), $e->getCode(), $e);
+				throw new \Exception($e->getMessage(), 0, $e);
 			}
 		}
 
