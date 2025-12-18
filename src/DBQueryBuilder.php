@@ -146,7 +146,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 		
 		$this->db     = DB::getInstance(); 
 		$this->result = new Collection;
-		$this->cumulative_time_listeners = app()->config->database('listeners');
+		$this->cumulative_time_listeners = app()->getTimeTracker();
 	}
 	
 	/**
@@ -385,10 +385,10 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	{
 		if ($this->cumulative_time_listeners) {
 
-			$this->profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
+			$profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
 
 			foreach ($this->cumulative_time_listeners[$event] as $listener) {
-				$listener(new Query($this->getSQL(), $this->options, $this->profile));
+				$listener(new Query($this->getSQL(), $this->options, $profile));
 			}
 		}
 	}

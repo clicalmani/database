@@ -110,11 +110,25 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	const TRUNCATE = 11;
 
 	/**
+	 * Union flag
+	 * 
+	 * @var int 12
+	 */
+	const UNION = 12;
+
+	/**
 	 * Builder
 	 * 
 	 * @var \Clicalmani\Database\DBQueryBuilder
 	 */
 	private $builder;
+
+	/**
+	 * Union query
+	 * 
+	 * @var \Clicalmani\Database\DBQuery
+	 */
+	private $union_query;
 	
 	/**
 	 * Constructor
@@ -226,6 +240,14 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 
 			case static::TRUNCATE:
 				$this->builder = new Truncate($this->params, $this->options);
+				$this->builder->query();
+				break;
+
+			case static::UNION:
+				if (!isset($this->union_query)) {
+					throw new \Exception('Union query not defined');
+				}
+				
 				$this->builder->query();
 				break;
 		}
@@ -411,6 +433,13 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	public function get(string $fields = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
 		$this->params['fields'] = $fields;
+
+		if ( $this->union_query instanceof self ) {
+			/** @var \Clicalmani\Database\Union */
+			$builder = $this->builder;
+			$builder->setFields($fields);
+		}
+		
 		$result = $this->exec();
 		$collection = new Collection;
 		
@@ -724,6 +753,14 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	public function unless(bool $condition, callable $callback) : static
 	{
 		if (!$condition) $callback($this->query);
+		return $this;
+	}
+
+	public function union(self $query, bool $all = false) : self
+	{
+		$this->union_query = $query;
+		$this->params['query'] = static::UNION;
+		$this->builder = new Union($this->params, $this->options, $this->union_query->params, $this->union_query->options, $all);
 		return $this;
 	}
 }

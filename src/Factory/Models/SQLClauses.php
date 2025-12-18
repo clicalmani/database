@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Factory\Models;
 
 trait SQLClauses
 {
-    public static function where(?string $criteria = '1', ?array $options = []) : \Clicalmani\Database\Factory\Models\ModelInterface
+    public static function where(?string $criteria = '1', ?array $options = []) : static
     {
         $instance = static::getInstance();
         $instance->getQuery()->where($criteria, 'AND', $options);

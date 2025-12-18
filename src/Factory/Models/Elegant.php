@@ -336,7 +336,7 @@ class Elegant extends AbstractModel implements ModelInterface
         $this->query->set('type', DBQuery::SELECT);
         $this->query->set('tables', [$this->table]);
         unset($this->query->params['table']);
-
+        
         $this->emit('saved');
 
         return $success;
@@ -533,6 +533,12 @@ class Elegant extends AbstractModel implements ModelInterface
 
     public function getOriginal(?string $attribute = null) : mixed
     {
+        if ( !isset($attribute) ) return $this;
+        return $this->{$attribute};
+    }
+    
+    public function getDirty(?string $attribute = null) : mixed
+    {
         $manipulated = $this->getData();
 
         if ( !isset($attribute) ) return @$manipulated['in'] ?? @$manipulated['out'] ?? [];
@@ -558,6 +564,12 @@ class Elegant extends AbstractModel implements ModelInterface
     public function firstValue(string $field) : mixed
     {
         return $this->query->firstValue($field);
+    }
+
+    public function union(self $model, bool $all = false) : self
+    {
+        $this->query->union($model->getQuery(), $all);
+        return $this;
     }
 
     public function __toString() : string

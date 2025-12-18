@@ -248,6 +248,14 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      */
     public function getOriginal(?string $attribute = null) : mixed;
 
+     /**
+     * Get the attributes that have been manipulated (set) since model instantiation.
+     * 
+     * @param string|null $attribute [optional] Attribute name
+     * @return mixed Manipulated attributes or specific attribute value
+     */
+    public function getDirty(?string $attribute = null) : mixed;
+
     /**
      * Mass assignment
      * 
@@ -286,4 +294,13 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * @return bool True on success, false on failure
      */
     public function forceDelete() : bool;
+
+    /**
+	 * Combine the result sets of two queries
+	 * 
+	 * @param \Clicalmani\Database\Factory\Models\Elegant $model
+	 * @param bool $all
+	 * @return self
+	 */
+    public function union(\Clicalmani\Database\Factory\Models\Elegant $model, bool $all = false) : self;
 }

@@ -454,4 +454,13 @@ interface QueryInterface extends DBInterface
 	 * @return self
 	 */
 	public function unless(bool $condition, callable $callback) : self;
+
+	/**
+	 * Combine the result sets of two queries
+	 * 
+	 * @param \Clicalmani\Database\DBQuery $query
+	 * @param bool $all
+	 * @return self
+	 */
+	public function union(\Clicalmani\Database\DBQuery $query, bool $all = false) : self;
 }

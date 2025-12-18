@@ -201,7 +201,7 @@ abstract class DB implements Interfaces\DBInterface
 			
 			static::$prefix = static::$connection['prefix'];
 
-			if ( app()->config->database('listeners') ) {
+			if ( app()->getTimeTracker() ) {
 				static::$pdo->query('SET PROFILING=1');
 			}
 
