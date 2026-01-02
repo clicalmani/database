@@ -333,6 +333,8 @@ class Elegant extends AbstractModel implements ModelInterface
              * Insert
              */
             $success = $this->insert( [$data['in']] );
+        } else {
+            $success = true;
         }
 
         $this->unlock();
