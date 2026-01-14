@@ -263,6 +263,17 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     }
 
     /**
+     * Return the model table singular name
+     * 
+     * @param bool $keep_alias Wether to include table alias or not
+     * @return string Table name
+     */
+    public function getTableSingular(bool $keep_alias = false)
+    {
+        return $this->table_singular ?? $this->getTable($keep_alias);
+    }
+
+    /**
      * Enable lock state
      * 
      * @return void
@@ -431,7 +442,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         }
         
         $table = $model->getTable(true);
-
+        
         /**
          * Duplicate joints
          * 
@@ -601,12 +612,12 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
     protected function guessRelationshipKeys(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
     {
-        $table = strtolower($this->getTable());
+        $table = strtolower($this->getTableSingular());
         $alias = strtolower($this->getTableAlias());
 
         if ($model) {
             $model_instance = new $model;
-            $table = strtolower($model_instance->getTable());
+            $table = strtolower($model_instance->getTableSingular());
             $alias = strtolower($model_instance->getTableAlias());
         }
         
