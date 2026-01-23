@@ -270,7 +270,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function getTableSingular(bool $keep_alias = false)
     {
-        return $this->table_singular ?? $this->getTable($keep_alias);
+        return $this->table_singular ?: $this->getTable($keep_alias);
     }
 
     /**
