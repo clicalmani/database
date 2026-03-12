@@ -381,7 +381,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		}
 		
 		$this->options = $options;
-
+		
 		$criteria = trim($criteria);
 
 		if ( empty($criteria) ) $criteria = '1';

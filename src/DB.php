@@ -71,94 +71,95 @@ abstract class DB implements Interfaces\DBInterface
 		/** @var array<string|array> */
 		static::$db_config = app()->config->database();
 		
-		if ( is_array(static::$db_config) ) {
+		if ( ! is_array(static::$db_config) ) {
+			throw new \Exception('Database configuration not set.');
+		}
 
-			if ( ! isset(static::$db_config['default']) ) {
-				die('Database default connection not set');
+		if ( ! isset(static::$db_config['default']) ) {
+			die('Database default connection not set');
+		}
+
+		if ( ! isset(static::$db_config['connections']) ) {
+			die('Database connections not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]) ) {
+			die('Database default connection not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['driver']) ) {
+			die('Database default connection driver not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['host']) ) {
+			die('Database default connection host not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['port']) ) {
+			die('Database default connection port not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['database']) ) {
+			die('Database default connection database not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['username']) ) {
+			die('Database default connection username not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['password']) ) {
+			die('Database default connection password not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['charset']) ) {
+			die('Database default connection charset not set');
+		}
+
+		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['collation']) ) {
+			die('Database default connection collation not set');
+		}
+
+		if ( empty($driver) ) {
+			static::$connection = static::$db_config['connections'][static::$db_config['default']];
+		} else {
+
+			if ( ! isset(static::$db_config['connections'][$driver]) ) {
+				die('Database connection not set');
 			}
 
-			if ( ! isset(static::$db_config['connections']) ) {
-				die('Database connections not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['driver']) ) {
+				die('Database connection driver not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]) ) {
-				die('Database default connection not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['host']) ) {
+				die('Database connection host not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['driver']) ) {
-				die('Database default connection driver not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['port']) ) {
+				die('Database connection port not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['host']) ) {
-				die('Database default connection host not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['database']) ) {
+				die('Database connection database not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['port']) ) {
-				die('Database default connection port not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['username']) ) {
+				die('Database connection username not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['database']) ) {
-				die('Database default connection database not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['password']) ) {
+				die('Database connection password not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['username']) ) {
-				die('Database default connection username not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['charset']) ) {
+				die('Database connection charset not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['password']) ) {
-				die('Database default connection password not set');
+			if ( ! isset(static::$db_config['connections'][$driver]['collation']) ) {
+				die('Database connection collation not set');
 			}
 
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['charset']) ) {
-				die('Database default connection charset not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['collation']) ) {
-				die('Database default connection collation not set');
-			}
-
-			if ( empty($driver) ) {
-				static::$connection = static::$db_config['connections'][static::$db_config['default']];
-			} else {
-
-				if ( ! isset(static::$db_config['connections'][$driver]) ) {
-					die('Database connection not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['driver']) ) {
-					die('Database connection driver not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['host']) ) {
-					die('Database connection host not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['port']) ) {
-					die('Database connection port not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['database']) ) {
-					die('Database connection database not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['username']) ) {
-					die('Database connection username not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['password']) ) {
-					die('Database connection password not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['charset']) ) {
-					die('Database connection charset not set');
-				}
-	
-				if ( ! isset(static::$db_config['connections'][$driver]['collation']) ) {
-					die('Database connection collation not set');
-				}
-	
-				static::$connection = static::$db_config['connections'][$driver];
-			}
+			static::$connection = static::$db_config['connections'][$driver];
 		}
 	}
 	
