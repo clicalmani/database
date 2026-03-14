@@ -5,6 +5,7 @@ use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Foundation\Support\Facades\Str;
 
 /**
  * Class AbstractModel
@@ -43,13 +44,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * @var string Table name
      */
     protected $table;
-
-    /**
-     * Model table singular
-     * 
-     * @var string Table name
-     */
-    protected $table_singular;
 
     /**
      * Default attributes.
@@ -260,17 +254,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         @[$table, $alias] = explode(' ', $this->table);
         
         return $table;
-    }
-
-    /**
-     * Return the model table singular name
-     * 
-     * @param bool $keep_alias Wether to include table alias or not
-     * @return string Table name
-     */
-    public function getTableSingular(bool $keep_alias = false)
-    {
-        return $this->table_singular ?: $this->getTable($keep_alias);
     }
 
     /**
@@ -614,7 +597,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     {
         // Current table context
         $current_alias = strtolower($this->getTableAlias());
-        $current_table_singular = $this->getTableSingular();
+        $current_table_singular = Str::singularize($this->getTable());
         
         // Related table context
         $related_alias = $current_alias;
@@ -623,7 +606,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         if ($model) {
             $model_instance = new $model;
             $related_alias = $model_instance->getTableAlias();
-            $related_table_singular = $model_instance->getTableSingular();
+            $related_table_singular = Str::singularize($model_instance->getTable());
         }
 
         // ---------------------------------------------------------
