@@ -307,8 +307,10 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		if ( array_filter($options, fn($entry) => is_string($entry)) ) {
 			$options = [$options];
 		}
-		
-		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
+
+		// Make sure there is no table alias in the table name for insert query
+		$arr = explode(' ', $this->params['tables'][0]);
+		$table = @ count( $arr ) ? array_shift($arr): null;
 		
 		if ( isset( $table ) ) {
 			unset($this->params['tables']);

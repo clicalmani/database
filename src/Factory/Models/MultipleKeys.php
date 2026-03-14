@@ -6,6 +6,16 @@ use Clicalmani\Foundation\Support\Facades\DB;
 Trait MultipleKeys
 {
     /**
+     * Removes table alias from the table name
+     * 
+     * @return string
+     */
+    public function cleanTable(string $table)
+    {
+        return array_shift(explode(' ', $table));
+    }
+
+    /**
      * Removes table alias from the key
      * 
      * @param mixed $value Keys to be clean

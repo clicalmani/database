@@ -18,9 +18,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * Gets the query result
      * 
      * @param string $fields SQL select statement.
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @return self
      */
-    public function select(string $fields = '*') : CollectionInterface;
+    public static function select(string $fields = '*') : self;
 
     /**
      * Fetch the result set

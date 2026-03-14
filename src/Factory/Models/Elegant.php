@@ -96,9 +96,11 @@ class Elegant extends AbstractModel implements ModelInterface
         }
     }
 
-    public function select(string $fields = '*') : CollectionInterface
+    public static function select(string $fields = '*') : self
     {
-        return $this->get($fields);
+        $instance = static::getInstance();
+        $instance->query->set('fields', $fields);
+        return $instance;
     }
 
     public function fetch(?string $class = null) : CollectionInterface

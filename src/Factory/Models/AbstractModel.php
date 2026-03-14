@@ -258,8 +258,8 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         if ($keep_alias) return $this->table;
        
         @[$table, $alias] = explode(' ', $this->table);
-
-        return $alias ? $table: $this->table;
+        
+        return $table;
     }
 
     /**
@@ -612,31 +612,50 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
     protected function guessRelationshipKeys(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
     {
-        $table = strtolower($this->getTableSingular());
-        $alias = strtolower($this->getTableAlias());
+        // Current table context
+        $current_alias = strtolower($this->getTableAlias());
+        $current_table_singular = $this->getTableSingular();
+        
+        // Related table context
+        $related_alias = $current_alias;
+        $related_table_singular = $current_table_singular;
 
         if ($model) {
             $model_instance = new $model;
-            $table = strtolower($model_instance->getTableSingular());
-            $alias = strtolower($model_instance->getTableAlias());
-        }
-        
-        // Singular form guessing
-        $table = $this->table_singular ?: $table;
-        
-        if ( ! isset($foreign_key) ) {
-            return ["{$table}_id", $alias ? "{$alias}.id": 'id'];
+            $related_alias = $model_instance->getTableAlias();
+            $related_table_singular = $model_instance->getTableSingular();
         }
 
-        $original_key = $original_key ?? $foreign_key;                              // The original key is the parent
-                                                                                    // primary key
-        
-        if ($original_key == $foreign_key) {
-            $original_key = $this->cleanKey($original_key);
-            $foreign_key  = $original_key;
+        // ---------------------------------------------------------
+        // 1 : All keys are provided
+        // ---------------------------------------------------------
+        if (!is_null($foreign_key) && !is_null($original_key)) {
+            return [$foreign_key, $original_key];
         }
 
-        return [$foreign_key, $original_key];
+        // ---------------------------------------------------------
+        // 2 : Only one key is provided
+        // ---------------------------------------------------------
+        if (!is_null($foreign_key) && is_null($original_key)) {
+            return [$foreign_key, $foreign_key];
+        }
+
+        // ---------------------------------------------------------
+        // 3 : No key is provided, try to guess
+        // ---------------------------------------------------------
+
+        if ($model) {
+            $fk = ($current_alias ? $current_alias . '.': '') . $related_table_singular . '_id';
+
+            $pk = ($related_alias ? $related_alias . '.': '') . 'id';
+
+            return [$fk, $pk];
+        }
+
+        // Fallback to default keys
+        $fk = $pk = 'id';
+        
+        return [$fk, $pk];
     }
 
     /**
