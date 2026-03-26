@@ -3,6 +3,7 @@ namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Database\Interfaces\JoinClauseInterface;
 use Clicalmani\Foundation\Collection\CollectionInterface;
+use Clicalmani\Foundation\Support\Facades\Str;
 
 trait Relationships
 {
@@ -234,6 +235,18 @@ trait Relationships
         });
 
         return $this->fetch($class);
+    }
+
+    /**
+     * Get the parent record of the model
+     *
+     * @param string|null $key
+     * @return static|null
+     */
+    protected function parent(?string $key = null): ?static
+    {
+        $key = $key ?? Str::singularize($this->getTable());
+        return $this->{$key};
     }
 
     /**

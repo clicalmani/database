@@ -43,6 +43,7 @@ Trait MultipleKeys
      */
     public function guessKeyValue(array $row) : string|array|null
     {
+        $row = (array) $row;
         $key = $this->cleanKey( $this->getKey() );
         
         if ( is_array($key) ) {

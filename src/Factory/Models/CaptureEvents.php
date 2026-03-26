@@ -179,12 +179,12 @@ trait CaptureEvents
 
     public static function preventEventsCapturing() : void
     {
-        app()->config->set('database', ['preventEventsCapturing' => true]);
+        app()->config->set('database.preventEventsCapturing', true);
     }
 
     public static function allowEventsCapturing() : void
     {
-        app()->config->set('database', ['preventEventsCapturing' => false]);
+        app()->config->set('database.preventEventsCapturing', false);
     }
 
     public function muteEvents(?array $name = null) : static

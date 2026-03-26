@@ -89,4 +89,22 @@ class Schema
             fn($migrate) => $migrate->out()
         );
     }
+
+    /**
+     * Get column listing for a table
+     * 
+     * @param string $table Table name
+     * @return array
+     */
+    public static function getColumnListing(string $table): array
+    {
+        $columns = [];
+        $result = with( new Maker($table, Maker::SHOW_COLUMNS) )->make(true);
+        
+        foreach ($result as $row) {
+            $columns[] = $row->COLUMN_NAME;
+        }
+        
+        return $columns;
+    }
 }

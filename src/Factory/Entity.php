@@ -448,7 +448,7 @@ abstract class Entity
         }
         
         $query->set('definition', $definition);
-
+        
         return $this->build($query->exec(), $table, $exec, $dump_file);
     }
 

@@ -109,7 +109,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * @param ?array<string, string> $records A record to guess the ID from (Internal use only)
      * @return mixed
      */
-    public function lastInsertId(?array $record = []) : mixed;
+    public function lastInsertId(array $record = []) : mixed;
 
     /**
      * Returns the first value in the selected result
@@ -303,4 +303,11 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
 	 * @return self
 	 */
     public function union(\Clicalmani\Database\Factory\Models\Elegant $model, bool $all = false) : self;
+
+    /**
+     * Return the query builder instance for the model. Usefull for static methods call.
+      * 
+      * @return \Clicalmani\Database\DBQuery
+     */
+    public static function query(): \Clicalmani\Database\DBQuery;
 }

@@ -187,9 +187,9 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	/**
 	 * Fetch a single row from the SQL query result.
 	 * 
-	 * @return array
+	 * @return ?object
 	 */
-	public function getRow() : array { return $this->result->get($this->key); }
+	public function getRow() : ?object { return (object) $this->result->get($this->key); }
 	
 	/**
 	 * Check wether the last SQL statement has a result

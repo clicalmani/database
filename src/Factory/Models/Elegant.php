@@ -112,8 +112,8 @@ class Elegant extends AbstractModel implements ModelInterface
         }
         
         return $this->get("$alias.*")->map(function($row) use($class) {
-            if ($class) return $class::getInstance( with( new $class )->guessKeyValue($row) );
-            return static::getInstance( with( static::getInstance() )->guessKeyValue($row) );
+            if ($class) return $class::getInstance( with( new $class )->guessKeyValue((array)$row) );
+            return static::getInstance( with( static::getInstance() )->guessKeyValue((array)$row) );
         });
     }
 
@@ -357,7 +357,7 @@ class Elegant extends AbstractModel implements ModelInterface
         return $this->muteEvents()->save();
     }
 
-    public function lastInsertId(?array $record = []) : mixed
+    public function lastInsertId(array $record = []) : mixed
     {
         $last_insert_id = DB::insertId();
         
@@ -371,7 +371,7 @@ class Elegant extends AbstractModel implements ModelInterface
     public function first() : ?static
     {
         if ($row = $this->get()->first()) 
-            return static::find( $this->guessKeyValue($row) );
+            return static::find( $this->guessKeyValue((array)$row) );
 
         return null;
     }
@@ -417,7 +417,7 @@ class Elegant extends AbstractModel implements ModelInterface
         $instance = static::getInstance();
         
         return $instance->get()->map(function($row) use($instance) {
-            return static::getInstance( $instance->guessKeyValue($row) );
+            return static::getInstance( $instance->guessKeyValue((array)$row) );
         });
     }
 
@@ -462,12 +462,11 @@ class Elegant extends AbstractModel implements ModelInterface
 
     public function swap() : void
     {
-        $table     = DB::getPrefix() . $this->getTable();
-        $statement = DB::query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" . env('DB_NAME', '') . "' AND TABLE_NAME = '$table'");
+        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable());
         
-        while($row = DB::fetch($statement, \PDO::FETCH_NUM)) {
+        foreach ($columns as $column) {
             foreach (array_keys(request()) as $attribute) {
-                if ($row[0] == $attribute) {
+                if ($column == $attribute) {
                     $this->{$attribute} = request($attribute);
                     break;
                 }
@@ -483,6 +482,11 @@ class Elegant extends AbstractModel implements ModelInterface
     public function refresh() : self
     {
         return static::find($this->id);
+    }
+
+    public static function query(): \Clicalmani\Database\DBQuery
+    {
+        return clone static::getInstance()->getQuery();
     }
 
     public static function seed() : \Clicalmani\Database\Factory\FactoryInterface

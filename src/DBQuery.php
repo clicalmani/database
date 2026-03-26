@@ -117,6 +117,13 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	const UNION = 12;
 
 	/**
+	 * Show columns flag
+	 * 
+	 * @var int 13
+	 */
+	const SHOW_COLUMNS = 13;
+
+	/**
 	 * Builder
 	 * 
 	 * @var \Clicalmani\Database\DBQueryBuilder
@@ -248,6 +255,11 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 					throw new \Exception('Union query not defined');
 				}
 				
+				$this->builder->query();
+				break;
+
+			case static::SHOW_COLUMNS:
+				$this->builder = new ShowColumns($this->params, $this->options);
 				$this->builder->query();
 				break;
 		}
@@ -566,7 +578,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	{
 		$this->params['limit'] = 1;
 		$result = $this->exec();
-		return (object) $result->result()->first();
+		return $result->result()->first();
 	}
 
 	public function firstValue(string $field) : mixed

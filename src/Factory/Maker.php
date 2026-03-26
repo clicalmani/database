@@ -83,7 +83,14 @@ class Maker
      * 
      * @var int
      */
-    const ALTER_TABLE          = DBQuery::ALTER;       
+    const ALTER_TABLE          = DBQuery::ALTER;   
+    
+    /**
+     * Show columns flag
+     * 
+     * @var int
+     */
+    const SHOW_COLUMNS         = DBQuery::SHOW_COLUMNS;
 
     protected static $current_alter_option;
 
@@ -186,7 +193,7 @@ class Maker
      * 
      * @return bool True on success, false on failure
      */
-    public function make() : bool
+    public function make(bool $with_result = false) : mixed
     {
         $definition = [];
 
@@ -211,7 +218,11 @@ class Maker
         }
 
         if ($changes) $this->query->set('definition', $changes);
+
+        $builder = $this->query->exec();
         
-        return $this->query->exec()->status() === 'success';
+        if ( $with_result ) return $builder;
+        
+        return $builder->status() === 'success';
     }
 }

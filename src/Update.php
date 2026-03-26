@@ -18,7 +18,7 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 	{ 
 		parent::__construct($params, $options);
 		
-		$this->sql = 'UPDATE ' . (isset($this->params['low_priority']) ? 'LOW_PRIORITY ': '') . (isset($this->params['ignore']) ? 'IGNORE ': '') . collection()->exchange($this->params['tables'])->map(function($table) {
+		$this->sql = 'UPDATE ' . (isset($this->params['low_priority']) ? 'LOW_PRIORITY ': '') . (isset($this->params['ignore']) && $this->params['ignore'] ? 'IGNORE ': '') . collection()->exchange($this->params['tables'])->map(function($table) {
 			$arr = preg_split('/\s/', $table, -1, PREG_SPLIT_NO_EMPTY);
 			$table = $arr[0];
 

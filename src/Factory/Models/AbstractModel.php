@@ -588,9 +588,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public static function preventSilentlyDiscardingAttributes() : void
     {
-        $db_config = app()->config->database();
-        $db_config['prevent_silent_discard_attribute'] = true;
-        app()->database = $db_config;
+        app()->config->set('database.prevent_silent_discard_attribute', true);
     }
 
     protected function guessRelationshipKeys(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
@@ -674,7 +672,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
             
             if ($row = $collection->first()) {
 
-                $value = $row[$name];
+                $value = $row->{$name};
                 $type = $entity->getPropertyType($name);
 
                 if ($type === \Clicalmani\Database\DataTypes\Json::class) {
@@ -702,18 +700,16 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function __set(string $name, mixed $value) : void
     {
-        $db = DB::getInstance();
-        $table = $db->getPrefix() . $this->getTable();
-        $statement = $db->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" . env('DB_NAME', '') . "' AND TABLE_NAME = '$table'");
-        $found = false;
+        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable());
+        $found   = false;
         
-        while($row = $db->fetch($statement, \PDO::FETCH_NUM)) {
-            if ($row[0] == $name) {
+        foreach ($columns as $column) {
+            if ($column == $name) {
                 $found = true;
                 break;
             }
         }
-
+        
         if (false !== $found) {
 
             $entity = $this->getEntity();
