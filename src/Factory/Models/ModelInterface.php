@@ -31,6 +31,23 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     public function fetch(?string $class = null) : CollectionInterface;
 
     /**
+     * Fetch the first record from the result set
+     * 
+     * @param ?string $class [optional] Model class
+     * @return self|null
+     */
+    public function fetchOne(?string $class = null) : ?self;
+
+    /**
+     * Fetch the result set with relationships
+     * 
+     * @param ?string $class [optional] Model class
+     * @param array $with Relationships to fetch with the result set
+     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     */
+    public function fetchWith(?string $class = null, array $with = []): CollectionInterface;
+
+    /**
      * Delete the model
      * 
      * @return bool true if success, false otherwise
@@ -77,6 +94,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * @param array $attributes Attributes values
      * @param bool $replace Replace the record if exists
      * @return self
+     * @throw \PDOException
      */
     public static function create(array $attributes = [], bool $replace = false) : self;
 
@@ -136,9 +154,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * Returns a specified row defined by a specified primary key.
      * 
      * @param string|array|null $id Primary key value
-     * @return ?self
+     * @return static|null
      */
-    public static function find(string|array|null $id) : ?self;
+    public static function find(string|array|null $id) : static|null;
 
     /**
      * Returns a specified row defined by a specified primary key or fail.
@@ -310,4 +328,11 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
       * @return \Clicalmani\Database\DBQuery
      */
     public static function query(): \Clicalmani\Database\DBQuery;
+
+    /**
+     * Get the model connection
+     * 
+     * @return \PDO
+     */
+    public static function getConnection(): \PDO;
 }

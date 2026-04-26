@@ -13,6 +13,15 @@ interface SQLClausesInterface
     public static function where(?string $criteria = '1', ?array $options = []) : \Clicalmani\Database\Factory\Models\ModelInterface;
 
     /**
+     * Add a where clause with IN operator
+     * 
+     * @param string $key Column name
+     * @param array $values Values to match
+     * @return self
+     */
+    public static function whereIn(string $key, array $values): self;
+
+    /**
      * Like where clause but with and as operator.
      * 
      * @param ?string $criteria

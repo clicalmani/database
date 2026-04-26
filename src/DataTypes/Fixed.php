@@ -14,7 +14,7 @@ class Fixed extends DataType
         if (TRUE === @ $parameters['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if (TRUE === @ $parameters['zerofill']) $this->nullable();
+        if (TRUE === @ $parameters['zerofill']) $this->zeroFill();
 
         if ($default_value = @ $parameters['default']) $this->default($default_value);
 

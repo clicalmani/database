@@ -1,8 +1,6 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Database\Factory\DataTypes\DataType;
-
 /**
  * Class AlterOption
  * 
@@ -10,7 +8,7 @@ use Clicalmani\Database\Factory\DataTypes\DataType;
  * @author @clicalmani
  */
 #[\Attribute(\Attribute::TARGET_CLASS)]
-class AlterOption extends DataType
+class AlterOption extends DataTypes\DataType
 {
     /**
      * Add column

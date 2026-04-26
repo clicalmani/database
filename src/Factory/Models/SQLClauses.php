@@ -10,6 +10,12 @@ trait SQLClauses
 
         return $instance;
     }
+    
+    public static function whereIn(string $key, array $values): self
+    {
+        return static::where("$key IN (" . 
+                    implode(', ', array_fill(0, count($values), '?')) . ")", $values);
+    }
 
     public function whereAnd(?string $criteria = '1', ?array $options = []) : static
     {

@@ -94,7 +94,16 @@ interface QueryInterface extends DBInterface
 	 * @param bool $replace Run REPLACE query if record exists
 	 * @return bool true on success, false on failure
 	 */
-	public function insert(array $options = [], bool $replace = false) : bool;
+	public function insert(array $options = [], bool $replace = false): bool;
+
+	/**
+	 * Insert ignore query
+	 * 
+	 * @param array $options Insert options
+	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
+	 * @return bool
+	 */
+	public function insertIgnore(array $options = [], bool $replace = false): bool;
 
 	/**
 	 * Insert new record to the selected table or fail.
@@ -127,6 +136,15 @@ interface QueryInterface extends DBInterface
 	 * @return self
 	 */
 	public function where( ...$args ) : self;
+
+	/**
+	 * Add a where in clause to the query
+	 * 
+	 * @param string $key Column name
+	 * @param array $values Array of values
+	 * @return self
+	 */
+	public function whereIn(string $key, array $values): self;
 
 	/**
 	 * Specify the query having condition

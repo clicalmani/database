@@ -316,10 +316,10 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 
 	public function insert(array $options = [], bool $replace = false) : bool
 	{
-		if ( array_filter($options, fn($entry) => is_string($entry)) ) {
+		if ( array_filter($options, fn($entry) => ! is_array($entry)) ) {
 			$options = [$options];
 		}
-
+		
 		// Make sure there is no table alias in the table name for insert query
 		$arr = explode(' ', $this->params['tables'][0]);
 		$table = @ count( $arr ) ? array_shift($arr): null;
@@ -344,6 +344,19 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this->exec()->status() === 'success';
 	}
 
+	/**
+	 * Insert ignore query
+	 * 
+	 * @param array $options Insert options
+	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
+	 * @return bool
+	 */
+	public function insertIgnore(array $options = [], bool $replace = false): bool
+	{
+		$this->params['ignore'] = true;
+		return $this->insert($options, $replace);
+	}
+
 	public function insertOrFail(array $options = []) : bool
 	{
 		try {
@@ -355,8 +368,12 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 
 	public function insertGetId(array $options = []) : int
 	{
-		$this->insert($options);
-		return DB::lastInsertId();
+		try {
+			$this->insert($options);
+			return DB::lastInsertId();
+		} catch (\Throwable $e) {
+			throw $e;
+		}
 	}
 
 	public function insertOrUpdate(array $options) : void
@@ -370,7 +387,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		}
 	}
 
-	public function where( ...$args ) : self
+	public function where( ...$args ): self
 	{
 		switch(count($args)) {
 			case 1:
@@ -394,7 +411,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 			default: return $this;
 		}
 		
-		$this->options = $options;
+		$this->options = array_merge($this->options, $options);
 		
 		$criteria = trim($criteria);
 
@@ -407,6 +424,12 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		}
 		
 		return $this;
+	}
+	
+	public function whereIn(string $key, array $values): self
+	{
+		return $this->where("$key IN (" . 
+			implode(', ', array_fill(0, count($values), '?')) . ")", $values);
 	}
 
 	public function having(string $criteria) : self

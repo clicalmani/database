@@ -7,6 +7,7 @@ use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Foundation\Support\Facades\Str;
 
 /**
  * Class Elegant
@@ -115,6 +116,83 @@ class Elegant extends AbstractModel implements ModelInterface
             if ($class) return $class::getInstance( with( new $class )->guessKeyValue((array)$row) );
             return static::getInstance( with( static::getInstance() )->guessKeyValue((array)$row) );
         });
+    }
+
+    public function fetchOne(?string $class = null) : ?self
+    {
+        return $this->fetch($class)->first();
+    }
+
+    public function fetchWith(?string $class = null, array $with = []): CollectionInterface
+    {
+        $alias = $class ? (new $class)->getTableAlias(): $this->getTableAlias();
+
+        $flatRows = $this->get("$alias.*");
+        $parentIds = [];
+
+        foreach ($flatRows as $row) {
+
+            foreach ($with as $relationPath) {
+                $segments = explode('.', $relationPath);
+                $parentIds[$segments[0]][] = $row->{Str::singularize($segments[0]) . '_id'};
+            }
+        }
+
+        foreach ($parentIds as $relName => $ids) {
+            $parentIds[$relName] = array_unique($ids);
+        }
+
+        $relationMap = [];
+        $relationIds = [];
+        
+        foreach ($parentIds as $relName => $ids) {
+            $ids = array_unique($ids);
+            $groupedQuery = DB::table(Str::pluralize($relName))->where('id IN (' . join(',', $ids) . ')')->get();
+            
+            $relationMap[$relName] = [];
+
+            foreach ($groupedQuery as $row) {
+                $relationMap[$relName][$row->id] = $row;
+            }
+        }
+
+        foreach ($with as $relationPath) {
+            $segments = explode('.', $relationPath);
+
+            for ($i=1; $i < count($segments); $i++) {
+                $relationIds[$segments[$i]] = [];
+
+                if (isset($segments[$i-1])) {
+                    foreach ($relationMap[$segments[$i-1]] as $row) {
+                        $relationIds[$segments[$i]][] = $row->{Str::singularize($segments[$i]) . '_id'};
+                    }
+                }
+            }
+
+        }
+
+        foreach ($relationIds as $relName => $ids) {
+            $groupedQuery = DB::table(Str::pluralize($relName))->where('id IN (' . join(',', $ids) . ')')->get();
+            foreach ($groupedQuery as $row) {
+                foreach ($relationMap as $parentName => $data) {
+                    foreach ($data as $id => $rw) {
+                        if ($rw->{Str::singularize($relName) . '_id'} == $row->id) {
+                            $relationMap[$parentName][$id]->{$relName} = $row;
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($flatRows as $row) {
+            foreach ($relationMap as $relName => $data) {
+                if (isset($data[$row->{Str::singularize($relName) . '_id'}])) {
+                    $row->{$relName} = $data[$row->{Str::singularize($relName) . '_id'}];
+                }
+            }
+        }
+
+        return $flatRows;
     }
 
     public function delete() : bool
@@ -392,7 +470,7 @@ class Elegant extends AbstractModel implements ModelInterface
         }
     }
     
-    public static function find(string|array|null $id) : ?self
+    public static function find(string|array|null $id) : ?static
     {
         return static::getInstance($id);
     }
@@ -463,11 +541,12 @@ class Elegant extends AbstractModel implements ModelInterface
     public function swap() : void
     {
         $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable());
+        $request = \Clicalmani\Foundation\Http\Request::current();
         
         foreach ($columns as $column) {
-            foreach (array_keys(request()) as $attribute) {
+            foreach (array_keys($request->all()) as $attribute) {
                 if ($column == $attribute) {
-                    $this->{$attribute} = request($attribute);
+                    $this->{$attribute} = $request->{$attribute};
                     break;
                 }
             }
@@ -584,6 +663,11 @@ class Elegant extends AbstractModel implements ModelInterface
     {
         $this->query->union($model->getQuery(), $all);
         return $this;
+    }
+
+    public static function getConnection(): \PDO
+    {
+        return static::getInstance()->query->getPdo();
     }
 
     public function __toString() : string

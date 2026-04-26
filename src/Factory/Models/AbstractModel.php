@@ -151,6 +151,13 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     protected $observers = [];
 
     /**
+     * With relationships
+     * 
+     * @var string[]
+     */
+    protected $with;
+
+    /**
      * Model entity single instance
      * 
      * @var \Clicalmani\Database\Factory\Entity
@@ -224,9 +231,10 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function getKey(bool $keep_alias = false) : string|array
     {
-        if (false == $keep_alias) return $this->cleanKey( $this->primaryKey );
+        $cleanedKey = $this->cleanKey( $this->primaryKey );
+        if (false == $keep_alias) return $cleanedKey;
 
-        return $this->primaryKey;
+        return $this->getTableAlias() . '.' . $cleanedKey;
     }
 
     /**
@@ -238,7 +246,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     {
         @[$table, $alias] = explode(' ', $this->table);
 
-        return $alias ?? '';
+        return $alias ?? DB::getInstance()->getPrefix() . $table;
     }
 
     /**
@@ -441,7 +449,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
             }
         }
         
-        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key, (!$foreign_key && !$joints) ? $this::class: $model::class);
+        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key, (!$foreign_key && !$joints) ? $model::class: $this::class);
         
         $type = ucfirst(strtolower($type));
 
@@ -627,14 +635,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
 
         if ($model) {
             $fk = ($current_alias ? $current_alias . '.': '') . $related_table_singular . '_id';
-
             $pk = ($related_alias ? $related_alias . '.': '') . 'id';
 
             return [$fk, $pk];
         }
-
+        
         // Fallback to default keys
-        $fk = $pk = 'id';
+        $fk = $related_table_singular . '_id';
+        $pk = $this->getTableAlias() . '.id';
         
         return [$fk, $pk];
     }
@@ -688,7 +696,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     
             return null;
         } catch (\PDOException $e) {
-            console_log($e->getMessage(), __FILE__, __LINE__);
             return null;
         }
     }
@@ -758,4 +765,58 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     {
         return !!@class_uses($this)[\Clicalmani\Database\Traits\SoftDelete::class];
     }
+
+    // private function eagerLoadRelationships(array $data) : array
+    // {
+    //     if (empty($this->with)) return $data;
+
+    //     foreach ($this->with as $relationship) {
+    //         if (method_exists($this, $relationship)) {
+    //             $data[$relationship] = $this->{$relationship}();
+    //         }
+    //     }
+
+    //     return $data;
+    // }
+
+    // protected function eagerLoad(array $models)
+    // {
+    //     foreach ($this->with as $relationship) {
+    //         if (method_exists($this, $relationship)) {
+    //             $related_models = $this->{$relationship}()->getRelatedModels($models);
+    //             foreach ($models as $model) {
+    //                 $model->{$relationship} = $related_models[$model->getKey()] ?? null;
+    //             }
+    //         }
+    //     }
+
+    //     return $models;
+    // }
+
+    // private function queryRelatedModels(string $relationName, array $keys)
+    // {
+    //     if (method_exists($this, $relationName)) {
+    //         return $this->{$relationName}()->getRelatedModelsByKeys($keys);
+    //     }
+
+    //     return [];
+    // }
+
+    // private function getRelatedModelsByKeys(string $relationName, array $keys)
+    // {
+    //     if (method_exists($this, $relationName)) {
+    //         return $this->{$relationName}()->getRelatedModelsByKeys($keys);
+    //     }
+
+    //     return [];
+    // }
+
+    // private function getRelatedModels(string $relationName, array $models)
+    // {
+    //     if (method_exists($this, $relationName)) {
+    //         return $this->{$relationName}()->getRelatedModels($models);
+    //     }
+
+    //     return [];
+    // }
 }
