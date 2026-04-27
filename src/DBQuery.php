@@ -6,6 +6,10 @@ use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
 use Clicalmani\Database\Interfaces\JoinClauseInterface;
+use Clicalmani\Database\SubQueries\Exists;
+use Clicalmani\Database\SubQueries\NotExists;
+use Clicalmani\Database\SubQueries\WhereExists;
+use Clicalmani\Database\SubQueries\WhereNotExists;
 use Clicalmani\Foundation\Collection\Map;
 
 /**
@@ -136,6 +140,13 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	 * @var \Clicalmani\Database\DBQuery
 	 */
 	private $union_query;
+
+	/**
+	 * Backup of the current query parameters and options for subqueries
+	 * 
+	 * @var bool false
+	 */
+	private array $backup = [];
 	
 	/**
 	 * Constructor
@@ -165,9 +176,15 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this;
 	}
 
-	public function setOptions(array $options) : void
+	public function setOptions(array $options, bool $merge = false) : void
 	{
-		$this->options = $options;
+		if (FALSE === $merge) $this->options = $options;
+		else $this->options = array_merge($this->options, $options);
+	}
+
+	public function setParams(array $new_params)
+	{
+		$this->params = $new_params;
 	}
 
 	public function getParam(string $param, mixed $default = null) : mixed
@@ -391,6 +408,11 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	{
 		switch(count($args)) {
 			case 1:
+				if ($args[0] instanceof \Closure) {
+					$args[0]($this);
+					return $this;
+				}
+
 				$criteria = $args[0];
 				$operator = 'AND';
 				$options  = [];
@@ -411,7 +433,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 			default: return $this;
 		}
 		
-		$this->options = array_merge($this->options, $options);
+		$this->options = is_array($options) ? array_merge($this->options, $options): $this->options;
 		
 		$criteria = trim($criteria);
 
@@ -424,6 +446,54 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		}
 		
 		return $this;
+	}
+	
+	public function whereExists(\Closure|string $criteria, ?array $options = [], ?string $boolean = 'AND') : self
+	{
+		if ($criteria instanceof \Closure) {
+			return (new Exists($this, $criteria))($boolean);
+		}
+
+		return $this->where('EXISTS (' . $criteria . ')', $boolean, $options);
+	}
+	
+	public function whereNotExists(\Closure|string $criteria, ?array $options = [], ?string $boolean = 'AND') : self
+	{
+		if ($criteria instanceof \Closure) {
+			return (new NotExists($this, $criteria))($boolean);
+		}
+
+		return $this->where('NOT EXISTS (' . $criteria . ')', $boolean, $options);
+	}
+	
+	public function whereHas(string $relation, \Closure $callback, ?string $boolean = 'AND') : static
+	{
+		return (
+			new Exists($this, static function(self $query) use($relation, $callback) {
+				$query->setParams(['tables' => [$relation], 'fields' => 1]);
+				$callback($query);
+			})
+		)($boolean);
+	}
+	
+	public function orWhereHas(string $relation, \Closure $callback) : static
+	{
+		return $this->whereHas($relation, $callback, 'OR');
+	}
+	
+	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : static
+	{
+		return (
+			new NotExists($this, static function(self $query) use($relation, $callback) {
+				$query->setParams(['tables' => [$relation], 'fields' => 1]);
+				$callback($query);
+			})
+		)($boolean);
+	}
+	
+	public function orWhereDoesntHave(string $relation, \Closure $callback) : static
+	{
+		return $this->whereDoesntHave($relation, $callback, 'OR');
 	}
 	
 	public function whereIn(string $key, array $values): self
@@ -461,9 +531,27 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this;
 	}
 
-	public function from(string $fields) : static
+	public function selectRaw(string $fields)
 	{
-		$this->params['fields'] = $fields;
+		$this->set('fields', $fields);
+		return $this;
+	}
+
+	public function from(string $tables) : static
+	{
+		$this->set('tables', explode(',', $tables));
+		return $this;
+	}
+
+	public function whereRaw(string $condition)
+	{
+		$this->set('where', $condition);
+		return $this;
+	}
+
+	public function orderByRaw(string $order)
+	{
+		$this->set('order_by', $order);
 		return $this;
 	}
 
@@ -799,5 +887,15 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		$this->params['query'] = static::UNION;
 		$this->builder = new Union($this->params, $this->options, $this->union_query->params, $this->union_query->options, $all);
 		return $this;
+	}
+
+	public function getParams()
+	{
+		return $this->params;
+	}
+
+	public function getOptions()
+	{
+		return $this->options;
 	}
 }

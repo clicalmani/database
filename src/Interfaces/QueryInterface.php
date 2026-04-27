@@ -138,6 +138,87 @@ interface QueryInterface extends DBInterface
 	public function where( ...$args ) : self;
 
 	/**
+	 * Add a WHERE EXISTS clause to the query
+	 *
+	 * @param Closure|string $criteria The subquery criteria
+	 * @param array $options The query options
+	 * @return QueryInterface
+	 */
+	public function whereExists(\Closure|string $criteria, ?array $options = []) : QueryInterface;
+
+	/**
+	 * Add a WHERE NOT EXISTS clause to the query
+	 *
+	 * @param Closure|string $criteria The subquery criteria
+	 * @param array $options The query options
+	 * @return QueryInterface
+	 */
+	public function whereNotExists(\Closure|string $criteria, ?array $options = []) : QueryInterface;
+
+	/**
+	 * Add a where clause to the query based on the existence of a related model.
+	 * 
+	 * The method accepts the name of the related model and a closure that defines the conditions for the related model.
+	 * The closure receives an instance of the query builder for the related model, allowing you to specify additional where clauses or joins.
+	 * The resulting SQL will include an EXISTS subquery that checks for the existence of related records matching the specified conditions.
+	 * 
+	 * @example
+	 * $query->whereHas('comments', function($query) {
+	 *     $query->where('status = ?', ['approved']);
+	 * });
+	 * 
+	 * This example will generate a SQL query that selects records from the main table where there exists at least one related record in the 'comments' table with a status of 'approved'.
+	 * 
+	 * @param string $relation The name of the related model
+	 * @param \Closure $callback A closure that defines the conditions for the related model
+	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
+	 * @return static
+	 */
+	public function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : static;
+
+	/**
+	 * Add an OR where clause to the query based on the existence of a related model.
+	 * 
+	 * This method functions similarly to whereHas, but it combines the clause with others using the OR operator instead of AND.
+	 * 
+	 * @param string $relation The name of the related model
+	 * @param \Closure $callback A closure that defines the conditions for the related model
+	 * @return static
+	 */
+	public function orWhereHas(string $relation, \Closure $callback) : static;
+
+	/**
+	 * Add a where clause to the query based on the non-existence of a related model.
+	 * 
+	 * This method is the inverse of whereHas. It adds a clause that checks for the absence of related records matching the specified conditions.
+	 * The resulting SQL will include a NOT EXISTS subquery that checks for the non-existence of related records matching the specified conditions.
+	 * 
+	 * @example
+	 * $query->whereDoesntHave('comments', function($query) {
+	 *     $query->where('status = ?', ['approved']);
+	 * });
+	 * 
+	 * This example will generate a SQL query that selects records from the main table where there does not exist any related record in the 'comments' table with a status of 'approved'.
+	 * 
+	 * @param string $relation The name of the related model
+	 * @param \Closure $callback A closure that defines the conditions for the related model
+	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
+	 * @return static
+	 */
+	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : static;
+
+	/**
+	 * Add an OR where clause to the query based on the non-existence of a related model.
+	 * 
+	 * This method functions similarly to whereDoesntHave, but it combines the clause with others using the OR operator instead of AND.
+	 * 
+	 * @param string $relation The name of the related model
+	 * @param \Closure $callback A closure that defines the conditions for the related model
+	 * @return static
+	 */
+	public function orWhereDoesntHave(string $relation, \Closure $callback) : static;
+
+	/**
 	 * Add a where in clause to the query
 	 * 
 	 * @param string $key Column name

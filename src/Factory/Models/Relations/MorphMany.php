@@ -36,9 +36,9 @@ class MorphMany extends Relationship
         return $this->callerClass;
     }
 
-    public function get(?string $id = null): CollectionInterface
+    public function get(?string $id = null): array
     {
         $this->related->getQuery()->where("{$this->pivotId} = ? AND {$this->pivotType} = ?", [$id, $this->parentType]);
-        return $this->related->fetch();
+        return $this->related->fetch()->toArray();
     }
 }

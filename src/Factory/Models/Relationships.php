@@ -17,10 +17,11 @@ trait Relationships
      * The current model inherit a foreign key
      * We should match the model key value to obtain its parent.
      * 
-     * @param string $class Parent model
+     * @template T
+     * @param class-string<T> $class Parent model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $original_key [Optional] Original key
-     * @return mixed
+     * @return T
      */
     protected function belongsTo(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
     {
@@ -30,10 +31,11 @@ trait Relationships
     /**
      * One and one relationship
      * 
-     * @param string $class Parent model
+     * @template T
+     * @param class-string<T> $class Parent model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $original_key [Optional] original key
-     * @return mixed
+     * @return T
      */
     protected function hasOne(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
     {
@@ -48,12 +50,13 @@ trait Relationships
     /**
      * One to many relationship
      * 
-     * @param string $class Child model
+     * @template T
+     * @param class-string<T> $class Child model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $original_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @return T[]
      */
-    protected function hasMany(string $class, ?string $foreign_key = null, ?string $original_key = null): \Clicalmani\Foundation\Collection\CollectionInterface
+    protected function hasMany(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
     {
         return (new HasMany($class, $this::class, ...$this->guessRelationshipKeys($foreign_key, $original_key)))->get($this->id);
     }
@@ -61,12 +64,13 @@ trait Relationships
     /**
      * Many to many relationship
      * 
-     * @param string $class Child model
+     * @template T
+     * @param class-string<T> $class Child model
      * @param ?string $foreign_key [Optional] Table foreign key
      * @param ?string $parent_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @return T[]
      */
-    protected function belongsToMany(string $class, ?string $foreign_key = null, ?string $parent_key = null) : CollectionInterface
+    protected function belongsToMany(string $class, ?string $foreign_key = null, ?string $parent_key = null): mixed
     {
         if ( $this->isEmpty() ) return collection();
 
@@ -170,14 +174,15 @@ trait Relationships
     /**
      * One-to-Many morphic relationship
      * 
-     * @param string $class Child model
+     * @template T
+     * @param class-string<T> $class Child model
      * @param string $name Morphic association
      * @param ?string $pivot_id
      * @param ?string $pivot_type
      * @param ?string $parent_type
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @return T[]
      */
-    protected function morphMany(string $class, string $name, ?string $pivot_id = null, ?string $pivot_type = null, ?string $parent_type = null): CollectionInterface
+    protected function morphMany(string $class, string $name, ?string $pivot_id = null, ?string $pivot_type = null, ?string $parent_type = null): mixed
     {
         return (new MorphMany(
             $class, $name, 
@@ -190,7 +195,8 @@ trait Relationships
     /**
      * Many-to-Many polymorphic relationship
      * 
-     * @param string $related_class Related model class
+     * @template T
+     * @param class-string<T> $related_class Related model class
      * @param string $name Morphic association name (e.g., 'taggable')
      * @param string|null $pivot_table [Optional] Pivot table name (default: plural of the morphic association, e.g., 'taggables')
      * @param string|null $foreign_pivot_key [Optional] Foreign key in the pivot table pointing to the current model (default e.g., 'tag_id' if the current model is 'Tag')
@@ -198,7 +204,7 @@ trait Relationships
      * @param string|null $parent_pivot_type [Optional] Morph type column in the pivot table (default e.g., 'taggable_type' if the morphic association is 'taggable')
      * @param string|null $parent_type [Optional] The value to match in the morph type column for the parent model (default: singular of the parent model's table, e.g., 'post' if the parent model is 'Post')
      * @param string|null $parent_class [Optional] The parent model class (default: the current model class)
-     * @return array
+     * @return T[]
      */
     protected function morphToMany(
         string $related_class, 
@@ -209,7 +215,7 @@ trait Relationships
         ?string $parent_pivot_type = null, 
         ?string $parent_type = null, 
         ?string $parent_class = null
-    ): array
+    ): mixed
     {
         return (new MorphToMany(
             $related_class, 
@@ -226,14 +232,15 @@ trait Relationships
     /**
      * Inverse of morphToMany relationship
      * 
-     * @param string $parent_class Parent model class
+     * @template T
+     * @param class-string<T> $parent_class Parent model class
      * @param string $name Morphic association name (e.g., 'holidayable')
       * @param string|null $pivot_table [Optional] Pivot table name (default: plural of the morphic association, e.g., 'holidayables')
      * @param string|null $foreign_pivot_key [Optional] Foreign key in the pivot table pointing to the current model (default e.g., 'holiday_id' if the current model is 'Holiday')
      * @param string|null $parent_pivot_id [Optional] Foreign key in the pivot table pointing to the parent model (default e.g., 'holidayable_id' if the morphic association is 'holidayable')
      * @param string|null $parent_pivot_type [Optional] Morph type column in the pivot table (default e.g., 'holidayable_type' if the morphic association is 'holidayable')
      * @param string|null $parent_type [Optional] The value to match in the morph type column for the parent model (default: singular of the parent model's table, e.g., 'department' if the parent model is 'Department')
-     * @return array
+     * @return T[]
      */
     protected function morphedByMany(
         string $parent_class, 
@@ -243,7 +250,7 @@ trait Relationships
         ?string $parent_pivot_id = null, 
         ?string $parent_pivot_type = null, 
         ?string $parent_type = null
-    ): array
+    ): mixed
     {
         return $this->morphToMany(
             $this::class, 
