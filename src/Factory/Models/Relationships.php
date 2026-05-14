@@ -2,9 +2,15 @@
 namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Database\Factory\Models\Relations\BelongsTo;
+use Clicalmani\Database\Factory\Models\Relations\BelongsToMany;
 use Clicalmani\Database\Factory\Models\Relations\HasMany;
+use Clicalmani\Database\Factory\Models\Relations\HasManyThrough;
 use Clicalmani\Database\Factory\Models\Relations\HasOne;
+use Clicalmani\Database\Factory\Models\Relations\HasOneThrough;
+use Clicalmani\Database\Factory\Models\Relations\MorphByMany;
+use Clicalmani\Database\Factory\Models\Relations\MorphedByMany;
 use Clicalmani\Database\Factory\Models\Relations\MorphMany;
+use Clicalmani\Database\Factory\Models\Relations\MorphOne;
 use Clicalmani\Database\Factory\Models\Relations\MorphTo;
 use Clicalmani\Database\Factory\Models\Relations\MorphToMany;
 use Clicalmani\Database\Interfaces\JoinClauseInterface;
@@ -17,250 +23,203 @@ trait Relationships
      * The current model inherit a foreign key
      * We should match the model key value to obtain its parent.
      * 
-     * @template T
-     * @param class-string<T> $class Parent model
-     * @param ?string $foreign_key [Optional] Table foreign key
-     * @param ?string $original_key [Optional] Original key
-     * @return T
+     * @param string $parentClass Parent model
+     * @param ?string $foreignKey
+     * @param ?string $ownerKey 
+     * @return BelongsTo
      */
-    protected function belongsTo(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
+    protected function belongsTo(string $parentClass, ?string $foreignKey = null, ?string $ownerKey = null): BelongsTo
     {
-        return (new BelongsTo($this::class, $class, ...$this->guessRelationshipKeys($foreign_key, $original_key, $class)))->get($this->id);
+        return new BelongsTo(
+            $this, $parentClass, $foreignKey, $ownerKey
+        );
     }
 
     /**
      * One and one relationship
      * 
-     * @template T
-     * @param class-string<T> $class Parent model
-     * @param ?string $foreign_key [Optional] Table foreign key
-     * @param ?string $original_key [Optional] original key
-     * @return T
+     * @param string $relatedClass
+     * @param ?string $foreignKey
+     * @param ?string $localKey
+     * @return HasOne
      */
-    protected function hasOne(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
+    protected function hasOne(string $relatedClass, ?string $foreignKey = null, ?string $localKey = null): HasOne
     {
-        if ($this::class === $class) {
-            $key = $foreign_key ?? Str::singularize($this->getTable()) . '_id';
-            return self::find($this->{$key});
-        }
-        
-        return (new HasOne($class, $this::class, ...$this->guessRelationshipKeys($foreign_key, $original_key)))->get($this->id);
+        return new HasOne(
+            $this, $relatedClass, $foreignKey, $localKey
+        );
     }
 
     /**
      * One to many relationship
      * 
-     * @template T
-     * @param class-string<T> $class Child model
-     * @param ?string $foreign_key [Optional] Table foreign key
-     * @param ?string $original_key [Optional] Original key
-     * @return T[]
+     * @param string< $class Child model
+     * @param ?string $foreignKey [Optional] Table foreign key
+     * @param ?string $localKey [Optional] Original key
+     * @return HasMany
      */
-    protected function hasMany(string $class, ?string $foreign_key = null, ?string $original_key = null): mixed
+    protected function hasMany(string $class, ?string $foreignKey = null, ?string $localKey = null): HasMany
     {
-        return (new HasMany($class, $this::class, ...$this->guessRelationshipKeys($foreign_key, $original_key)))->get($this->id);
+        return new HasMany($this, $class, $foreignKey, $localKey);
     }
 
     /**
      * Many to many relationship
      * 
-     * @template T
-     * @param class-string<T> $class Child model
-     * @param ?string $foreign_key [Optional] Table foreign key
-     * @param ?string $parent_key [Optional] Original key
-     * @return T[]
+     * @param string $relatedClass Child model
+     * @param ?string $foreignKey [Optional] Table foreign key
+     * @param ?string $relatedKey [Optional] Original key
+     * @return BelongsToMany
      */
-    protected function belongsToMany(string $class, ?string $foreign_key = null, ?string $parent_key = null): mixed
+    protected function belongsToMany(string $relatedClass, ?string $table = null, ?string $foreignKey = null, ?string $relatedKey = null): BelongsToMany
     {
-        if ( $this->isEmpty() ) return collection();
-
-        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key);
-
-        $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
-
-        $this->query->join((new $class)->getTable(true), function(JoinClauseInterface $join) use ($foreign_key, $parent_key) {
-            $join->right()->on("$foreign_key=$parent_key");
-        });
-
-        return $this->fetch($class);
+        return new BelongsToMany(
+            $this, relatedClass, $table, $foreignKey, $relatedKey
+        );
     }
 
     /**
      * Has one through relationship
      * 
-     * @param string $class Child model
-     * @param ?string $foreign_key [Optional] Foreign key
-     * @param ?string $parent_key [Optional] Original key
-     * @return mixed
+     * @param string $farModelClass Child model
+     * @param string $throughModelClass [Optional] Foreign key
+     * @param ?string $firstKey [Optional] Original key
+     * @param ?string $secondKey
+     * @param ?string $localKey
+     * @param ?string $secondLocalKey
+     * @return HasOneThrough
      */
-    protected function hasOneThrough(string $class, string $pivot_class, ?string $foreign_key = null, ?string $parent_key = null, ?string $pivot_foreign_key = null, ?string $pivot_parent_key = null) : mixed
+    protected function hasOneThrough(string $farModelClass, string $throughModelClass, ?string $firstKey = null, ?string $secondKey = null, ?string $localKey = null, ?string $secondLocalKey = null): HasOneThrough
     {
-        if ( $this->isEmpty() ) return null;
-        
-        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key, $pivot_class); 
-        [$pivot_foreign_key, $pivot_parent_key] = $this->guessRelationshipKeys($pivot_foreign_key, $pivot_parent_key); 
-
-        $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
-
-        $this->query->join((new $pivot_class)->getTable(true), function($join) use ($pivot_foreign_key, $pivot_parent_key) { 
-            $join->right()->on("$pivot_foreign_key=$pivot_parent_key");
-        });
-
-        $this->query->join((new $class)->getTable(true), function($join) use ($foreign_key, $parent_key) { 
-            $join->right()->on("$foreign_key=$parent_key");
-        });
-
-        return $this->fetch($class)->first();
+        return new HasOneThrough(
+            $this, $farModelClass, $throughModelClass, $firstKey, $secondKey, $localKey, $secondLocalKey
+        );
     }
 
     /**
      * Has many through relationship
      * 
-     * @param string $class Child model
-     * @param ?string $foreign_key [Optional] Table foreign key
-     * @param ?string $parent_key [Optional] Original key
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @param string $farModelClass Child model
+     * @param string $throughModelClass [Optional] Foreign key
+     * @param ?string $firstKey [Optional] Original key
+     * @param ?string $secondKey
+     * @param ?string $localKey
+     * @param ?string $secondLocalKey
+     * @return HasManyThrough
      */
-    protected function hasManyThrough(string $class, string $pivot_class, ?string $foreign_key = null, ?string $parent_key = null, ?string $pivot_foreign_key = null, ?string $pivot_parent_key = null) : CollectionInterface
+    protected function hasManyThrough(string $farModelClass, string $throughModelClass, ?string $firstKey = null, ?string $secondKey = null, ?string $localKey = null, ?string $secondLocalKey = null): HasManyThrough
     {
-        if ( $this->isEmpty() ) return collection();
-        
-        [$foreign_key, $parent_key] = $this->guessRelationshipKeys($foreign_key, $parent_key, $pivot_class); 
-        [$pivot_foreign_key, $pivot_parent_key] = $this->guessRelationshipKeys($pivot_foreign_key, $pivot_parent_key); 
-
-        $this->query->where($this->getKey(true) . ' = ? ', [$this->id]);
-
-        $this->query->join((new $pivot_class)->getTable(true), function($join) use ($pivot_foreign_key, $pivot_parent_key) { 
-            $join->right()->on("$pivot_foreign_key=$pivot_parent_key");
-        });
-
-        $this->query->join((new $class)->getTable(true), function($join) use ($foreign_key, $parent_key) { 
-            $join->right()->on("$foreign_key=$parent_key");
-        });
-
-        return $this->fetch($class);
+        return new HasManyThrough(
+            $this, $farModelClass, $throughModelClass, $firstKey, $secondKey, $localKey, $secondLocalKey
+        );
     }
 
     /**
      * Polymorphic relationship
      * 
-     * @param ?string $pivot_key
-     * @return ?self
+     * @param ?string $name
+     * @return MorphTo
      */
-    protected function morphTo(?string $pivot_key = null): ?self
+    protected function morphTo(?string $name = null): MorphTo
     {
-        return (new MorphTo($this::class, $pivot_key))->get($this->id);
+        return (new MorphTo($this, $name))->get();
     }
 
     /**
      * One-to-One morphic relationship
      * 
-     * @param string $class Child model
-     * @param string $morphic Morphic association
-     * @return mixed
+     * @param string $relatedClass
+     * @param string $name
+     * @param ?string $idKey
+     * @param ?string $typeKey
+     * @return MorphOne
      */
-    protected function morphOne(string $class, string $morphic) : mixed
+    protected function morphOne(string $relatedClass, string $name, ?string $idKey = null, ?string $typeKey = null): MorphOne
     {
-        if ( $this->isEmpty() ) return null;
-        
-        $file = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[0]['file'];
-
-        $this->query->set('tables', [(new $class)->getTable(true)]);
-        $this->query->where("{$morphic}_id = ? AND {$morphic}_type = ? ", [$this->id, strtolower(pathinfo($file, PATHINFO_FILENAME))]);
-        
-        return $this->fetch($class)->first();
+        return new MorphOne(
+            $this, $relatedClass, $name, $idKey, $typeKey
+        );
     }
 
     /**
      * One-to-Many morphic relationship
      * 
-     * @template T
-     * @param class-string<T> $class Child model
+     * @param string $class Child model
      * @param string $name Morphic association
      * @param ?string $pivot_id
      * @param ?string $pivot_type
      * @param ?string $parent_type
-     * @return T[]
+     * @return MorphMany
      */
-    protected function morphMany(string $class, string $name, ?string $pivot_id = null, ?string $pivot_type = null, ?string $parent_type = null): mixed
+    protected function morphMany(
+        string $relatedClass, 
+        string $name, 
+        ?string $idKey = null, 
+        ?string $typeKey = null
+    ): MorphMany
     {
-        return (new MorphMany(
-            $class, $name, 
-            $pivot_id, 
-            $pivot_type, 
-            $parent_type)
-        )->get($this->id);
+        return new MorphMany(
+            $this,
+            $relatedClass, 
+            $name,
+            $idKey, 
+            $typeKey
+        );
     }
 
     /**
      * Many-to-Many polymorphic relationship
      * 
-     * @template T
-     * @param class-string<T> $related_class Related model class
+     * @param string $relatedClass Related model class
      * @param string $name Morphic association name (e.g., 'taggable')
-     * @param string|null $pivot_table [Optional] Pivot table name (default: plural of the morphic association, e.g., 'taggables')
-     * @param string|null $foreign_pivot_key [Optional] Foreign key in the pivot table pointing to the current model (default e.g., 'tag_id' if the current model is 'Tag')
-     * @param string|null $parent_pivot_id [Optional] Foreign key in the pivot table pointing to the parent model (default e.g., 'taggable_id' if the morphic association is 'taggable')
-     * @param string|null $parent_pivot_type [Optional] Morph type column in the pivot table (default e.g., 'taggable_type' if the morphic association is 'taggable')
-     * @param string|null $parent_type [Optional] The value to match in the morph type column for the parent model (default: singular of the parent model's table, e.g., 'post' if the parent model is 'Post')
-     * @param string|null $parent_class [Optional] The parent model class (default: the current model class)
-     * @return T[]
+     * @param string|null $table [Optional] Pivot table name (default: plural of the morphic association, e.g., 'taggables')
+     * @param string|null $morphKey [Optional] Foreign key in the pivot table pointing to the current model (default e.g., 'tag_id' if the current model is 'Tag')
+     * @param string|null $foreignKey [Optional] Foreign key in the pivot table pointing to the parent model (default e.g., 'taggable_id' if the morphic association is 'taggable')
+     * @return MorphToMany
      */
     protected function morphToMany(
-        string $related_class, 
+        string $relatedClass,
         string $name, 
-        ?string $pivot_table = null, 
-        ?string $foreign_pivot_key = null, 
-        ?string $parent_pivot_id = null, 
-        ?string $parent_pivot_type = null, 
-        ?string $parent_type = null, 
-        ?string $parent_class = null
-    ): mixed
+        ?string $table = null, 
+        ?string $morphKey = null, 
+        ?string $foreignKey = null
+    ): MorphToMany
     {
-        return (new MorphToMany(
-            $related_class, 
+        return new MorphToMany(
+            $this,
+            $relatedClass,
             $name, 
-            $pivot_table, 
-            $foreign_pivot_key, 
-            $parent_pivot_id, 
-            $parent_pivot_type, 
-            $parent_type, 
-            $parent_class ?? $this::class
-        ))->get($this->id);
+            $table, 
+            $morphKey, 
+            $foreignKey
+        );
     }
 
     /**
      * Inverse of morphToMany relationship
      * 
-     * @template T
-     * @param class-string<T> $parent_class Parent model class
-     * @param string $name Morphic association name (e.g., 'holidayable')
-      * @param string|null $pivot_table [Optional] Pivot table name (default: plural of the morphic association, e.g., 'holidayables')
-     * @param string|null $foreign_pivot_key [Optional] Foreign key in the pivot table pointing to the current model (default e.g., 'holiday_id' if the current model is 'Holiday')
-     * @param string|null $parent_pivot_id [Optional] Foreign key in the pivot table pointing to the parent model (default e.g., 'holidayable_id' if the morphic association is 'holidayable')
-     * @param string|null $parent_pivot_type [Optional] Morph type column in the pivot table (default e.g., 'holidayable_type' if the morphic association is 'holidayable')
-     * @param string|null $parent_type [Optional] The value to match in the morph type column for the parent model (default: singular of the parent model's table, e.g., 'department' if the parent model is 'Department')
-     * @return T[]
+     * @param string $parentClass Parent model class
+     * @param string $name Morphic association name
+      * @param string|null $table [Optional] 
+     * @param string|null $foreignKey [Optional] 
+     * @param string|null $morphKey [Optional] 
+     * @return MorphedByMany
      */
     protected function morphedByMany(
-        string $parent_class, 
+        string $parentClass, 
         string $name, 
-        ?string $pivot_table = null, 
-        ?string $foreign_pivot_key = null, 
-        ?string $parent_pivot_id = null, 
-        ?string $parent_pivot_type = null, 
-        ?string $parent_type = null
-    ): mixed
+        ?string $table = null, 
+        ?string $foreignKey = null, 
+        ?string $morphKey = null
+    ): MorphedByMany
     {
-        return $this->morphToMany(
-            $this::class, 
+        return new MorphedByMany(
+            $this,
+            $parentClass, 
             $name, 
-            $pivot_table, 
-            $foreign_pivot_key, 
-            $parent_pivot_id, 
-            $parent_pivot_type, 
-            $parent_type, 
-            $parent_class
+            $table, 
+            $foreignKey,
+            $morphKey
         );
     }
 

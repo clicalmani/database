@@ -6,6 +6,7 @@ use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
 use Clicalmani\Database\Interfaces\JoinClauseInterface;
+use Clicalmani\Database\SubQueries\DBSubQuery;
 use Clicalmani\Database\SubQueries\Exists;
 use Clicalmani\Database\SubQueries\NotExists;
 use Clicalmani\Database\SubQueries\WhereExists;
@@ -28,6 +29,13 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	 * @var array $params
 	 */
 	public $params;
+
+	/**
+	 * Relations to eager load
+	 * 
+	 * @var array $options
+	 */
+	protected array $with = [];
 
 	/**
 	 * Select flag
@@ -308,7 +316,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this->exec()->status() === 'success';
 	}
 
-	public function update(array $options = []) : bool
+	public function update(?array $options = []) : bool
 	{
 		$this->set('query', DBQuery::UPDATE);
 
@@ -318,6 +326,10 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		$this->params['fields'] = $fields;
 		$this->params['values'] = $values;
 		
+		if (!isset($this->params['marker'])) {
+			$this->params['marker'] = ':';
+		}
+
 		return $this->exec()->status() === 'success';
 	}
 
@@ -406,13 +418,37 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 
 	public function where( ...$args ): self
 	{
+		/**
+		 * Logical grouping with closure: If the first argument is a closure, it will be treated as a logical group of conditions. The closure will receive an instance of the query builder, allowing you to define multiple conditions within the group. The resulting SQL will wrap these conditions in parentheses and combine them with an OR operator.
+		 * Example usage:
+		 * $query->orWhere(function($query) {
+		 *     $query->where('status = ?', ['active'])
+		 *           ->where('created_at > ?', ['2024-01-01']);
+		 * });
+		 * This will generate a SQL query that includes a condition like: OR (status = 'active' AND created_at > '2024-01-01')
+		 */
+		if ($args && $args[0] instanceof \Closure) {
+
+			$callback = $args[0];
+			$tables = $this->params['tables'];
+			$subquery = new DBSubQuery($this, function(self $query) use($callback, $tables) {
+				$query->set('tables', $tables);
+				$callback($query);
+			});
+			
+			$subquery->call();
+			
+			$subCondition = $subquery->getQuery()->getParam('where');
+			
+			$subquery->restore();
+			
+			return $this->where( '(' . $subCondition . ')', 
+				$subquery->getOptions()
+			);
+		}
+
 		switch(count($args)) {
 			case 1:
-				if ($args[0] instanceof \Closure) {
-					$args[0]($this);
-					return $this;
-				}
-
 				$criteria = $args[0];
 				$operator = 'AND';
 				$options  = [];
@@ -446,6 +482,60 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		}
 		
 		return $this;
+	}
+
+	/**
+	 * Add an OR condition to the query. The method accepts the same parameters as the where() method, but the condition will be added with an OR operator instead of AND.
+	 * 
+	 * @param mixed ...$args The arguments for the where condition, same as the where() method
+	 * @return self
+	 */
+	public function orWhere(mixed ...$args): self
+	{
+		/**
+		 * Logical grouping with closure: If the first argument is a closure, it will be treated as a logical group of conditions. The closure will receive an instance of the query builder, allowing you to define multiple conditions within the group. The resulting SQL will wrap these conditions in parentheses and combine them with an OR operator.
+		 * Example usage:
+		 * $query->orWhere(function($query) {
+		 *     $query->where('status = ?', ['active'])
+		 *           ->where('created_at > ?', ['2024-01-01']);
+		 * });
+		 * This will generate a SQL query that includes a condition like: OR (status = 'active' AND created_at > '2024-01-01')
+		 */
+		if ($args && $args[0] instanceof \Closure) {
+
+			$callback = $args[0];
+			$tables = $this->params['tables'];
+			$subquery = new DBSubQuery($this, function(self $query) use($callback, $tables) {
+				$query->set('tables', $tables);
+				$callback($query);
+			});
+			
+			$subquery->call();
+			
+			$subCondition = $subquery->getQuery()->getParam('where');
+			
+			$subquery->restore();
+			
+			return $this->where( '(' . $subCondition . ')', 'OR',
+				$subquery->getOptions()
+			);
+		}
+
+		switch(count($args)) {
+			case 1:
+				$criteria = $args[0];
+				$options  = [];
+			break;
+
+			case 2:
+				$criteria = $args[0];
+				$options  = $args[1];
+			break;
+
+			default: return $this;
+		}
+
+		return $this->where($criteria, 'OR', $options);
 	}
 	
 	public function whereExists(\Closure|string $criteria, ?array $options = [], ?string $boolean = 'AND') : self
@@ -494,6 +584,22 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	public function orWhereDoesntHave(string $relation, \Closure $callback) : static
 	{
 		return $this->whereDoesntHave($relation, $callback, 'OR');
+	}
+
+	public function subWhere(string $relation, string $key, \Closure $callback, ?string $boolean = 'AND') : static
+	{
+		$subquery = new DBSubQuery($this, function(self $query) use($callback, $relation) {
+			$query->setParams(['tables' => [$relation]]);
+			$callback($query);
+		});
+
+		$subquery->backup();
+		$subquery->call();
+		$subquery->restore();
+
+		return $this->where($key . ' = (' . $subquery->getBuilder()->getSQL() . ')', $boolean, 
+			$subquery->getOptions()
+		);
 	}
 	
 	public function whereIn(string $key, array $values): self
@@ -552,6 +658,12 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	public function orderByRaw(string $order)
 	{
 		$this->set('order_by', $order);
+		return $this;
+	}
+
+	public function marker(?string $value = ':')
+	{
+		$this->set('marker', $value);
 		return $this;
 	}
 
@@ -886,6 +998,18 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		$this->union_query = $query;
 		$this->params['query'] = static::UNION;
 		$this->builder = new Union($this->params, $this->options, $this->union_query->params, $this->union_query->options, $all);
+		return $this;
+	}
+
+	/**
+	 * Eager load relationships
+	 * 
+	 * @param string ...$relations The relationships to eager load
+	 * @return self
+	 */
+	public function with(string ...$relations) : self
+	{
+		$this->with = array_merge($this->with, $relations);
 		return $this;
 	}
 

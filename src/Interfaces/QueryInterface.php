@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Interfaces;
 
 use Clicalmani\Foundation\Collection\Map;
 
-interface QueryInterface extends DBInterface
+interface QueryInterface
 {
     /**
 	 * Sets query parameter
@@ -65,7 +65,7 @@ interface QueryInterface extends DBInterface
 	 * @param array $option [optional] New attribute values
 	 * @return bool true on success, false on failure
 	 */
-	public function update(array $options = []) : bool;
+	public function update(?array $options = []) : bool;
 
 	/**
 	 * Increment a field value by a specified value.
@@ -136,6 +136,14 @@ interface QueryInterface extends DBInterface
 	 * @return self
 	 */
 	public function where( ...$args ) : self;
+
+	/**
+	 * Add an OR condition to the query. The method accepts the same parameters as the where() method, but the condition will be added with an OR operator instead of AND.
+	 * 
+	 * @param mixed ...$args The arguments for the where condition, same as the where() method
+	 * @return self
+	 */
+	public function orWhere(mixed ...$args): self;
 
 	/**
 	 * Add a WHERE EXISTS clause to the query

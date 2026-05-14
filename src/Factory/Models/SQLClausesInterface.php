@@ -18,6 +18,21 @@ interface SQLClausesInterface
     public static function where(\Closure|string $criteria = '1', ?array $options = []) : static;
 
     /**
+     * Add a where clause to the query with an AND boolean operator.
+     * 
+     * This method is used to add a where clause to the query with an AND boolean operator. It accepts a criteria string or a closure that defines the conditions for the where clause, along with an optional array of parameters.
+     * The criteria string can include placeholders for parameters, which will be replaced with the values from
+     * the options array. If a closure is provided, it will be executed with the query builder instance, allowing for more complex conditions to be defined.
+     * Example usage:
+     * - where('status = ?', ['active'])
+     * - where(function($query) { $query->where('status = ?', ['active'])->orWhere('status = ?', ['pending']); })
+     * @param \Closure|string $criteria The criteria for the where clause, either as a string with placeholders or as a closure that defines the conditions.
+     * @param array|null $options An optional array of parameters to replace placeholders in the criteria string.
+     * @return static
+     */
+    public function andWhere(\Closure|string $criteria = '1', ?array $options = []) : self;
+
+    /**
      * Add a where clause with IN operator
      * 
      * @param string $key Column name
@@ -25,25 +40,7 @@ interface SQLClausesInterface
      * @return \Clicalmani\Database\Factory\Models\ModelInterface
      */
     public static function whereIn(string $key, array $values): \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * Like where clause but with and as operator.
-     * 
-     * @param ?string $criteria
-     * @param ?array $options Criteria options
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function whereAnd(?string $criteria = '1', ?array $options = []) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * Like where clause but with or as operator.
-     * 
-     * @param ?string $criteria
-     * @param ?array $options Criteria options
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function whereOr(string $criteria = '1', ?array $options = []) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
+    
     /**
      * Add a where clause to the query based on the existence of a related model.
      * 

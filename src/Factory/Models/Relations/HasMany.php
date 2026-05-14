@@ -2,35 +2,44 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Foundation\Support\Facades\Str;
+use Override;
 
 class HasMany extends Relationship
 {
-    protected Elegant $parent;
-    protected Elegant $related;
-
-    private string $callerClass = '';
-
+    /**
+     * @param Elegant $model        L'instance du modèle parent (ex: Department)
+     * @param string $relatedClass  La classe du modèle enfant (ex: Employee)
+     * @param string|null $foreignKey  La clé étrangère (ex: department_id)
+     * @param string|null $localKey    La clé locale du parent (ex: id)
+     */
     public function __construct(
-        protected string $relatedClass, 
-        protected ?string $parentClass = null,
-        protected ?string $foreignKey = null, 
-        protected ?string $originalKey = null
-    )
-    {
-        $this->parent = new $parentClass;
-        $this->related = new $relatedClass;
-        $this->callerClass = $this->getCallerClassFromNew();
+        protected Elegant $model,
+        protected string $relatedClass,
+        protected ?string $foreignKey = null,
+        protected ?string $localKey = null
+    ) {
+        // Si la clé étrangère n'est pas fournie, on la devine (ex: department_id)
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
+        $this->localKey   = $localKey ?: $this->model->getKey();
     }
 
-    public function get(?string $id = null): mixed
+    /**
+     * Récupère la collection des modèles enfants
+     * 
+     * @return mixed
+     */
+    public function get(): mixed
     {
-        return $this->related->leftJoin($this->parentClass, $this->foreignKey, $this->originalKey)
-                    ->whereAnd("{$this->parent->getKey(true)} = ?", [$id])
-                    ->fetch($this->relatedClass);
-    }
+        $related = new $this->relatedClass;
+        $query = $related->newQuery();
 
-    public function getParentClass(): string
-    {
-        throw new \Exception('Not implemented');
+        // On filtre : WHERE department_id = [ID du département actuel]
+        $query->where("{$this->foreignKey} = ?", [$this->model->{$this->localKey}]);
+
+        // On retourne la collection de résultats
+        $this->result = $related->fetch($this->relatedClass);
+
+        return $this->result;
     }
 }

@@ -6,34 +6,39 @@ trait SQLClauses
     public static function where(\Closure|string $criteria = '1', ?array $options = []) : static
     {
         $instance = static::getInstance();
-        $query = $instance->getQuery();
-
-        if ( $criteria instanceof \Closure ) {
-            $criteria($query);
-            return $instance;
-        }
-
-        $query->where($criteria, 'AND', $options);
-
+        $instance->getQuery()->where($criteria, $options);
         return $instance;
+    }
+
+    public function orWhere(\Closure|string $criteria = '1', ?array $options = []) : self
+    {
+        $this->query->orWhere($criteria, $options);
+        return $this;
+    }
+
+    /**
+     * Add a where clause to the query with an AND boolean operator.
+     * 
+     * This method is used to add a where clause to the query with an AND boolean operator. It accepts a criteria string or a closure that defines the conditions for the where clause, along with an optional array of parameters.
+     * The criteria string can include placeholders for parameters, which will be replaced with the values from
+     * the options array. If a closure is provided, it will be executed with the query builder instance, allowing for more complex conditions to be defined.
+     * Example usage:
+     * - where('status = ?', ['active'])
+     * - where(function($query) { $query->where('status = ?', ['active'])->orWhere('status = ?', ['pending']); })
+     * @param \Closure|string $criteria The criteria for the where clause, either as a string with placeholders or as a closure that defines the conditions.
+     * @param array|null $options An optional array of parameters to replace placeholders in the criteria string.
+     * @return static
+     */
+    public function andWhere(\Closure|string $criteria = '1', ?array $options = []) : self
+    {
+        $this->query->where($criteria, $options);
+        return $this;
     }
     
     public static function whereIn(string $key, array $values): self
     {
         return static::where("$key IN (" . 
                     implode(', ', array_fill(0, count($values), '?')) . ")", $values);
-    }
-
-    public function whereAnd(?string $criteria = '1', ?array $options = []) : static
-    {
-        $this->query->where($criteria, 'AND', $options);
-        return $this;
-    }
-
-    public function whereOr(string $criteria = '1', ?array $options = []) : static
-    {
-        $this->query->where($criteria, 'OR', $options);
-        return $this;
     }
 
     /**
@@ -52,7 +57,6 @@ trait SQLClauses
     {
         /** @var \Clicalmani\Database\Factory\Models\Elegant */
         $instance = static::getInstance();
-
         $instance->getQuery()->whereHas(instance($relation)->getTable(), $callback, $boolean);
 
         return $instance;
@@ -80,9 +84,7 @@ trait SQLClauses
     {
         /** @var \Clicalmani\Database\Factory\Models\Elegant */
         $instance = static::getInstance();
-
         $instance->getQuery()->whereDoesntHave(instance($relation)->getTable(), $callback, $boolean);
-
         return $instance;
     }
 
@@ -115,9 +117,9 @@ trait SQLClauses
         return $this;
     }
 
-    public function from(string $fields) : static
+    public function from(string $table) : static
     {
-        $this->query->from($fields);
+        $this->query->from($table);
         return $this;
     }
 
@@ -125,6 +127,18 @@ trait SQLClauses
     {
         $this->query->set('offset', $offset);
         $this->query->set('limit', $row_count);
+        return $this;
+    }
+
+    /**
+     * Set the marker for the query.
+     *
+     * @param string|null $value
+     * @return static
+     */
+    public function marker(?string $value = ':') : static
+    {
+        $this->query->set('marker', $value);
         return $this;
     }
 }

@@ -5,25 +5,35 @@ use Clicalmani\Database\Factory\Models\Elegant;
 
 class MorphTo extends Relationship
 {
-    protected Elegant $parent; 
-    protected Elegant $model; // Model from which the relationship is defined (e.g., Tag)
-
+    /**
+     * @param Elegant $model  L'instance du commentaire actuel
+     * @param string $name    Le nom de la relation (ex: 'commentable')
+     */
     public function __construct(
-        protected string $class, 
-        protected ?string $pivotKey = null
-    ) {
-        $this->model = new $class;
-        $this->pivotKey = $pivotKey ?? 'id';
-    }
+        protected Elegant $model,
+        protected string $name
+    ) {}
 
-    protected function getParentClass(): string
+    public function get(): mixed
     {
-        return $this->parent::class;
-    }
+        $idKey   = $this->name . '_id';
+        $typeKey = $this->name . '_type';
 
-    public function get(?string $id = null): mixed
-    {
-        $this->model->getQuery()->where("{$this->pivotKey} = ?", [$id]);
-        return $this->model->fetch()->first();
+        $parentId   = $this->model->$idKey;
+        $parentType = $this->model->$typeKey;
+
+        if (!$parentId || !$parentType) {
+            return null;
+        }
+
+        // Dynamisme : on instancie la classe stockée en base (ex: Post ou Video)
+        $parentModel = new $parentType;
+        $query = $parentModel->newQuery();
+        $query->where($parentModel->getKey() . " = ?", [$parentId]);
+        
+        // On récupère le parent par son ID
+        $this->result = $parentModel->fetchOne();
+
+        return $this->result;
     }
 }

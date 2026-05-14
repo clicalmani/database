@@ -354,6 +354,16 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
     }
 
     /**
+     * Alias of getQuery
+     * 
+     * @return \Clicalmani\Database\DBQuery
+     */
+    public function newQuery()
+    {
+        return $this->getQuery();
+    }
+
+    /**
      * Get model entity
      * 
      * @return \Clicalmani\Database\Factory\Entity

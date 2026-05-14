@@ -2,43 +2,40 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
-use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Support\Facades\Str;
+use Override;
 
 class MorphMany extends Relationship
 {
-    protected Elegant $parent; 
-    protected Elegant $related;
-
-    private string $callerClass = '';
-
+    /**
+     * @param Elegant $model        Le modèle parent (ex: Post)
+     * @param string $relatedClass  Le modèle enfant (ex: Comment)
+     * @param string $name          Le nom de la relation (ex: 'commentable')
+     * @param string $idKey         [Optionnel] Clé ID (ex: 'commentable_id')
+     * @param string $typeKey       [Optionnel] Clé Type (ex: 'commentable_type')
+     */
     public function __construct(
-        protected string $class, 
+        protected Elegant $model,
+        protected string $relatedClass,
         protected string $name,
-        protected ?string $pivotId = null, 
-        protected ?string $pivotType = null, 
-        protected ?string $parentType = null
+        protected ?string $idKey = null,
+        protected ?string $typeKey = null
     ) {
-        $this->callerClass = $this->getCallerClassFromNew();
-
-        $this->related = new $class;
-        $this->pivotId = $pivotId ?? $name . '_id';
-        $this->pivotType = $pivotType ?? $name . '_type';
-        $this->parentType = $parentType ?? Str::singularize(
-            Str::tableize(
-                class_basename($this->getParentClass())
-            )
-        );
+        $this->idKey = $idKey ?: $name . '_id';
+        $this->typeKey = $typeKey ?: $name . '_type';
     }
 
-    protected function getParentClass(): string
+    public function get(): mixed
     {
-        return $this->callerClass;
-    }
+        $related = new $this->relatedClass;
+        $query = $related->newQuery();
 
-    public function get(?string $id = null): array
-    {
-        $this->related->getQuery()->where("{$this->pivotId} = ? AND {$this->pivotType} = ?", [$id, $this->parentType]);
-        return $this->related->fetch()->toArray();
+        // SELECT * FROM comments WHERE commentable_id = 10 AND commentable_type = 'Post'
+        $query->where("{$this->idKey} = ?", [$this->model->{$this->model->getKey()}]);
+        $query->where("{$this->typeKey} = ?", [$this->model::class]);
+
+        $this->result = $related->fetch($this->relatedClass);
+
+        return $this->result;
     }
 }

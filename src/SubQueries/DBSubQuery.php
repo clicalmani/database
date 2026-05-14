@@ -3,6 +3,7 @@ namespace Clicalmani\Database\SubQueries;
 
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\DBQueryBuilder;
+use Clicalmani\Database\Select;
 
 class DBSubQuery
 {
@@ -19,6 +20,16 @@ class DBSubQuery
     {
         // Backup query
         $this->backup();
+    }
+
+    public function getOptions()
+    {
+        return $this->options;
+    }
+
+    public function getBuilder()
+    {
+        return $this->builder;
     }
 
     public function backup()
@@ -43,6 +54,14 @@ class DBSubQuery
 
 		// Execute the subquery and get the builder
 		$this->options = $this->query->getOptions(); // Backup the subquery options to merge them later with the main query options
-		$this->builder = $this->query->exec();
+		$this->builder = new Select(
+            $this->query->getParams(), 
+            array_merge($this->query->getOptions(), $this->options)
+        );
+    }
+
+    public function getQuery()
+    {
+        return $this->query;
     }
 }

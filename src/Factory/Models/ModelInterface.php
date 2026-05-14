@@ -158,6 +158,8 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      */
     public static function find(string|array|null $id) : static|null;
 
+    public static function findMany(array $ids) : CollectionInterface;
+
     /**
      * Returns a specified row defined by a specified primary key or fail.
      * 
@@ -335,4 +337,14 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * @return \PDO
      */
     public static function getConnection(): \PDO;
+
+    public function with(array $relations);
+
+    /**
+     * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
+     *
+     * @param ?string $value
+     * @return self
+     */
+    public function marker(?string $value = ':'): self;
 }

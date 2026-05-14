@@ -3,90 +3,196 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
-use Clicalmani\Database\Interfaces\JoinClauseInterface;
+use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
+use Override;
 
 class BelongsToMany extends Relationship
 {
-    protected Elegant $parent; // Modèle depuis lequel la relation est définie (ex: User)
-    protected Elegant $related;
+    protected array $pivotColumns = []; // Stores additional pivot columns
 
-    private string $callerClass = '';
-
+    /**
+     * @param Elegant $model          The current model (e.g., User)
+     * @param string $relatedClass    The target model (e.g., Role)
+     * @param string|null $table      The pivot table (e.g., role_user)
+     * @param string|null $foreignKey The current model's foreign key in the pivot (e.g., user_id)
+     * @param string|null $relatedKey The target model's foreign key in the pivot (e.g., role_id)
+     */
     public function __construct(
-        protected string $relatedClass, 
-        protected ?string $pivotTable = null,
-        protected ?string $foreignPivotKey = null, // ex: user_id (pointe vers le parent)
-        protected ?string $relatedPivotKey = null, // ex: role_id (pointe vers le related)
-        protected ?string $parentKey = null,       // ex: users.id
-        protected ?string $relatedKey = null,      // ex: roles.id
-        protected ?string $parentClass = null
+        protected Elegant $model,
+        protected string $relatedClass,
+        protected ?string $table = null,
+        protected ?string $foreignKey = null,
+        protected ?string $relatedKey = null
     ) {
-        $this->parent = new $parentClass;
-        $this->related = new $relatedClass;
-        
-        // Convention de nommage pour la table pivot : nom_des_tables_au_singulier_alphabétiquement (ex: role_user)
-        $this->pivotTable = $pivotTable ?? $this->getDefaultPivotTable();
-        
-        // Convention de nommage pour les clés
-        $this->foreignPivotKey = $foreignPivotKey ?? Str::singularize($this->parent->getTable()) . '_id';
-        $this->relatedPivotKey = $relatedPivotKey ?? Str::singularize($this->related->getTable()) . '_id';
-        $this->parentKey = $parentKey ?? $this->parent->getKey();
-        $this->relatedKey = $relatedKey ?? $this->related->getKey();
+        $related = new $this->relatedClass;
 
-        $this->callerClass = $this->getCallerClassFromNew();
+        // 1. Deduce the pivot table name (alphabetical order by convention)
+        if (!$this->table) {
+            $tables = [$this->model->getTable(), $related->getTable()];
+            sort($tables);
+            $this->table = Str::singularize($tables[0]) . '_' . Str::singularize($tables[1]);
+        }
+
+        // 2. Deduce the keys
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
+        $this->relatedKey = $relatedKey ?: Str::singularize($related->getTable()) . '_id';
     }
 
-    protected function getParentClass(): string
+    public function get(): mixed
     {
-        return $this->parent::class;
+        /** @var \Clicalmani\Database\Factory\Models\Elegant */
+        $related = new $this->relatedClass;
+        $query = $related->newQuery();
+        
+        /** @var string */
+        $tablePrefix = DB::getPrefix();
+
+        // 1. Target table columns (e.g., roles.*)
+        $select = [$related->getTableAlias() . '.*'];
+
+        // 2. Add pivot columns with a prefix to avoid collisions
+        foreach ($this->pivotColumns as $column) {
+            $select[] = "{$tablePrefix}.{$this->table}.{$column} AS pivot_{$column}";
+        }
+
+        $query->selectRaw(implode(', ', $select));
+
+        // Join: roles.id = role_user.role_id
+        $query->joinInner(
+            $this->table,
+            "{$tablePrefix}.{$this->table}.{$this->relatedKey}",
+            $related->getKey(true)
+        );
+
+        // Filter: role_user.user_id = Current user ID
+        $query->where("{$tablePrefix}.{$this->table}.{$this->foreignKey} = ?", [$this->model->{$this->model->getKey()}]);
+
+        $this->result = $related->fetch($this->relatedClass);
+
+        return $this->result;
     }
 
     /**
-     * Génère le nom par défaut de la table pivot (ex: role_user au lieu de user_role)
+     * Define the pivot table columns to retrieve.
+     * 
+     * @param array $columns
+     * @return $this
      */
-    private function getDefaultPivotTable(): string
+    public function withPivot(array $columns): self
     {
-        $tables = [
-            Str::singularize($this->parent->getTable()),
-            Str::singularize($this->related->getTable())
+        $this->pivotColumns = array_merge($this->pivotColumns, $columns);
+        return $this;
+    }
+
+    /**
+     * Attach a model (or a list of IDs) to the current model in the pivot table.
+     * 
+     * @param int|array $id          ID or array of IDs to attach
+     * @param array $attributes      Additional columns for the pivot table
+     * @return bool
+     */
+    public function attach(mixed $id, array $attributes = []): bool
+    {
+        $ids = is_array($id) ? $id : [$id];
+        $success = true;
+
+        foreach ($ids as $currentId) {
+            // Prepare base data (foreign keys)
+            $data = [
+                $this->foreignKey => $this->model->{$this->model->getKey()},
+                $this->relatedKey => $currentId
+            ];
+
+            // Merge with additional attributes (e.g., ['status' => 'active'])
+            $insertData = array_merge($data, $attributes);
+
+            // Insert via the DB manager
+            // DB::table($this->table)->insert($insertData);
+            try {
+                $fields = implode(', ', array_keys($insertData));
+                $placeholders = implode(', ', array_fill(0, count($insertData), '?'));
+                
+                $sql = "INSERT INTO {$this->table} ($fields) VALUES ($placeholders)";
+                
+                DB::statement($sql, array_values($insertData));
+            } catch (\Exception $e) {
+                $success = false;
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Detach one or more models from the current model in the pivot table.
+     * 
+     * @param int|array|null $id ID or array of IDs to detach. If null, detaches everything.
+     * @return bool
+     */
+    public function detach(mixed $id = null): bool
+    {
+        $query = "DELETE FROM {$this->table} WHERE {$this->foreignKey} = ?";
+        $params = [$this->model->{$this->model->getKey()}];
+
+        if ($id !== null) {
+            if (is_array($id)) {
+                // Handle an array of IDs (WHERE IN)
+                $placeholders = implode(', ', array_fill(0, count($id), '?'));
+                $query .= " AND {$this->relatedKey} IN ($placeholders)";
+                $params = array_merge($params, $id);
+            } else {
+                // Handle a single ID
+                $query .= " AND {$this->relatedKey} = ?";
+                $params[] = $id;
+            }
+        }
+
+        try {
+            return DB::statement($query, $params);
+        } catch (\Exception $e) {
+            // Log error if necessary
+            return false;
+        }
+    }
+
+    /**
+     * Synchronize the pivot table with a list of IDs.
+     * 
+     * @param array $ids List of target IDs (e.g., [1, 2, 5])
+     * @return array A summary of the changes made
+     */
+    public function sync(array $ids): array
+    {
+        $changes = [
+            'attached' => [],
+            'detached' => [],
+            'updated'  => []
         ];
-        sort($tables); // Trie alphabétique
-        return implode('_', $tables);
-    }
 
-    public function get(?string $id = null): array
-    {
-        // Si l'appelant est le parent (ex: User), on requête le modèle lié (ex: Role). Sinon, on requête le parent.
-        $query = ($this->callerClass === $this->parentClass) ? $this->related->getQuery() : $this->parent->getQuery();
+        // 1. Retrieve the IDs currently present in the pivot table for this model
+        $current = [];
+        $sql = "SELECT {$this->relatedKey} FROM {$this->table} WHERE {$this->foreignKey} = ?";
+        $results = DB::select($sql, [$this->model->{$this->model->getKey()}]);
         
-        // Plus de condition sur le "_type" ici !
-        $query->where($this->getWhereCondition(), [$id]);
-        
-        $query->join($this->pivotTable, fn(JoinClauseInterface $join) => 
-            $join->inner()->on($this->getJoinCondition()));
+        foreach ($results as $row) {
+            $current[] = (int)$row->{$this->relatedKey};
+        }
 
-        return ($this->callerClass === $this->parentClass) ? $this->related->fetch()->toArray(): $this->parent->fetch()->toArray();
-    }
+        // 2. Calculate IDs to detach (present in DB but not in the new list)
+        $detach = array_diff($current, $ids);
+        if (!empty($detach)) {
+            $this->detach($detach);
+            $changes['detached'] = array_values($detach);
+        }
 
-    private function getTablePrefix(): string
-    {
-        return $this->parent->getQuery()->getPrefix();
-    }
+        // 3. Calculate IDs to attach (present in the list but not in DB)
+        $attach = array_diff($ids, $current);
+        if (!empty($attach)) {
+            $this->attach($attach);
+            $changes['attached'] = array_values($attach);
+        }
 
-    private function getWhereCondition()
-    {
-        // Si appelé par le parent, on filtre sur la clé du parent dans le pivot. Sinon sur la clé du related.
-        return ($this->callerClass === $this->parentClass) 
-            ? "{$this->getTablePrefix()}{$this->pivotTable}.{$this->foreignPivotKey} = ?"
-            : "{$this->getTablePrefix()}{$this->pivotTable}.{$this->relatedPivotKey} = ?";
-    }
-
-    private function getJoinCondition()
-    {
-        // Si appelé par le parent, on joint sur la clé du related. Sinon sur la clé du parent.
-        return ($this->callerClass === $this->parentClass) 
-            ? "{$this->getTablePrefix()}{$this->pivotTable}.{$this->relatedPivotKey} = {$this->related->getTableAlias()}.{$this->relatedKey}" 
-            : "{$this->getTablePrefix()}{$this->pivotTable}.{$this->foreignPivotKey} = {$this->parent->getTableAlias()}.{$this->parentKey}";
+        return $changes;
     }
 }

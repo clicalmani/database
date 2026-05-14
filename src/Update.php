@@ -61,16 +61,20 @@ class Update extends DBQueryBuilder implements \IteratorAggregate
 		/** @var \PDOStatement */
 		$statement = DB::prepare($this->sql, $this->params['options']);
 
-		$this->dispatch('query');
+		$this->options = array_merge($this->params['values'], $this->options);
 		
-		foreach ($this->params['values'] as $i => $type) {
+		$this->dispatch('query');
+
+		foreach ($this->options as $i => $type) {
 			if ( is_subclass_of($type, \Clicalmani\Database\Factory\DataTypes\DataType::class) ) $value = $type->getValue();
 			else $value = $type;
-			$statement->bindValue($this->params['fields'][$i], $value, $this->getDataType($type));
-		}
-		
-		foreach ($this->options as $param => $value) {
-			$statement->bindValue($param, $value, $this->getDataType($value));
+			
+			if ( isset($this->params['marker']) ) {
+				$statement->bindValue($this->params['marker'] === '?' ? $i + 1: 
+					$this->params['fields'][$i], $value, $this->getDataType($type));
+			} else {
+				$statement->bindValue(is_int($i) ? $i + 1: $i, $value, $this->getDataType($type));
+			}
 		}
 
 		$statement->execute();

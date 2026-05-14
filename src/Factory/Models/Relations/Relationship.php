@@ -1,19 +1,21 @@
 <?php
 namespace Clicalmani\Database\Factory\Models\Relations;
 
-abstract class Relationship
+use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Database\Factory\Models\ModelInterface;
+use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\CollectionInterface;
+
+abstract class Relationship implements \JsonSerializable
 {
+    protected Elegant $model;
+    protected ModelInterface|CollectionInterface|null $result = null;
+    protected array|\Closure|null $default = null;
+
     abstract public function get(): mixed;
-    abstract protected function getParentClass(): string;
 
-    protected function getCallerClassFromNew(): ?string
+    public function jsonSerialize(): mixed
     {
-        $trace = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 4);
-
-        if (isset($trace[3], $trace[3]['class'])) {
-            return $trace[3]['class'];
-        }
-
-        return null;
+        return $this->get();
     }
 }

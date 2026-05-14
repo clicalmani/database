@@ -2,68 +2,62 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
-use Clicalmani\Database\Interfaces\JoinClauseInterface;
+use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
+use Override;
 
 class MorphToMany extends Relationship
 {
-    protected Elegant $parent; 
-    protected Elegant $related;
-
-    private string $callerClass = '';
-
+    /**
+     * @param Elegant $model        Le modèle parent (ex: Post)
+     * @param string $relatedClass  Le modèle cible (ex: Comment)
+     * @param string $name          Le nom de la relation (ex: 'commentable')
+     * @param string $table         Le nom de la table pivot (ex: 'commentables')
+     * @param string $morphKey      Clé pointant vers le parent (ex: 'commentable_id')
+     * @param string $foreignKey    Clé pointant vers la cible (ex: 'comment_id')
+     */
     public function __construct(
-        protected string $relatedClass, 
-        protected string $name, 
-        protected ?string $pivotTable = null,
-        protected ?string $foreignPivotKey = null, 
-        protected ?string $parentPivotId = null, 
-        protected ?string $parentPivotType = null, 
-        protected ?string $parentType = null, 
-        protected ?string $parentClass = null
+        protected Elegant $model,
+        protected string $relatedClass,
+        protected string $name,
+        protected ?string $table = null,
+        protected ?string $morphKey = null,
+        protected ?string $foreignKey = null
     ) {
-        $this->parent = new $parentClass;
-        $this->related = new $relatedClass;
-        $this->pivotTable = $pivotTable ?? Str::pluralize($name);
-        $this->foreignPivotKey = $foreignPivotKey ?? Str::singularize($this->related->getTable()) . '_id';
-        $this->parentPivotId = $parentPivotId ?? $name . '_id';
-        $this->parentPivotType = $parentPivotType ?? $name . '_type';
-        $this->parentType = $parentType ?? Str::singularize($this->parent->getTable());
-
-        $this->callerClass = $this->getCallerClassFromNew();
+        $this->table = $table ?: Str::pluralize($name);
     }
 
-    protected function getParentClass(): string
+    public function get(): mixed
     {
-        return $this->parent::class;
-    }
-
-    public function get(?string $id = null): array
-    {
-        $query = ($this->callerClass === $this->parentClass) ? $this->related->getQuery(): $this->parent->getQuery();
-        $query->where($this->getWhereCondition(), [$id, $this->parentType]);
-        $query->join($this->pivotTable, fn(JoinClauseInterface $join) => 
-            $join->inner()->on($this->getJoinCondition()));
+        /** @var \Clicalmani\Database\Factory\Models\Elegant */
+        $related = new $this->relatedClass;
+        /** @var string */
+        $tablePrefix = DB::getPrefix();
         
-        return ($this->callerClass === $this->parentClass) ? $this->related->fetch()->toArray(): $this->parent->fetch()->toArray();
-    }
+        // Déduction des noms de colonnes
+        $morphKey   = $this->morphKey   ?: $this->name . '_id';
+        $morphType  = $this->name . '_type';
+        $foreignKey = $this->foreignKey ?: Str::singularize($related->getTable()) . '_id';
 
-    private function getTablePrefix(): string
-    {
-        return $this->parent->getQuery()->getPrefix();
-    }
-
-    private function getWhereCondition()
-    {
-        $prefix = $this->parent->getQuery()->getPrefix();
+        // Initialisation du query builder du modèle cible (ex: Comment)
+        $query = $related->newQuery();
         
-        return ($this->callerClass === $this->parentClass) ? "{$prefix}{$this->pivotTable}.{$this->parentPivotId} = ? AND {$prefix}{$this->pivotTable}.{$this->parentPivotType} = ?":
-            "{$this->foreignPivotKey} = ? AND {$this->parentPivotType} = ?";
-    }
+        // On sélectionne les données de la table cible
+        $query->selectRaw($related->getTable() . '.*');
+        
+        // Jointure : related_table.id = pivot_table.comment_id
+        $query->joinInner($this->table, $related->getKey(true), "{$tablePrefix}{$this->table}.{$foreignKey}");
 
-    private function getJoinCondition()
-    {
-        return ($this->callerClass === $this->parentClass) ? "{$this->getTablePrefix()}{$this->pivotTable}.$this->foreignPivotKey = {$this->related->getTableAlias()}.{$this->related->getKey()}": 
-            "{$this->getTablePrefix()}{$this->pivotTable}.$this->parentPivotId = {$this->parent->getTableAlias()}.{$this->parent->getKey()}";
+        // Filtres :
+        // 1. L'id du parent (ex: post_id)
+        $query->where("{$tablePrefix}{$this->table}.{$morphKey} = ?", [$this->model->{$this->model->getKey()}]);
+        
+        // 2. Le type du parent (ex: 'App\Models\Post')
+        // Important pour ne pas récupérer les commentaires d'une Vidéo qui aurait le même ID qu'un Post
+        $query->where("{$tablePrefix}{$this->table}.{$morphType} = ?", [$this->model::class]);
+
+        $this->result = $related->fetch($this->relatedClass);
+
+        return $this->result;
     }
 }

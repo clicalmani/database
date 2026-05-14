@@ -86,11 +86,16 @@ class Elegant extends AbstractModel implements ModelInterface
             if ( $this->isSoftDeletable() ) {
                 $this->query->set('recycle', $this->query->getParam('recycle') ?? 1);
             }
-    
-            $this->query->set('distinct', $this->distinct); // Set SQL DISTINCT flag
+
             $this->query->set('calc', $this->calc_found_rows);     // Set SQL_CALC_FOUND_ROWS flag
             
-            return $this->query->get($fields);
+            $results = $this->query->get($fields);
+
+            if ($this->with) {
+                $this->eagerLoad($results);
+            }
+
+            return $results;
             
         } catch (\PDOException $e) {
             throw new \Clicalmani\Database\Exceptions\DBQueryException($e->getMessage());
@@ -125,74 +130,8 @@ class Elegant extends AbstractModel implements ModelInterface
 
     public function fetchWith(?string $class = null, array $with = []): CollectionInterface
     {
-        $alias = $class ? (new $class)->getTableAlias(): $this->getTableAlias();
-
-        $flatRows = $this->get("$alias.*");
-        $parentIds = [];
-
-        foreach ($flatRows as $row) {
-
-            foreach ($with as $relationPath) {
-                $segments = explode('.', $relationPath);
-                $parentIds[$segments[0]][] = $row->{Str::singularize($segments[0]) . '_id'};
-            }
-        }
-
-        foreach ($parentIds as $relName => $ids) {
-            $parentIds[$relName] = array_unique($ids);
-        }
-
-        $relationMap = [];
-        $relationIds = [];
-        
-        foreach ($parentIds as $relName => $ids) {
-            $ids = array_unique($ids);
-            $groupedQuery = DB::table(Str::pluralize($relName))->where('id IN (' . join(',', $ids) . ')')->get();
-            
-            $relationMap[$relName] = [];
-
-            foreach ($groupedQuery as $row) {
-                $relationMap[$relName][$row->id] = $row;
-            }
-        }
-
-        foreach ($with as $relationPath) {
-            $segments = explode('.', $relationPath);
-
-            for ($i=1; $i < count($segments); $i++) {
-                $relationIds[$segments[$i]] = [];
-
-                if (isset($segments[$i-1])) {
-                    foreach ($relationMap[$segments[$i-1]] as $row) {
-                        $relationIds[$segments[$i]][] = $row->{Str::singularize($segments[$i]) . '_id'};
-                    }
-                }
-            }
-
-        }
-
-        foreach ($relationIds as $relName => $ids) {
-            $groupedQuery = DB::table(Str::pluralize($relName))->where('id IN (' . join(',', $ids) . ')')->get();
-            foreach ($groupedQuery as $row) {
-                foreach ($relationMap as $parentName => $data) {
-                    foreach ($data as $id => $rw) {
-                        if ($rw->{Str::singularize($relName) . '_id'} == $row->id) {
-                            $relationMap[$parentName][$id]->{$relName} = $row;
-                        }
-                    }
-                }
-            }
-        }
-
-        foreach ($flatRows as $row) {
-            foreach ($relationMap as $relName => $data) {
-                if (isset($data[$row->{Str::singularize($relName) . '_id'}])) {
-                    $row->{$relName} = $data[$row->{Str::singularize($relName) . '_id'}];
-                }
-            }
-        }
-
-        return $flatRows;
+        $this->with($with);
+        return $this->fetch($class);
     }
 
     public function delete() : bool
@@ -270,7 +209,7 @@ class Elegant extends AbstractModel implements ModelInterface
             
             $fields = array_keys( $values );
 		    $values = array_values( $values );
-
+            
             $this->query->set('type', DBQuery::UPDATE);
             $this->query->set('fields',  $fields);
 		    $this->query->set('values', $values);
@@ -475,6 +414,11 @@ class Elegant extends AbstractModel implements ModelInterface
         return static::getInstance($id);
     }
 
+    public static function findMany(array $ids) : CollectionInterface
+    {
+        return self::where()->whereIn(static::getInstance()->getKey(), $ids)->fetch();
+    }
+
     public static function findOrFail(string|array|null $id) : self
     {
         $instance = self::find($id);
@@ -670,8 +614,98 @@ class Elegant extends AbstractModel implements ModelInterface
         return static::getInstance()->query->getPdo();
     }
 
+    public function with(array $relations): self
+    {
+        foreach ($relations as $method => $relation) {
+            
+            // 1. Method with() is called statically with relation name as key and relation class as value (eg. StaffingPlan::with(['requester' => Employee::class]))
+            if ( class_exists($relation) ) {
+                $this->with[$method] = $relation;
+                continue;
+            }
+
+            // 2. Method with() is called with nested relations (eg. StaffingPlan::with(['requester.position.company']))
+            $segments = explode('.', $relation);
+            $baseClass = $this::class;
+
+            foreach ($segments as $segment) {
+
+                // Try to guess relation class based on segment name (eg. requester => App\Models\Requester)
+                $supposedly_relation = "\\App\\Models\\" . Str::classify($segment);
+
+                if ( ! class_exists($supposedly_relation) ) {
+
+                    // If relation class doesn't exist, check if it is already defined in the with array (eg. requester => App\Models\Employee)
+                    if ( !isset($this->with[$segment]) ) {
+                        throw new \BadFunctionCallException(
+                            sprintf("Relation class %s not found for segment %s in relation path %s", $supposedly_relation, $segment, $relation)
+                        );
+                    }
+
+                    // If relation class is defined in the with array, use it as base class for the next segment (eg. requester => App\Models\Employee, position => App\Models\Position)
+                    if ( is_string($this->with[$segment]) ) {
+
+                        $relationClass = $this->with[$segment];
+
+                        $this->with[$segment] = $relationClass;
+
+                        $baseClass = $relationClass;
+                    }
+
+                    continue;
+                }
+
+                $this->with[$relation] = $supposedly_relation;
+
+                $baseClass = $supposedly_relation;
+            }
+
+            // 1. seg = employee
+            // sr = App\Models\Employee
+            // [employee => [relation => App\Models\Employee, base => App\Models\StaffingPlan]]
+            // baseClass = App\Models\Employee
+
+            // 2. seg = position
+            // sr = App\Models\Position
+            // [position => [relation => App\Models\Position, base => App\Models\Employee]]
+            // baseClass = App\Models\Position
+
+            // 3. seg = company
+            // sr = App\Models\Company
+            // [company => [relation => App\Models\Company, base => App\Models\Position]]
+        }
+
+        return $this;
+    }
+
+    /**
+     * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
+     *
+     * @param ?string $value
+     * @return self
+     */
+    public function marker(?string $value = ':'): self
+	{
+		$this->query->set('marker', $value);
+		return $this;
+	}
+
     public function __toString() : string
     {
         return json_encode( $this );
+    }
+
+    private function eagerLoad(CollectionInterface $results)
+    {
+        foreach ($this->with as $relation => $data) {
+            if ( !method_exists($this, $relation) ) continue;
+
+            $reflection = new \ReflectionMethod($this, $relation);
+            $returnType = $reflection->getReturnType();
+            
+            if ($returnType && $class = $returnType->getName()) {
+                $this->$relation()->loadNestedRelations($results, $relation, $data);
+            }
+        }
     }
 }
