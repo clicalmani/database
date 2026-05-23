@@ -8,6 +8,7 @@ use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
 use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
+use Override;
 
 /**
  * Class Elegant
@@ -15,7 +16,7 @@ use Clicalmani\Foundation\Support\Facades\Str;
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-class Elegant extends AbstractModel implements ModelInterface
+class Elegant extends AbstractModel implements ModelInterface, \Serializable
 {
     use SQLClauses;
     use SQLCases;
@@ -707,5 +708,41 @@ class Elegant extends AbstractModel implements ModelInterface
                 $this->$relation()->loadNestedRelations($results, $relation, $data);
             }
         }
+    }
+
+    #[Override]
+    public function serialize()
+    {
+        return serialize([
+            'id' => $this->id,
+            // 'table' => $this->table,
+            // 'params' => $this->query->params,
+            // 'attributes' => $this->attributes,
+            // 'fillable' => $this->fillable,
+            // 'guarded' => $this->guarded,
+            // 'custom' => $this->custom,
+            // 'dates' => $this->dates,
+            // 'dispatchesEvents' => $this->dispatchesEvents,
+            // 'entity_instance' => $this->entity_instance
+        ]);
+    }
+
+    #[Override]
+    public function unserialize(string $data)
+    {
+        $payload = unserialize($data);
+
+        // $this->id = $payload['id'];
+        // $this->table = $payload['table'];
+        // $this->query()->setParams($payload['params']);
+        // $this->attributes = $payload['attributes'];
+        // $this->fillable = $payload['fillable'];
+        // $this->guarded = $payload['guarded'];
+        // $this->custom = $payload['custom'];
+        // $this->dates = $payload['dates'];
+        // $this->dispatchesEvents = $payload['dispatchesEvents'];
+        // $this->entity_instance = $payload['entity_instance'];
+
+        parent::__construct($payload['id']);
     }
 }

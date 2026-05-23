@@ -162,7 +162,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @var \Clicalmani\Database\Factory\Entity
      */
-    private $entity_instance;
+    protected $entity_instance;
 
     /**
      * Register model events
@@ -507,7 +507,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
                 $type = $entity->getPropertyType($name);
 
                 if ($type === \Clicalmani\Database\DataTypes\Json::class) {
-                    $value = (new $type)->decode($value);
+                    $value = (new $type)->decode((string) $value);
                 }
             } catch (\Exception $e) {}
         };
@@ -694,7 +694,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
                 $type = $entity->getPropertyType($name);
 
                 if ($type === \Clicalmani\Database\DataTypes\Json::class) {
-                    $value = (new $type)->decode($value);
+                    $value = (new $type)->decode((string) $value);
                 }
                 
                 return $value;
