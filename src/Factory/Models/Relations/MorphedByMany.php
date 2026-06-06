@@ -45,7 +45,7 @@ class MorphedByMany extends Relationship
         $query->selectRaw($parent->getTable() . '.*');
         
         // Jointure avec la table pivot
-        $parent->join($this->table, $parent->getKey(true), "{$tablePrefix}{$this->table}.{$morphKey}");
+        $query->joinInner($this->table, $parent->getKey(true), "{$tablePrefix}{$this->table}.{$morphKey}");
 
         // Filtres : 
         // 1. Lier à l'ID du modèle actuel (l'enfant)

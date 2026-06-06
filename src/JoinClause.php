@@ -36,7 +36,14 @@ class JoinClause implements Interfaces\JoinClauseInterface
      * 
      * @var array
      */
-    public array $binding = [];
+    public array $bindings = [];
+
+    /**
+     * Join Condition
+     * 
+     * @var string
+     */
+    public string $condition = '';
 
     public function on(string $on) : self
     {
@@ -53,6 +60,20 @@ class JoinClause implements Interfaces\JoinClauseInterface
     public function as(string $alias) : self
     {
         $this->alias = $alias;
+        return $this;
+    }
+
+    public function where(string $condition, ?array $bindings = []) : self
+    {
+        $this->condition .= ' AND ' . $condition;
+        $this->bindings   = array_merge($this->bindings, $bindings);
+        return $this;
+    }
+
+    public function orWhere(string $condition, ?array $bindings = []) : self
+    {
+        $this->condition .= ' OR ' . $condition;
+        $this->bindings   = array_merge($this->bindings, $bindings);
         return $this;
     }
 
@@ -85,12 +106,5 @@ class JoinClause implements Interfaces\JoinClauseInterface
     public function cross() : self
     {
         return $this->type('CROSS');
-    }
-
-    public function sub(string $query, ?array $binding = []) : self
-    {
-        $this->sub_query = $query;
-        $this->binding = $binding;
-        return $this;
     }
 }

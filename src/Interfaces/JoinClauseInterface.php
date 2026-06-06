@@ -53,11 +53,20 @@ interface JoinClauseInterface
     public function cross() : self;
 
     /**
-     * Sub query
-     * 
-     * @param string $query
-     * @param array $binding
-     * @return self
+     * Join condition
+      * 
+      * @param string $condition
+      * @param array $bindings
+      * @return self
      */
-    public function sub(string $query, array $binding = []) : self;
+    public function where(string $condition, ?array $bindings = []) : self;
+
+    /**
+     * Join condition with OR
+      * 
+      * @param string $condition
+      * @param array $bindings
+      * @return self
+     */
+    public function orWhere(string $condition, ?array $bindings = []) : self;
 }

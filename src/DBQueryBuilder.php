@@ -293,28 +293,32 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * @param array $joint
 	 * @return string
 	 */
-	public function addJoint(array $joint) : string
+	public function addJoint(array $join) : string
 	{
 		$ret = '';
 
-		if ( isset($joint['type']) ) {
-			$ret .= ' ' . self::JOIN_TYPES[strtolower($joint['type'])];
+		if ( isset($join['type']) ) {
+			$ret .= ' ' . self::JOIN_TYPES[strtolower($join['type'])];
 		}
 
-		if ( isset($joint['table']) ) {
-			$ret .= ' ' . join(',', $this->sanitizeTables([$joint['table']]));
+		if ( isset($join['table']) ) {
+			$ret .= ' ' . join(',', $this->sanitizeTables([$join['table']]));
 		}
 
-		if ( isset($joint['sub_query']) ) {
-			$ret .= ' (' . $joint['sub_query'] . ')';
+		if ( isset($join['sub_query']) ) {
+			$ret .= ' (' . $join['sub_query'] . ')';
 
-			if ( isset($joint['alias']) ) {
-				$ret .= ' ' . $joint['alias'];
+			if ( isset($join['alias']) ) {
+				$ret .= ' ' . $join['alias'];
 			}
 		}
 
-		if ( isset($joint['criteria']) ) {
-			$ret .= ' ' . $joint['criteria'];
+		if ( isset($join['criteria']) ) {
+			$ret .= ' ' . $join['criteria'];
+		}
+
+		if ( isset($join['condition']) ) {
+			$ret .= ' ' . $join['condition'];
 		}
 
 		return $ret;

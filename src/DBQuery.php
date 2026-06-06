@@ -714,17 +714,19 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		else {
 			$clause = new \Clicalmani\Database\JoinClause;
 
-			if ( is_string($table) ) $joint = ['table' => $table];
+			if ( is_string($table) ) $join = ['table' => $table];
 
 			if ( is_callable($callback) ) $callback($clause);
 			elseif ( is_callable($table) ) $table($clause);
 			
-			if (!empty($clause->on)) $joint['criteria'] = $clause->on;
-			if (isset($clause->type)) $joint['type'] = $clause->type;
-			if (isset($clause->sub_query)) $joint['sub_query'] = $clause->sub_query;
-			if (isset($clause->alias)) $joint['alias'] = $clause->alias;
+			if (!empty($clause->on)) $join['criteria'] = $clause->on;
+			if (isset($clause->type)) $join['type'] = $clause->type;
+			if (isset($clause->sub_query)) $join['sub_query'] = $clause->sub_query;
+			if (isset($clause->alias)) $join['alias'] = $clause->alias;
+			if (!empty($clause->condition)) $join['condition'] = $clause->condition;
+			if ($clause->bindings) $this->options = array_merge($this->options, $clause->bindings);
 			
-			if (isset($joint)) $this->params['join'][] = $joint;
+			if (isset($join)) $this->params['join'][] = $join;
 		}
 
 		return $this;

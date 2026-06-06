@@ -200,7 +200,7 @@ trait Relationships
      * 
      * @param string $parentClass Parent model class
      * @param string $name Morphic association name
-      * @param string|null $table [Optional] 
+     * @param string|null $table [Optional] 
      * @param string|null $foreignKey [Optional] 
      * @param string|null $morphKey [Optional] 
      * @return MorphedByMany
