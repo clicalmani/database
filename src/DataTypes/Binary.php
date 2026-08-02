@@ -2,18 +2,17 @@
 namespace Clicalmani\Database\DataTypes;
 
 use Clicalmani\Database\Factory\DataTypes\DataType;
+use Override;
 
 class Binary extends DataType
 {
-    public function __construct(mixed ...$parameters)
+    public function __construct(mixed ...$options)
     {
         $this->binary();
 
-        if (TRUE === @ $parameters['nullable']) $this->nullable();
+        if (TRUE === @ $options['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
-
-        if ($comment = @ $parameters['comment']) $this->comment($comment);
+        parent::sharedOptions($options);
     }
 }

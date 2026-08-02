@@ -6,11 +6,11 @@ interface Joinable
     /**
      * Custom join
      * 
-     * @param string|callable|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
-     * @param ?callable $callback A callback function
-     * @return static
+     * @param string|\Closure|\Clicalmani\Database\Factory\Models\Elegant $model Specified model
+     * @param ?\Closure $callback A callback function
+     * @return self
      */
-    public function join(string|callable|Elegant $model, ?callable $callback = null): static;
+    public function join(string|\Closure|Elegant $model, ?\Closure $callback = null): self;
 
     /**
      * Left join models

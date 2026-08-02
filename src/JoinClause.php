@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-class JoinClause implements Interfaces\JoinClauseInterface
+class JoinClause implements JoinClauseInterface
 {
     /**
      * ON statement
@@ -9,6 +9,13 @@ class JoinClause implements Interfaces\JoinClauseInterface
      * @var string
      */
     public string $on = '';
+
+    /**
+     * Table
+     * 
+     * @var string
+     */
+    public string $table = '';
 
     /**
      * Alias name
@@ -48,6 +55,12 @@ class JoinClause implements Interfaces\JoinClauseInterface
     public function on(string $on) : self
     {
         $this->on = "ON($on)";
+        return $this;
+    }
+
+    public function to(string $table) : self
+    {
+        $this->table = $table;
         return $this;
     }
 

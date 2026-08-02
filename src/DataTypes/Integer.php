@@ -5,20 +5,23 @@ use Clicalmani\Database\Factory\DataTypes\DataType;
 
 class Integer extends DataType
 {
-    public function __construct(mixed ...$parameters)
+    public function __construct(mixed ...$options)
     {
-        $length = @ $parameters['length'];
+        $length = $options['length'] ?? DataType::INTEGER_LENGTH;
 
-        if (FALSE === @ $parameters['unsigned']) $this->int($length);
+        if (FALSE === @ $options['unsigned']) $this->int($length);
         else $this->intUnsigned($length);
 
-        if (TRUE === @ $parameters['nullable']) $this->nullable();
+        if (TRUE === @ $options['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
+        if (TRUE === @ $options['autoIncrement']) $this->autoIncrement();
 
-        if (TRUE === @ $parameters['autoIncrement']) $this->autoIncrement();
+        parent::sharedOptions($options);
+    }
 
-        if ($comment = @ $parameters['comment']) $this->comment($comment);
+    public function cast(mixed $value): mixed
+    {
+        return (int) $value;
     }
 }

@@ -5,17 +5,20 @@ use Clicalmani\Database\Factory\DataTypes\DataType;
 
 class Numeric extends DataType
 {
-    public function __construct(mixed ...$parameters)
+    public function __construct(mixed ...$options)
     {
-        $this->numeric(@ $parameters['precision'], @ $parameters['scale']);
+        $this->numeric($options['scale'] ?? DataType::DECIMAL_SCALE, $options['precision'] ?? DataType::DECIMAL_PRECISION);
 
-        if (TRUE === @ $parameters['unsigned']) $this->unsigned();
+        if (TRUE === @ $options['unsigned']) $this->unsigned();
 
-        if (TRUE === @ $parameters['nullable']) $this->nullable();
+        if (TRUE === @ $options['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
+        parent::sharedOptions($options);
+    }
 
-        if ($comment = @ $parameters['comment']) $this->comment($comment);
+    public function cast(mixed $value): mixed
+    {
+        return is_int($value) ? (int) $value : (float) $value;
     }
 }

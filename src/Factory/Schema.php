@@ -85,7 +85,7 @@ class Schema
     public static function reverse(string $migration) : void
     {
         tap(
-            require database_path("/migrations/$migration.php"),
+            require database_path("/manifests/$migration.php"),
             fn($migrate) => $migrate->out()
         );
     }

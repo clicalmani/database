@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
+use Override;
+
 /**
  * Class AlterOption
  * 
@@ -10,6 +12,11 @@ namespace Clicalmani\Database\Factory;
 #[\Attribute(\Attribute::TARGET_CLASS)]
 class AlterOption extends DataTypes\DataType
 {
+    public function __construct(public ?string $handler = null)
+    {
+        return parent::__construct();
+    }
+
     /**
      * Add column
      * 

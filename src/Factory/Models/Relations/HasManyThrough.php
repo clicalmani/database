@@ -2,18 +2,24 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\CollectionInterface;
+use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
 
 class HasManyThrough extends Relationship
 {
+    private Elegant $farModel;
+    private Elegant $through;
+
     /**
-     * @param Elegant $model           Le modèle actuel (ex: Project)
-     * @param string $farModelClass    Le modèle cible distant (ex: User)
-     * @param string $throughModelClass Le modèle intermédiaire (ex: Task)
-     * @param string|null $firstKey    Clé sur le modèle intermédiaire (project_id)
-     * @param string|null $secondKey   Clé sur le modèle distant (task_id)
-     * @param string|null $localKey    Clé locale du modèle actuel (id)
-     * @param string|null $secondLocalKey Clé locale du modèle intermédiaire (id)
+     * @param Elegant $model              Current model (e.g., Project)
+     * @param class-string<Elegant>       $farModelClass    Target model (e.g., User)
+     * @param string $throughModelClass   Through model (e.g., Task)
+     * @param string|null $firstKey       Foreign key on through model (e.g., project_id)
+     * @param string|null $secondKey      Foreign key on far model (e.g., task_id)
+     * @param string|null $localKey       Current model local key (e.g., id)
+     * @param string|null $secondLocalKey Through model local key (e.g., id)
      */
     public function __construct(
         protected Elegant $model,
@@ -24,39 +30,86 @@ class HasManyThrough extends Relationship
         protected ?string $localKey = null,
         protected ?string $secondLocalKey = null
     ) {
-        $through = new $this->throughModelClass;
+        $this->farModel = new $farModelClass;
+        $this->through  = new $this->throughModelClass;
+        $this->query    = $this->farModel->newQuery();
         
         $this->firstKey  = $firstKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->secondKey = $secondKey ?: Str::singularize($through->getTable()) . '_id';
+        $this->secondKey = $secondKey ?: Str::singularize($this->through->getTable()) . '_id';
         $this->localKey  = $localKey ?: $this->model->getKey();
-        $this->secondLocalKey = $secondLocalKey ?: $through->getKey();
+        $this->secondLocalKey = $secondLocalKey ?: $this->through->getKey();
     }
 
-    public function get(): mixed
+    public function get(?string $fields = '*'): mixed
     {
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $farModel = new $this->farModelClass;
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $through  = new $this->throughModelClass;
-        
-        $query = $farModel->newQuery();
+        // 1. Select target columns (e.g., User)
+        $this->query->selectRaw($this->farModel->getTable() . '.*');
 
-        // 1. Sélection des colonnes de la destination (User)
-        $query->selectRaw($farModel->getTable() . '.*');
-
-        // 2. Jointure : users.task_id = tasks.id
-        $query->joinInner(
-            $through->getTable(),
-            "{$farModel->getTableAlias()}.{$this->secondKey}",
-            "{$through->getTableAlias()}.{$this->secondLocalKey}"
+        // 2. Join : (e.g., users.task_id = tasks.id)
+        $this->query->joinInner(
+            $this->through->getTable(true),
+            "{$this->farModel->getTableAlias()}.{$this->secondKey}",
+            "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
         );
-
-        // 3. Filtre : tasks.project_id = project.id
-        $query->where("{$through->getTableAlias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
-
-        // 4. Retourne la collection complète
-        $this->result = $farModel->fetch($this->farModelClass);
+        
+        // 3. Filter : (e.g., tasks.project_id = project.id)
+        $this->query->where("{$this->through->getTableAlias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
+        
+        // 4. Complete collection
+        $this->result = $this->farModel->get($fields);
 
         return $this->result;
+    }
+
+    public function getParentKeys(array $models): array
+    {
+        return $this->getModelKeys($models, $this->localKey);
+    }
+
+    public function getEager(array $keys): CollectionInterface
+    {
+        if (empty($keys)) {
+            return collect();
+        }
+        
+        return $this->farModelClass::select()
+            ->whereIn("{$this->through->getTableAlias()}.{$this->firstKey}", $keys) // Filter: (e.g., tasks.project_id IN (retrieved ids))
+            ->joinInner(                                                            // Join: (e.g., users.task_id = tasks.id)
+                $this->through->getTable(true),
+                "{$this->farModel->getTableAlias()}.{$this->secondKey}",
+                "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
+            )->get();
+    }
+
+    public function match(array $models, CollectionInterface $results, string $relation): void
+    {
+        $dictionary = [];
+        
+        /**
+         * Key-Data mapping for easy access
+         * @var Elegant (e.g., User)
+         */
+        foreach ($results as $result) {
+            // We use through model for mapping
+            // SELECT * FROM tasks WHERE id = ? [task_id in User model]
+            $row = DB::table($this->through->getTable())->where($this->secondLocalKey . ' = ?', [$result->{$this->secondKey}])->first();
+            
+            if ($row) {
+                if (!isset($dictionary[$row->{$this->firstKey}])) { // [$row->project_id => []]
+                    $dictionary[$row->{$this->firstKey}] = [];
+                }
+                $dictionary[$row->{$this->firstKey}][] = $result;
+            }
+        }
+
+        foreach ($models as $model) {
+            $key = (string) $model->{$this->localKey}; // e.g., $project->id
+            
+            if (isset($dictionary[$key])) {
+                $model->setRelation($relation, $dictionary[$key]);
+            } else {
+                $model->setRelation($relation, collect());
+            }
+        }
     }
 }

@@ -1,9 +1,9 @@
 <?php
-namespace Clicalmani\Database\Interfaces;
+namespace Clicalmani\Database;
 
 use Clicalmani\Foundation\Collection\Map;
 
-interface QueryInterface
+interface QueryInterface extends DBInterface
 {
     /**
 	 * Sets query parameter
@@ -31,12 +31,32 @@ interface QueryInterface
 	public function setOptions(array $options) : void;
 
 	/**
+	 * Returns query options
+	 * 
+	 * @return ?array
+	 */
+	public function getOptions(): ?array;
+
+	/**
 	 * Gets query the specified parameter value
 	 * 
 	 * @param string $param Parameter name
 	 * @return mixed Parameter value, or null on failure.
 	 */
 	public function getParam(string $param, mixed $default = null) : mixed;
+
+	/**
+	 * Returns the query parameters
+	 * @return array
+	 */
+	public function getParams(): array;
+
+	/**
+	 * Set query parameters
+	 * 
+	 * @param array $newParams
+	 */
+	public function setParams(array $newParams): void;
 
 	/**
 	 * Execute a SQL query command
@@ -55,17 +75,17 @@ interface QueryInterface
 	/**
 	 * Perform a truncate request.
 	 * 
-	 * @return bool true on success, false on failure
+	 * @return self true on success, false on failure
 	 */
-	public function truncate() : bool;
+	public function truncate() : self;
 
 	/**
 	 * Perform an update request.
 	 * 
 	 * @param array $option [optional] New attribute values
-	 * @return bool true on success, false on failure
+	 * @return self true on success, false on failure
 	 */
-	public function update(?array $options = []) : bool;
+	public function update(?array $options = []) : self;
 
 	/**
 	 * Increment a field value by a specified value.
@@ -73,9 +93,9 @@ interface QueryInterface
 	 * @param string $field Field name
 	 * @param int $value [optional] Increment value. Default is 1
 	 * @param ?array $fields [optional] Additional fields to be updated
-	 * @return bool true on success, false on failure
+	 * @return self true on success, false on failure
 	 */
-	public function increment(string $field, int $value = 1, ?array $fields = []) : bool;
+	public function increment(string $field, int $value = 1, ?array $fields = []) : self;
 
 	/**
 	 * Decrement a field value by a specified value.
@@ -83,27 +103,27 @@ interface QueryInterface
 	 * @param string $field Field name
 	 * @param int $value [optional] Decrement value. Default is 1
 	 * @param array $fields [optional] Additional fields to be updated
-	 * @return bool true on success, false on failure
+	 * @return self true on success, false on failure
 	 */
-	public function decrement(string $field, int $value = 1, array $fields = []) : bool;
+	public function decrement(string $field, int $value = 1, array $fields = []) : self;
 
 	/**
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
 	 * @param bool $replace Run REPLACE query if record exists
-	 * @return bool true on success, false on failure
+	 * @return self true on success, false on failure
 	 */
-	public function insert(array $options = [], bool $replace = false): bool;
+	public function insert(array $options = [], bool $replace = false): self;
 
 	/**
 	 * Insert ignore query
 	 * 
 	 * @param array $options Insert options
 	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
-	 * @return bool
+	 * @return self
 	 */
-	public function insertIgnore(array $options = [], bool $replace = false): bool;
+	public function insertIgnore(array $options = [], bool $replace = false): self;
 
 	/**
 	 * Insert new record to the selected table or fail.
@@ -119,15 +139,6 @@ interface QueryInterface
 	 * @return int
 	 */
 	public function insertGetId(array $options = []) : int;
-
-	/**
-	 * Insert new record or update the existing one
-	 * 
-	 * @deprecated
-	 * @param array $options
-	 * @return void
-	 */
-	public function insertOrUpdate(array $options) : void;
 
 	/**
 	 * Specify the query where condition. 
@@ -180,9 +191,9 @@ interface QueryInterface
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
 	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
-	 * @return static
+	 * @return self
 	 */
-	public function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : static;
+	public function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : self;
 
 	/**
 	 * Add an OR where clause to the query based on the existence of a related model.
@@ -191,9 +202,9 @@ interface QueryInterface
 	 * 
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
-	 * @return static
+	 * @return self
 	 */
-	public function orWhereHas(string $relation, \Closure $callback) : static;
+	public function orWhereHas(string $relation, \Closure $callback) : self;
 
 	/**
 	 * Add a where clause to the query based on the non-existence of a related model.
@@ -211,9 +222,9 @@ interface QueryInterface
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
 	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
-	 * @return static
+	 * @return self
 	 */
-	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : static;
+	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self;
 
 	/**
 	 * Add an OR where clause to the query based on the non-existence of a related model.
@@ -222,9 +233,9 @@ interface QueryInterface
 	 * 
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
-	 * @return static
+	 * @return self
 	 */
-	public function orWhereDoesntHave(string $relation, \Closure $callback) : static;
+	public function orWhereDoesntHave(string $relation, \Closure $callback) : self;
 
 	/**
 	 * Add a where in clause to the query
@@ -276,6 +287,14 @@ interface QueryInterface
 	public function from(string $fields) : self;
 
 	/**
+	 * Specify the query select statement.
+	 * 
+	 * @param string $raw a SQL query select statement
+	 * @return self
+	 */
+	public function selectRaw(string $raw) : self;
+
+	/**
 	 * Gets a database query result set. An optional comma separated list of request fields can be specified as 
 	 * the unique argument.
 	 * 
@@ -321,31 +340,31 @@ interface QueryInterface
 	 * Left join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
+	 * @param string|\Closure|null $foreignKey [Optional] Foreign key
+	 * @param ?string $localKey [Optional] Original key
 	 * @return self
 	 */
-	public function joinLeft(string $table, ?string $foreign_key = null, ?string $original_key = null) : self;
+	public function joinLeft(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self;
 
 	/**
 	 * Right join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
+	 * @param string|\Closure|null $foreignKey [Optional] Foreign key
+	 * @param ?string $localKey [Optional] Original key
 	 * @return self
 	 */
-	public function joinRight(string $table, ?string $foreign_key = null, ?string $original_key = null) : self;
+	public function joinRight(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self;
 
 	/**
 	 * Inner join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Original key
+	 * @param string|\Closure|null $foreignKey [Optional] Foreign key
+	 * @param ?string $localKey [Optional] Original key
 	 * @return self
 	 */
-	public function joinInner(string $table, ?string $foreign_key = null, ?string $original_key = null) : self;
+	public function joinInner(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self;
 
 	/**
 	 * Cross join
@@ -570,4 +589,15 @@ interface QueryInterface
 	 * @return self
 	 */
 	public function union(\Clicalmani\Database\DBQuery $query, bool $all = false) : self;
+
+	/**
+	 * Adds a sub-query in the where condition of a query.
+	 * @param string $relation The sub-query table
+	 * @param string $key The to filter with
+	 * @param \Closure $callback A callback function
+	 * @param ?string $boolean The boolean operator
+	 * @param ?string $operator The operator to be used with the key.
+	 * @return self
+	 */
+	public function subWhere(string $relation, string $key, \Closure $callback, ?string $boolean = 'AND', ?string $operator = '=') : self;
 }

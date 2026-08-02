@@ -16,13 +16,74 @@ class DataType implements \JsonSerializable
         Date;
 
     /**
+     * Integer length
+     * 
+     * @var int
+     */
+    const INTEGER_LENGTH = 10;
+
+    /**
+     * TinyInt length
+     * 
+     * @var int
+     */
+    const TINYINT_LENGTH = 3;
+
+    /**
+     * Small integer
+     * 
+     * @var int
+     */
+    const SMALLINT_LENGTH = 5;
+
+    /**
+     * Decimal scale
+     * 
+     * @var int
+     */
+    const DECIMAL_SCALE = 12;
+
+    /**
+     * Decimal precision
+     * 
+     * @var int
+     */
+    const DECIMAL_PRECISION = 4;
+
+    /**
+     * String length
+     * 
+     * @var int
+     */
+    const STRING_LENGTH = 255;
+
+    /**
+     * Character length
+     * 
+     * @var int
+     */
+    const CHARACTER_LENGTH = 1;
+
+    /**
      * Value
      * 
      * @var mixed
      */
     protected $value;
 
-    protected $type;
+    /**
+     * Store assigned data type.
+     * 
+     * @var string
+     */
+    protected string $type = '';
+
+    /**
+     * Data formatter
+     * 
+     * @var ?string
+     */
+    protected ?string $formatter = null;
 
     /**
      * Data
@@ -144,6 +205,58 @@ class DataType implements \JsonSerializable
     public function getValue() : mixed
     {
         return $this->value;
+    }
+
+    /**
+     * Cast value to data type
+     * 
+     * @param mixed $value Value to cast
+     * @return mixed
+     */
+    public function cast(mixed $value) : mixed
+    {
+        return $value;
+    }
+
+    /**
+     * Cast the value to be sent to the database.
+     * 
+     * @param mixed $value
+     * @return mixed
+     */
+    public function toDatabase($value) : mixed
+    {
+        return $value;
+    }
+
+    /**
+     * Returns the data formatter
+     * 
+     * @return ?string
+     */
+    public function getFormatter() : ?string
+    {
+        return $this->formatter;
+    }
+
+    protected function sharedOptions(array $options): void
+    {
+        // ── Default Value ────────────────────────────────────────────────
+        $default_value = $options['default'] ?? null;
+        $default_value = match (gettype($default_value)) {
+            'boolean' => (int) $default_value,
+            'integer' => "$default_value",
+            'string'  => $default_value,
+            default   => null
+        };
+        if (isset($default_value)) $this->default($default_value);
+
+        // ── Comment ──────────────────────────────────────────────────────
+        if ($comment = $options['comment'] ?? null) $this->comment($comment);
+
+        // ── Fortmatter ───────────────────────────────────────────────────
+        // Format data
+        $this->formatter = $options['formatter'] ?? null;
     }
 
     /**

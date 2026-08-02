@@ -1,7 +1,5 @@
 <?php
-namespace Clicalmani\Database\Interfaces;
-
-use Clicalmani\Database\Interfaces\QueryInterface;
+namespace Clicalmani\Database;
 
 interface DBInterface
 {
@@ -23,7 +21,7 @@ interface DBInterface
     /**
 	 * Returns a single database instance.
 	 * 
-	 * @return \Clicalmani\Database\Interfaces\QueryInterface object
+	 * @return QueryInterface object
 	 */
 	public function getInstance() : QueryInterface;
 
@@ -156,29 +154,29 @@ interface DBInterface
 	/**
 	 * Begins a database transaction
 	 * 
-	 * @param ?callable $callback A callback function
+	 * @param ?\Closure $callback A callback function
 	 * @return mixed 
 	 * @throws \Exception
 	 */
-	public function transaction(?callable $callback = null) : mixed;
+	public function transaction(?\Closure $callback = null) : mixed;
 
 	/**
 	 * Alias of transaction
 	 * 
-	 * @param callable $callback A callback function
+	 * @param \Closure $callback A callback function
 	 * @return mixed 
 	 */
-	public function beginTransaction(?callable $callback = null) : mixed;
+	public function beginTransaction(?\Closure $callback = null) : mixed;
 
 	/**
 	 * Handle transaction deadlock
 	 * 
-	 * @param callable $callback
+	 * @param \Closure $callback
 	 * @param int $attemps Default 5
 	 * @param int $sleep Default 100ms
 	 * @return mixed
 	 */
-	public function deadlock(callable $callback, int $attemps = 5, int $sleep = 100) : mixed;
+	public function deadlock(\Closure $callback, int $attemps = 5, int $sleep = 100) : mixed;
 
 	/**
 	 * Validate a transaction
@@ -237,7 +235,7 @@ interface DBInterface
 	 * Select a database table on which to execute a SQL query.
 	 * 
 	 * @param array|string $tables Database table(s) name(s)
-	 * @return \Clicalmani\Database\Interfaces\QueryInterface Object
+	 * @return QueryInterface Object
 	 */
 	public function table(array|string $tables) : QueryInterface;
 
@@ -283,7 +281,7 @@ interface DBInterface
 	 * Establish a database connection
 	 * 
 	 * @param string $driver Database driver
-	 * @return \Clicalmani\Database\Interfaces\QueryInterface Object
+	 * @return QueryInterface Object
 	 */
 	public function connection(string $driver = '') : QueryInterface;
 

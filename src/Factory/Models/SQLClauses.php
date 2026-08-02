@@ -3,16 +3,15 @@ namespace Clicalmani\Database\Factory\Models;
 
 trait SQLClauses
 {
-    public static function where(\Closure|string $criteria = '1', ?array $options = []) : static
+    protected function scopeWhere(mixed ...$args) : self
     {
-        $instance = static::getInstance();
-        $instance->getQuery()->where($criteria, $options);
-        return $instance;
+        $this->query->where(...$args);
+        return $this;
     }
 
-    public function orWhere(\Closure|string $criteria = '1', ?array $options = []) : self
+    public function orWhere(mixed ...$args) : self
     {
-        $this->query->orWhere($criteria, $options);
+        $this->query->orWhere(...$args);
         return $this;
     }
 
@@ -35,9 +34,9 @@ trait SQLClauses
         return $this;
     }
     
-    public static function whereIn(string $key, array $values): self
+    protected function scopeWhereIn(string $key, array $values): self
     {
-        return static::where("$key IN (" . 
+        return $this->scopeWhere("$key IN (" . 
                     implode(', ', array_fill(0, count($values), '?')) . ")", $values);
     }
 
@@ -49,17 +48,14 @@ trait SQLClauses
      * Example usage:
      * - whereHas(RelatedModel::class, function($query) { $query->where('status = ?', ['active']); })
      * 
-     * @param class-string $relation The name of the related model class.
+     * @param class-string<Elegant> $relation The name of the related model class.
      * @param \Closure $callback A closure that defines the conditions for the related model.
-     * @return static
+     * @return self
      */
-    public static function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : static
+    protected function scopeWhereHas(string $relation, \Closure $callback, string $boolean = 'AND') : self
     {
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $instance = static::getInstance();
-        $instance->getQuery()->whereHas(instance($relation)->getTable(), $callback, $boolean);
-
-        return $instance;
+        $this->query->whereHas(instance($relation)->getTable(), $callback, $boolean);
+        return $this;
     }
 
     /**
@@ -75,27 +71,25 @@ trait SQLClauses
 	 * 
 	 * This example will generate a SQL query that selects records from the main table where there does not exist any related record in the 'comments' table with a status of 'approved'.
 	 * 
-	 * @param class-string $relation The name of the related model
+	 * @param class-string<Elegant> $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
 	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
-	 * @return static
+	 * @return self
 	 */
-	public static function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : static
+	protected function scopeWhereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self
     {
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $instance = static::getInstance();
-        $instance->getQuery()->whereDoesntHave(instance($relation)->getTable(), $callback, $boolean);
-        return $instance;
+        $this->query->whereDoesntHave(instance($relation)->getTable(), $callback, $boolean);
+        return $this;
     }
 
-    public function orWhereHas(string $relation, \Closure $callback) : static
+    public function orWhereHas(string $relation, \Closure $callback) : self
     {
-        return static::whereHas($relation, $callback, 'OR');
+        return $this->scopeWhereHas($relation, $callback, 'OR');
     }
 
-    public function orWhereDoesntHave(string $relation, \Closure $callback) : static
+    public function orWhereDoesntHave(string $relation, \Closure $callback) : self
     {
-        return static::whereDoesntHave($relation, $callback, 'OR');
+        return $this->scopeWhereDoesntHave($relation, $callback, 'OR');
     }
     
     public function orderBy(string $order) : static
@@ -128,6 +122,11 @@ trait SQLClauses
         $this->query->set('offset', $offset);
         $this->query->set('limit', $row_count);
         return $this;
+    }
+    
+    public function value(string $column) : mixed
+    {
+        return $this->get()->first()->{$column} ?? null;
     }
 
     /**

@@ -133,6 +133,16 @@ class Attribute
     }
 
     /**
+     * Verify whether it is an unserializable attribute
+     * 
+     * @return bool
+     */
+    public function keepFresh() : bool
+    {
+        return !!in_array($this->name, $this->model->getAsFreshAttributes());
+    }
+
+    /**
      * Customize attribute
      * 
      * @return string

@@ -13,9 +13,9 @@ interface SQLClausesInterface
      * - where('created_at > ?', ['2024-01-01'])
      * - where(function($query) { $query->where('status = ?', ['active'])->where('created_at > ?', ['2024-01-01']); })
       * @param mixed ...$args
-     * @return static
+     * @return self
      */
-    public static function where(\Closure|string $criteria = '1', ?array $options = []) : static;
+    // public function where(\Closure|string $criteria = '1', ?array $options = []) : self;
 
     /**
      * Add a where clause to the query with an AND boolean operator.
@@ -28,7 +28,7 @@ interface SQLClausesInterface
      * - where(function($query) { $query->where('status = ?', ['active'])->orWhere('status = ?', ['pending']); })
      * @param \Closure|string $criteria The criteria for the where clause, either as a string with placeholders or as a closure that defines the conditions.
      * @param array|null $options An optional array of parameters to replace placeholders in the criteria string.
-     * @return static
+     * @return self
      */
     public function andWhere(\Closure|string $criteria = '1', ?array $options = []) : self;
 
@@ -37,10 +37,10 @@ interface SQLClausesInterface
      * 
      * @param string $key Column name
      * @param array $values Values to match
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public static function whereIn(string $key, array $values): \Clicalmani\Database\Factory\Models\ModelInterface;
-    
+    // public function whereIn(string $key, array $values): self;
+
     /**
      * Add a where clause to the query based on the existence of a related model.
      * 
@@ -49,12 +49,12 @@ interface SQLClausesInterface
      * Example usage:
      * - whereHas(RelatedModel::class, function($query) { $query->where('status = ?', ['active']); })
      * 
-     * @param class-string $relation The name of the related model class.
+     * @param class-string<Elegant> $relation The name of the related model class.
      * @param \Closure $callback A closure that defines the conditions for the related model.
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return self
      */
-    public static function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : \Clicalmani\Database\Factory\Models\ModelInterface;
-
+    // public function whereHas(string $relation, \Closure $callback, string $boolean = 'AND') : self;
+    
     /**
 	 * Add a where clause to the query based on the non-existence of a related model.
 	 * 
@@ -68,12 +68,12 @@ interface SQLClausesInterface
 	 * 
 	 * This example will generate a SQL query that selects records from the main table where there does not exist any related record in the 'comments' table with a status of 'approved'.
 	 * 
-	 * @param class-string $relation The name of the related model
+	 * @param class-string<Elegant> $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
 	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
-	 * @return \Clicalmani\Database\Factory\Models\ModelInterface
+	 * @return self
 	 */
-	public static function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : \Clicalmani\Database\Factory\Models\ModelInterface;
+	// public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self;
 
     /**
 	 * Add an OR where clause to the query based on the existence of a related model.
@@ -138,4 +138,12 @@ interface SQLClausesInterface
      * @return \Clicalmani\Database\Factory\Models\ModelInterface
      */
     public function limit(?int $offset = 0, ?int $row_count = 1) : \Clicalmani\Database\Factory\Models\ModelInterface;
+
+    /**
+     * Execute the query and return the value of a specific column from the first result.
+     * 
+     * @param string $column The name of the column to retrieve from the first result.
+     * @return mixed The value of the specified column from the first result, or null if no results are found.
+     */
+    public function value(string $column) : mixed;
 }

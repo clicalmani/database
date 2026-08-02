@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Foundation\Collection\CollectionInterface;
 
-interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, RelationshipsInterface, Joinable, SQLAggregateInterface, EventInterface, StateChangeInterface
+interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinable, SQLAggregateInterface, EventInterface, StateChangeInterface
 {
     /**
      * Get the query results.
@@ -18,34 +18,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * Gets the query result
      * 
      * @param string $fields SQL select statement.
-     * @return self
+     * @return static
      */
-    public static function select(string $fields = '*') : self;
-
-    /**
-     * Fetch the result set
-     * 
-     * @param ?string $class [optional] Model class
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
-     */
-    public function fetch(?string $class = null) : CollectionInterface;
-
-    /**
-     * Fetch the first record from the result set
-     * 
-     * @param ?string $class [optional] Model class
-     * @return self|null
-     */
-    public function fetchOne(?string $class = null) : ?self;
-
-    /**
-     * Fetch the result set with relationships
-     * 
-     * @param ?string $class [optional] Model class
-     * @param array $with Relationships to fetch with the result set
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
-     */
-    public function fetchWith(?string $class = null, array $with = []): CollectionInterface;
+    public static function select(string $fields = '*') : static;
 
     /**
      * Delete the model
@@ -203,7 +178,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
     public function swap() : void;
 
     /**
-     * Fetch the top $row_count records from the query results set.
+     * Get the top $row_count records from the query results set.
      * 
      * @param int $row_count
      * @return self
@@ -338,7 +313,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      */
     public static function getConnection(): \PDO;
 
-    public function with(array $relations);
+    public function with(array $relations): static|array;
 
     /**
      * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
@@ -347,4 +322,21 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Relatio
      * @return self
      */
     public function marker(?string $value = ':'): self;
+
+    /**
+     * Retrieve fresh data from the database.
+     * Usefull when data is auto-casted or auto-formatted.
+     * 
+     * @param string $name
+     * @return mixed
+     */
+    public function fresh(string|array $name): mixed;
+
+    /**
+     * Add a "where exists" clause to the query for a given relationship.
+     * @param array $relation The relationship to check for existence.
+     * @param \Closure $callback A callback to modify the query for the relationship.
+     * @return self
+     */
+    public function withExists(array $relation, \Closure $callback) : self;
 }

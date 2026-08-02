@@ -3,16 +3,19 @@ namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
 use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
 
 class BelongsTo extends Relationship
 {
+    private Elegant $parent;
+
     /**
-     * @param Elegant $model        Le modèle enfant actuel (ex: Post)
-     * @param string $parentClass   La classe du modèle parent (ex: User)
-     * @param string|null $foreignKey La clé étrangère dans la table enfant (user_id)
-     * @param string|null $ownerKey   La clé primaire dans la table parente (id)
+     * @param Elegant $model          Child model (e.g., Post)
+     * @param class-string<Elegant>   $parentClass    Parent model class (e.g., User)
+     * @param string|null $foreignKey The foreign in the child table (e.g., user_id)
+     * @param string|null $ownerKey   Parent primary key (e.g., id or post_id)
      */
     public function __construct(
         protected Elegant $model,
@@ -20,66 +23,67 @@ class BelongsTo extends Relationship
         protected ?string $foreignKey = null, 
         protected ?string $ownerKey = null
     ) {
-        $parentInstance = new $parentClass;
+        $this->parent = new $parentClass;
+        $this->query  = $this->parent->newQuery();
         
-        // Par défaut : user_id
-        $this->foreignKey = $foreignKey ?: Str::singularize($parentInstance->getTable()) . '_id';
-        
-        // Par défaut : id (clé primaire du parent)
-        $this->ownerKey = $ownerKey ?: $parentInstance->getKey();
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->parent->getTable()) . '_id';
+        $this->ownerKey   = $ownerKey ?: $this->parent->getKey();
     }
 
     /**
-     * Récupère le modèle parent
+     * Retrieve the parent model
      * 
      * @return mixed
      */
-    public function get(): mixed
+    public function get(?string $fields = '*'): mixed
     {
-        $parent = new $this->parentClass;
-        
-        // On récupère la valeur de la clé étrangère sur l'objet actuel
-        // ex: $post->user_id
+        // We retrieve the foreign key value from the model
         $idToFind = $this->model->{$this->foreignKey};
 
         if (!$idToFind) {
             return null;
         }
 
-        // Requête : SELECT * FROM users WHERE id = $idToFind
-        $this->result = $parent->where($this->ownerKey . " = ?", [$idToFind])
-                               ->first();
+        $this->result = $this->parentClass::where("{$this->ownerKey} = ?", [$idToFind])
+                            ->get($fields)
+                            ->first();
 
         return $this->result;
     }
-
-    public function loadNestedRelations(Collection $results, $relation, $relatedclass)
+    
+    public function getParentKeys(array $models): array
     {
-        $foreignKey = strtolower($relation) . '_id';
-        $ids = collect($results)->pluck($foreignKey)->unique()->filter()->toArray();
+        $keys = [];
+        foreach ($models as $model) {
+            $key = $model->{$this->foreignKey};
+            if ($key) {
+                $keys[] = $key;
+            }
+        }
+        return $this->getModelKeys($models, $this->foreignKey);
+    }
 
-        if (empty($ids)) return;
+    public function getEager(array $keys): CollectionInterface
+    {
+        if (empty($keys)) {
+            return new Collection();
+        }
         
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $related = new $relatedclass;
-        $relatedRows = DB::table($related->getTable())->whereIn('id', $ids)->get();
+        return $this->parentClass::whereIn($this->ownerKey, $keys)->get();
+    }
 
-        $relatedMap = [];
+    public function match(array $models, CollectionInterface $results, string $relation): void
+    {
+        $dictionary = [];
 
-        foreach ($relatedRows as $row) {
-            $relatedMap[$row->{$related->getKey()}] = $row;
+        foreach ($results as $row) {
+            $dictionary[$row->{$this->parent->getKey()}] = $row;
         }
 
-        $rows = [];
-
-        foreach ($results as $result) {
-            $relatedId = $result->$foreignKey;
-            $relatedObject = $relatedMap[$relatedId] ?? null;
-            $result->$relation = $relatedObject;
-
-            $rows[] = $result;
+        foreach ($models as $model) {
+            $parentId = $model->{$this->foreignKey};
+            $parentRow = $dictionary[$parentId] ?? null;
+            $model->setRelation($relation, $parentRow);
         }
-
-        $results->exchange($rows);
     }
 }

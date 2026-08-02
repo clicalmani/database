@@ -12,7 +12,7 @@ use Clicalmani\Foundation\Support\Facades\DB;
  * @package Clicaomani\Database
  * @author @clicalmani
  */
-abstract class DBQueryBuilder implements Interfaces\BuilderInterface
+abstract class DBQueryBuilder implements BuilderInterface
 {
 	/**
 	 * Holds the generated SQL statement to be executed.
@@ -266,7 +266,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * @param bool $alias
 	 * @return array
 	 */
-	public function sanitizeTables(array $tables, bool $prefix = true, bool $alias = true) : array
+	protected function sanitizeTables(array $tables, bool $prefix = true, bool $alias = true) : array
 	{
 		$ret = [];
 
@@ -293,7 +293,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * @param array $joint
 	 * @return string
 	 */
-	public function addJoint(array $join) : string
+	protected function addJoint(array $join) : string
 	{
 		$ret = '';
 
@@ -330,7 +330,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * @param string $value
 	 * @return string
 	 */
-	public function sanitizeValue(string $value) : string
+	protected function sanitizeValue(string $value) : string
 	{
 		if (is_bool($value)) {
 			return (int) $value;
@@ -345,7 +345,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * @param mixed $data
 	 * @return int
 	 */
-	public function getDataType(mixed $data) : int
+	protected function getDataType(mixed $data) : int
 	{
 		$value = $data;
 
@@ -366,7 +366,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 * 
 	 * @return string
 	 */
-	protected function error() : string
+	public function error() : string
 	{ 
 		return $this->error_msg;
 	}
@@ -385,7 +385,7 @@ abstract class DBQueryBuilder implements Interfaces\BuilderInterface
 	 */
 	public function errno() : int { return $this->error_code; }
 
-	public function dispatch(string $event) : void
+	protected function dispatch(string $event) : void
 	{
 		if ($this->cumulative_time_listeners) {
 

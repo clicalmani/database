@@ -20,8 +20,8 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 		
 		$this->sql = 'SELECT ';
 		
-		if (isset($this->params['distinct']) AND $this->params['distinct'] === false) $this->sql = 'SELECT ';
-		else $this->sql = 'SELECT DISTINCT ';
+		if (isset($this->params['distinct']) AND $this->params['distinct']) $this->sql = 'SELECT DISTINCT ';
+		else $this->sql = 'SELECT ';
 		
 		if (isset($this->params['calc']) AND $this->params['calc']) $this->sql .= 'SQL_CALC_FOUND_ROWS ';
 		else $this->sql .= '';

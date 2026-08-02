@@ -3,6 +3,8 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
 use Override;
@@ -11,9 +13,11 @@ class BelongsToMany extends Relationship
 {
     protected array $pivotColumns = []; // Stores additional pivot columns
 
+    private Elegant $related;
+
     /**
      * @param Elegant $model          The current model (e.g., User)
-     * @param string $relatedClass    The target model (e.g., Role)
+     * @param class-string<Elegant>   $relatedClass    The target model (e.g., Role)
      * @param string|null $table      The pivot table (e.g., role_user)
      * @param string|null $foreignKey The current model's foreign key in the pivot (e.g., user_id)
      * @param string|null $relatedKey The target model's foreign key in the pivot (e.g., role_id)
@@ -25,52 +29,108 @@ class BelongsToMany extends Relationship
         protected ?string $foreignKey = null,
         protected ?string $relatedKey = null
     ) {
-        $related = new $this->relatedClass;
+        $this->related = new $this->relatedClass;
+        $this->query   = $this->related->newQuery();
 
         // 1. Deduce the pivot table name (alphabetical order by convention)
         if (!$this->table) {
-            $tables = [$this->model->getTable(), $related->getTable()];
+            $tables = [$this->model->getTable(), $this->related->getTable()];
             sort($tables);
             $this->table = Str::singularize($tables[0]) . '_' . Str::singularize($tables[1]);
         }
 
         // 2. Deduce the keys
         $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->relatedKey = $relatedKey ?: Str::singularize($related->getTable()) . '_id';
+        $this->relatedKey = $relatedKey ?: Str::singularize($this->related->getTable()) . '_id';
     }
 
-    public function get(): mixed
+    public function get(?string $fields = '*'): mixed
     {
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $related = new $this->relatedClass;
-        $query = $related->newQuery();
-        
         /** @var string */
         $tablePrefix = DB::getPrefix();
 
         // 1. Target table columns (e.g., roles.*)
-        $select = [$related->getTableAlias() . '.*'];
+        $select = [$this->related->getTableAlias() . '.*'];
 
         // 2. Add pivot columns with a prefix to avoid collisions
         foreach ($this->pivotColumns as $column) {
-            $select[] = "{$tablePrefix}.{$this->table}.{$column} AS pivot_{$column}";
+            $select[] = "{$tablePrefix}{$this->table}.{$column} AS pivot_{$column}";
         }
 
-        $query->selectRaw(implode(', ', $select));
+        $this->query->selectRaw(implode(', ', $select));
 
         // Join: roles.id = role_user.role_id
-        $query->joinInner(
+        $this->query->joinInner(
             $this->table,
-            "{$tablePrefix}.{$this->table}.{$this->relatedKey}",
-            $related->getKey(true)
+            "{$tablePrefix}{$this->table}.{$this->relatedKey}",
+            $this->related->getKey(true)
         );
 
         // Filter: role_user.user_id = Current user ID
-        $query->where("{$tablePrefix}.{$this->table}.{$this->foreignKey} = ?", [$this->model->{$this->model->getKey()}]);
+        $this->query->where("{$tablePrefix}{$this->table}.{$this->foreignKey} = ?", [$this->model->{$this->model->getKey()}]);
 
-        $this->result = $related->fetch($this->relatedClass);
+        $this->result = $this->related->get($fields);
 
         return $this->result;
+    }
+
+    public function getParentKeys(array $models): array
+    {
+        return $this->getModelKeys($models, $this->model->getKey());
+    }
+
+    public function getEager(array $keys): CollectionInterface
+    {
+        if (empty($keys)) {
+            return collect();
+        }
+        
+        $tablePrefix = DB::getPrefix();
+        $select = [$this->related->getTableAlias() . '.*'];
+
+        foreach ($this->pivotColumns as $column) {
+            $select[] = "{$tablePrefix}{$this->table}.{$column} AS pivot_{$column}";
+        }
+
+        return $this->relatedClass::select()
+            ->whereIn("{$tablePrefix}{$this->table}.{$this->foreignKey}", $keys)
+            ->join(fn($join) => 
+                $join->inner()
+                    ->to($this->table)
+                    ->on("{$tablePrefix}{$this->table}.{$this->relatedKey} = {$this->related->getKey(true)}")
+            )
+            ->get(implode(', ', $select));
+    }
+
+    public function match(array $models, CollectionInterface $results, string $relation): void
+    {
+        $dictionary = [];
+        
+        /** 
+         * Key data mapping for easy access
+         * @var Elegant 
+         * **/
+        foreach ($results as $result) {
+            $pivotData = $result->getPivot() ?? [];
+            $key = (string) ($pivotData[$result->{$result->getKey()}] ?? null); // Model key
+            
+            if ($key) {
+                if (!isset($dictionary[$key])) {
+                    $dictionary[$key] = [];
+                }
+                $dictionary[$key][] = $result;
+            }
+        }
+
+        foreach ($models as $model) {
+            $key = (string) $model->{$this->model->getKey()};
+            
+            if (isset($dictionary[$key])) {
+                $model->setRelation($relation, $dictionary[$key]);
+            } else {
+                $model->setRelation($relation, collect());
+            }
+        }
     }
 
     /**

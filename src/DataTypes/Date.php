@@ -5,15 +5,18 @@ use Clicalmani\Database\Factory\DataTypes\DataType;
 
 class Date extends DataType
 {
-    public function __construct(mixed ...$parameters)
+    public function __construct(mixed ...$options)
     {
         $this->date();
         
-        if (TRUE === @ $parameters['nullable']) $this->nullable();
+        if (TRUE === @ $options['nullable']) $this->nullable();
         else $this->nullable(false);
 
-        if ($default_value = @ $parameters['default']) $this->default($default_value);
+        parent::sharedOptions($options);
+    }
 
-        if ($comment = @ $parameters['comment']) $this->comment($comment);
+    public function cast(mixed $value): mixed
+    {
+        return is_string($value) ? new \DateTime($value, new \DateTimeZone(config('app.timezone', 'UTC'))): $value;
     }
 }

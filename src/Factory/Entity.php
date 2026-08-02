@@ -67,6 +67,20 @@ abstract class Entity
     protected array $updated_records = [];
 
     /**
+     * Verify if attributes are loaded
+     * 
+     * @var bool
+     */
+    protected bool $attributesLoaded = false;
+
+    /**
+     * Store attributes values
+     * 
+     * @var array
+     */
+    protected array $attributeValues = [];
+
+    /**
      * Get entity attributes
      * 
      * @return \Clicalmani\Database\Factory\Models\Attribute[]
@@ -101,12 +115,24 @@ abstract class Entity
      */
     public function getAttribute(string $name) : Attribute
     {
-        return tap(new Attribute($name), function(Attribute $attribute) {
+        $this->loadAttributes();
+        return tap(new Attribute($name), function(Attribute $attribute) use($name) {
             $attribute->model = $this->model;
-            $attribute->value = $attribute->isCustom() ? $attribute->getCustomValue(): $this->model->get("`$attribute->name`");
+            $attribute->value = $attribute->isCustom() ? $attribute->getCustomValue(): $this->attributeValues[$name] ?? null;
             $attribute->model = $this->model;
             $attribute->access = $this->access;
         });
+    }
+
+    /**
+     * Returns loaded attributes values
+     * 
+     * @return array
+     */
+    public function getCachedAttributesValues(): array
+    {
+        $this->loadAttributes();
+        return $this->attributeValues;
     }
 
     /**
@@ -152,7 +178,7 @@ abstract class Entity
     }
 
     /**
-     * A wrapper method to set a public property value.
+     * Set property value.
      * 
      * @param string $name Property name
      * @param mixed $value Property value
@@ -210,13 +236,10 @@ abstract class Entity
 
                 if ( is_subclass_of($type, DataType::class) ) {
 
+                    /** @var \Clicalmani\Database\Factory\DataTypes\DataType */
                     $property = new $type( ...$args );
 
-                    if ($type === \Clicalmani\Database\DataTypes\Json::class) {
-                        $value = $property->encode($value);
-                    }
-
-                    $property->value = $value;
+                    $property->value = $property->toDatabase($value);
                     
                     if (TRUE === $is_primary_key) $property->primary();
                     
@@ -231,7 +254,6 @@ abstract class Entity
             if ( $this->access === static::ADD_RECORD ) $this->new_records[] = $name;
             if ( $this->access === static::UPDATE_RECORD ) $this->updated_records[] = $name;
         }
-        
     }
 
     public function getPropertyType(string $name)
@@ -246,7 +268,8 @@ abstract class Entity
                 $types = $property->getType()->getTypes();
                 foreach ($types as $tp) {
                     if ($tp instanceof \ReflectionNamedType) {
-                        return $tp->getName();
+                        $name = $tp->getName();
+                        if (is_subclass_of($name, DataType::class)) return $name;
                     }
                 }
             }
@@ -277,6 +300,17 @@ abstract class Entity
     public function isUpdating(string $name) : bool
     {
         return in_array($name, $this->updated_records);
+    }
+
+    /**
+     * Verify if an attribute exists
+     * 
+     * @param string $name
+     * @return bool
+     */
+    public function attributeExists(string $name): bool
+    {
+        return !!collect($this->getAttributes())->find(fn(Attribute $attribute) => $attribute->name === $name);
     }
 
     /**
@@ -318,7 +352,7 @@ abstract class Entity
                 }
 
                 if (NULL !== $default_value) $args['default'] = $default_value; // Default value
-
+                
                 if ($allow_null) $args['nullable'] = true; // Nullable
                 else $args['nullable'] = false;
 
@@ -437,19 +471,36 @@ abstract class Entity
             });
         }
 
-        /**
-         * Alter
-         */
+        // ── Alter Option ──────────────────────────────────────────────────────
+        $alterHandler = null; // Custom handler
+        $alterDefinition = null;
         if ($attributes = (new \ReflectionClass($this))->getAttributes(AlterOption::class)) {
-            $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use($query, &$definition) {
-                $query->set('type', DBQuery::ALTER);
-                $definition = [$this->alter($attribute->newInstance())];
+            $this->useAttribute($attributes[0], function(\ReflectionAttribute $attribute) use($query, &$definition, &$alterHandler, &$alterDefinition) {
+                $instance = $attribute->newInstance();
+                $alterHandler = $instance->handler;
+                if (null === $alterHandler) {               // Default prioritize alter
+                    $query->set('type', DBQuery::ALTER);
+                    $definition = [$this->alter($instance)];
+                } else {
+                    $alterDefinition = $this->alter($instance);
+                }
             });
         }
         
         $query->set('definition', $definition);
         
-        return $this->build($query->exec(), $table, $exec, $dump_file);
+        $success = $this->build($query->exec(), $table, $exec, $dump_file);
+
+        if ($alterHandler && $alterDefinition) {
+            try {
+                $definition = 'ALTER TABLE ' . env('DB_TABLE_PREFIX', '') . $table . ' ' . $alterDefinition;
+                $this->{$alterHandler}($definition);
+            } catch (\PDOException $e) {logger()->error($e->getMessage());
+                throw $e;
+            }
+        }
+
+        return $success;
     }
 
     /**
@@ -475,8 +526,69 @@ abstract class Entity
     public function alter(AlterOption $alter) : string
     {
         throw new \Exception(
-            sprintf("Method % of class %s must be overriden.", 'alter', $this::class)
+            sprintf("Method %s of class %s must be overriden.", 'alter', $this::class)
         );
+    }
+
+    protected function loadAttributes(): void
+    {
+        if ($this->model->isEmpty() || $this->attributesLoaded) {
+            return;
+        }
+
+        /**
+         * We will try to build a dynamic key condition
+         * to make sure we are getting the right record from the database
+         */
+        $query = $this->model->getQuery();
+        if ( !$query->getParam('where')) {
+            $query->set('where', $this->model->getKeySQLCondition( $this->model->isAliasRequired() ));
+        }
+
+        /**
+         * Check soft delete on the model
+         * and recycle if requesting to get deleted records
+         */
+        if (!!@class_uses($this->model)[\Clicalmani\Database\Traits\SoftDelete::class]) {
+            $this->model->recycle();
+        }
+        
+        $fields = [];
+        foreach ((new \ReflectionClass($this))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            $fields[] = $property->getName();
+        }
+        
+        $row = ($this->model)(implode(', ', array_map(fn($name) => "`$name`", $fields)))->first();
+        
+        if ($row) {
+            foreach ($row as $name => $value) {
+                /** @var class-string<DataType> */
+                $dataTypeClass = $this->getPropertyType($name);
+
+                /**
+                 * Auto-cast the value if the model has auto-cast enabled and the property is not explicitly set to disable auto-casting.
+                 * Also format the value base on the formatter specified in the type arguments.
+                 */
+                if ($attributes = (new \ReflectionProperty($this, $name))->getAttributes(Property::class)) {
+                    $args = $attributes[0]->newInstance()->args;
+                    $dataType = new $dataTypeClass(...$args);
+                    
+                    if (
+                        false !== config('database.autoCast', false) &&                // Verify if auto-casting is not disabled globally
+                        $this->model->autoCast() &&                                    // Verify if auto-casting is not disable on a specific model
+                        !(isset($args['autoCast']) && $args['autoCast'] === false)     // Verify if auto-casting is not disabled on a specific attribute
+                    ) $value = (new $dataType)->cast($value);
+
+                    if ( method_exists($dataType, 'getFormatter') && $formatter = $dataType?->getFormatter()) {
+                        $value = $this->{$formatter}($value);
+                    }
+                }
+
+                $this->attributeValues[$name] = $value;
+            }
+        }
+        
+        $this->attributesLoaded = true;
     }
 
     /**
@@ -500,7 +612,7 @@ abstract class Entity
      * @param ?string $dump_file 
      * @return mixed
      */
-    private function build(\Clicalmani\Database\DBQueryBuilder $builder, string $table, ?bool $exec = true, ?string $dump_file = null) : mixed
+    private function build(\Clicalmani\Database\DBQueryBuilder $builder, string $table, ?bool $exec = true, ?string $dump_file = null) : bool
     {
         /**
          * Execute the generated SQL statement.
@@ -529,7 +641,7 @@ abstract class Entity
         }
 
         /** @var resource */
-        $fh = fopen(database_path("/migrations/$dump_file.sql"), 'a+');
+        $fh = fopen(database_path("/manifests/$dump_file.sql"), 'a+');
         fwrite($fh, $sql);
         return fclose($fh);
     }

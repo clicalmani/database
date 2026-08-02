@@ -5,12 +5,14 @@ use Clicalmani\Foundation\Collection\Collection;
 use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
-use Clicalmani\Database\Interfaces\JoinClauseInterface;
+use Clicalmani\Database\JoinClauseInterface;
 use Clicalmani\Database\SubQueries\DBSubQuery;
 use Clicalmani\Database\SubQueries\Exists;
 use Clicalmani\Database\SubQueries\NotExists;
+use Clicalmani\Database\SubQueries\SubWhere;
 use Clicalmani\Database\SubQueries\WhereExists;
 use Clicalmani\Database\SubQueries\WhereNotExists;
+use Clicalmani\Database\SubQueries\WithExists;
 use Clicalmani\Foundation\Collection\Map;
 
 /**
@@ -21,7 +23,7 @@ use Clicalmani\Foundation\Collection\Map;
  * @package Clicalmani\Database
  * @author clicalmani
  */
-class DBQuery extends DB implements Interfaces\QueryInterface
+class DBQuery extends DB implements QueryInterface
 {
 	/**
 	 * Query builder parameters
@@ -190,9 +192,14 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		else $this->options = array_merge($this->options, $options);
 	}
 
-	public function setParams(array $new_params)
+	/**
+	 * Set query parameters
+	 * 
+	 * @param array $newParams
+	 */
+	public function setParams(array $newParams): void
 	{
-		$this->params = $new_params;
+		$this->params = $newParams;
 	}
 
 	public function getParam(string $param, mixed $default = null) : mixed
@@ -216,78 +223,65 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 			
 			case static::SELECT:
 				$this->builder = new Select($this->params, $this->options);
-				$this->builder->query();
 				break;
 			
 			case static::INSERT:
 				$this->builder = new Insert($this->params, $this->options);
-				$this->builder->query();
 				break;
 				
 			case static::DELETE:
 				$this->builder = new Delete($this->params, $this->options);
-				$this->builder->query();
 				break;
 				
 			case static::UPDATE:
 				$this->builder = new Update($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::CREATE:
 				$this->builder = new Create($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::DROP_TABLE:
 				$this->builder = new Drop($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::DROP_TABLE_IF_EXISTS:
 				$this->params['exists'] = true;
 				$this->builder = new Drop($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::ALTER:
 				$this->builder = new Alter($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::LOCK_TABLE:
 				$this->builder = new Lock($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::UNLOCK_TABLE:
 				$this->builder = new Unlock($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::REPLACE:
 				$this->builder = new Replace($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::TRUNCATE:
 				$this->builder = new Truncate($this->params, $this->options);
-				$this->builder->query();
 				break;
 
 			case static::UNION:
 				if (!isset($this->union_query)) {
 					throw new \Exception('Union query not defined');
 				}
-				
-				$this->builder->query();
 				break;
 
 			case static::SHOW_COLUMNS:
 				$this->builder = new ShowColumns($this->params, $this->options);
-				$this->builder->query();
 				break;
 		}
+
+		$this->builder->query();
 
 		// Clear events data
 		unset($this->params['muted_events']);
@@ -302,7 +296,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this;
 	}
 
-	public function truncate() : bool
+	public function truncate() : self
 	{
 		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
 
@@ -313,10 +307,10 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 
 		$this->query = static::TRUNCATE;
 
-		return $this->exec()->status() === 'success';
+		return $this;
 	}
 
-	public function update(?array $options = []) : bool
+	public function update(?array $options = []) : self
 	{
 		$this->set('query', DBQuery::UPDATE);
 
@@ -330,20 +324,20 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 			$this->params['marker'] = ':';
 		}
 
-		return $this->exec()->status() === 'success';
+		return $this;
 	}
 
-	public function increment(string $field, int $value = 1, ?array $fields = []) : bool
+	public function increment(string $field, int $value = 1, ?array $fields = []) : self
 	{
 		return $this->update( array_merge($fields, [$field => $field . ' + ' . $value]) );
 	}
 
-	public function decrement(string $field, int $value = 1, array $fields = []) : bool
+	public function decrement(string $field, int $value = 1, array $fields = []) : self
 	{
 		return $this->update( array_merge($fields, [$field => $field . ' - ' . $value]) );
 	}
 
-	public function insert(array $options = [], bool $replace = false) : bool
+	public function insert(array $options = [], bool $replace = false) : self
 	{
 		if ( array_filter($options, fn($entry) => ! is_array($entry)) ) {
 			$options = [$options];
@@ -370,7 +364,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		
 		$this->set('query', (FALSE === $replace) ? self::INSERT: self::REPLACE); 
 		
-		return $this->exec()->status() === 'success';
+		return $this;
 	}
 
 	/**
@@ -378,9 +372,9 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	 * 
 	 * @param array $options Insert options
 	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
-	 * @return bool
+	 * @return self
 	 */
-	public function insertIgnore(array $options = [], bool $replace = false): bool
+	public function insertIgnore(array $options = [], bool $replace = false): self
 	{
 		$this->params['ignore'] = true;
 		return $this->insert($options, $replace);
@@ -389,30 +383,19 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	public function insertOrFail(array $options = []) : bool
 	{
 		try {
-			return $this->insert($options);
+			return $this->insert($options)->exec()->status() === 'success';
 		} catch (\PDOException $e) {
 			return false;
 		}
 	}
 
-	public function insertGetId(array $options = []) : int
+	public function insertGetId(array $options = [], bool $replace = false) : int
 	{
 		try {
-			$this->insert($options);
+			$this->insert($options, $replace)->exec();
 			return DB::lastInsertId();
 		} catch (\Throwable $e) {
 			throw $e;
-		}
-	}
-
-	public function insertOrUpdate(array $options) : void
-	{
-		if (false === $this->insertOrFail($options)) {
-
-			// Reset table for update
-			$this->params['tables'] = [$this->params['table']];
-
-			foreach ($options as $option) $this->update($option);
 		}
 	}
 
@@ -556,7 +539,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this->where('NOT EXISTS (' . $criteria . ')', $boolean, $options);
 	}
 	
-	public function whereHas(string $relation, \Closure $callback, ?string $boolean = 'AND') : static
+	public function whereHas(string $relation, \Closure $callback, ?string $boolean = 'AND') : self
 	{
 		return (
 			new Exists($this, static function(self $query) use($relation, $callback) {
@@ -566,12 +549,12 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		)($boolean);
 	}
 	
-	public function orWhereHas(string $relation, \Closure $callback) : static
+	public function orWhereHas(string $relation, \Closure $callback) : self
 	{
 		return $this->whereHas($relation, $callback, 'OR');
 	}
 	
-	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : static
+	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self
 	{
 		return (
 			new NotExists($this, static function(self $query) use($relation, $callback) {
@@ -581,25 +564,17 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		)($boolean);
 	}
 	
-	public function orWhereDoesntHave(string $relation, \Closure $callback) : static
+	public function orWhereDoesntHave(string $relation, \Closure $callback) : self
 	{
 		return $this->whereDoesntHave($relation, $callback, 'OR');
 	}
-
-	public function subWhere(string $relation, string $key, \Closure $callback, ?string $boolean = 'AND') : static
+	
+	public function subWhere(string $relation, string $key, \Closure $callback, ?string $boolean = 'AND', ?string $operator = '=') : self
 	{
-		$subquery = new DBSubQuery($this, function(self $query) use($callback, $relation) {
+		return (new SubWhere($this, static function(self $query) use($relation, $callback) {
 			$query->setParams(['tables' => [$relation]]);
 			$callback($query);
-		});
-
-		$subquery->backup();
-		$subquery->call();
-		$subquery->restore();
-
-		return $this->where($key . ' = (' . $subquery->getBuilder()->getSQL() . ')', $boolean, 
-			$subquery->getOptions()
-		);
+		}))($key, $operator, $boolean);
 	}
 	
 	public function whereIn(string $key, array $values): self
@@ -619,62 +594,76 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this;
 	}
 
-	public function orderBy(string $order_by) : static
+	public function orderBy(string $order_by) : self
 	{
 		$this->params['order_by'] = $order_by;
 		return $this;
 	}
 
-	public function groupBy(string $group_by) : static
+	public function groupBy(string $group_by) : self
 	{
 		$this->params['group_by'] = $group_by;
 		return $this;
 	}
 
-	public function distinct(bool $distinct = true) : static
+	public function distinct(bool $distinct = true) : self
 	{
 		$this->params['distinct'] = $distinct;
 		return $this;
 	}
 
-	public function selectRaw(string $fields)
+	public function selectRaw(string $raw) : self
 	{
-		$this->set('fields', $fields);
+		$this->set('fields', $raw);
 		return $this;
 	}
 
-	public function from(string $tables) : static
+	public function from(string $tables) : self
 	{
 		$this->set('tables', explode(',', $tables));
 		return $this;
 	}
 
-	public function whereRaw(string $condition)
+	public function whereRaw(string $condition) : self
 	{
 		$this->set('where', $condition);
 		return $this;
 	}
 
-	public function orderByRaw(string $order)
+	public function orderByRaw(string $order) : self
 	{
 		$this->set('order_by', $order);
 		return $this;
 	}
 
-	public function marker(?string $value = ':')
+	public function marker(?string $value = ':') : self
 	{
 		$this->set('marker', $value);
 		return $this;
 	}
 
-	public function get(string $fields = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function get(string $select = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
-		$this->params['fields'] = $fields;
+		$stringify = fn() => match (gettype($this->params['fields'])) {
+			'string' => $this->params['fields'],
+			'array'  => implode(', ', $this->params['fields']),
+			default  => '*',
+		};
+
+		if (!isset($this->params['fields'])) {
+			$this->params['fields'] = $select;
+		} elseif ($select === '*') {
+			$select = $stringify($this->params['fields'], $select);
+		} else {
+			$select = $select . ', ' . $stringify($this->params['fields'], '');
+		}
+		
+		$this->params['fields'] = $select;
 
 		if ( $this->union_query instanceof self ) {
 			/** @var \Clicalmani\Database\Union */
 			$builder = $this->builder;
-			$builder->setFields($fields);
+			$builder->setFields($select);
 		}
 		
 		$result = $this->exec();
@@ -720,6 +709,7 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 			elseif ( is_callable($table) ) $table($clause);
 			
 			if (!empty($clause->on)) $join['criteria'] = $clause->on;
+			if (!empty($clause->table)) $join['table'] = $clause->table;
 			if (isset($clause->type)) $join['type'] = $clause->type;
 			if (isset($clause->sub_query)) $join['sub_query'] = $clause->sub_query;
 			if (isset($clause->alias)) $join['alias'] = $clause->alias;
@@ -736,35 +726,41 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	 * Inner join a database table to the current selected table. 
 	 * 
 	 * @param string $table Table name
-	 * @param ?string $foreign_key [Optional] Foreign key
-	 * @param ?string $original_key [Optional] Parent key
+	 * @param string|\Closure|null $foreignKey [Optional] Foreign key
+	 * @param ?string $localKey [Optional] Parent key
 	 * @return static
 	 */
-	private function __join(string $table, ?string $foreign_key = null, ?string $original_key = null, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
+	private function __join(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null, string $type = 'LEFT', ?bool $is_crossed = false, ?string $operator = '=') : static
 	{
-		if ( ! isset($foreign_key) ) $foreign_key = strtolower($table).'_id';
+		if ( ! isset($foreignKey) ) $foreignKey = strtolower($table).'_id';
+		if ( $foreignKey instanceof \Closure) {
+			return $this->join($table, function(JoinClauseInterface $join) use($type, $foreignKey) {
+				$join->type($type);
+				$foreignKey($join);
+			});
+		}
 		
-		return $this->join($table, function(JoinClauseInterface $join) use ($foreign_key, $is_crossed, $original_key, $type, $operator) {
+		return $this->join($table, function(JoinClauseInterface $join) use ($foreignKey, $is_crossed, $localKey, $type, $operator) {
 			$join->type($type);
 			if ($is_crossed) $join->on('');
-			else if ($foreign_key != $original_key) $join->on($foreign_key . $operator . $original_key);
-			else $join->using($foreign_key);
+			else if ($foreignKey != $localKey) $join->on($foreignKey . $operator . $localKey);
+			else $join->using($foreignKey);
 		});
 	}
 
-	public function joinLeft(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
+	public function joinLeft(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self
 	{
-		return $this->__join($table, $foreign_key, $original_key);
+		return $this->__join($table, $foreignKey, $localKey);
 	}
 
-	public function joinRight(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
+	public function joinRight(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self
 	{
-		return $this->__join($table, $foreign_key, $original_key, 'RIGHT');
+		return $this->__join($table, $foreignKey, $localKey, 'RIGHT');
 	}
 
-	public function joinInner(string $table, ?string $foreign_key = null, ?string $original_key = null) : self
+	public function joinInner(string $table, string|\Closure|null $foreignKey = null, ?string $localKey = null) : self
 	{
-		return $this->__join($table, $foreign_key, $original_key, 'INNER');
+		return $this->__join($table, $foreignKey, $localKey, 'INNER');
 	}
 
 	public function joinCross(string $table) : self
@@ -828,14 +824,14 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 	{
 		$this->params['fields'] = $field;
 		$result = $this->exec();
-		return $result->result()->first()[$field];
+		return $result->result()->first()?->$field ?? null;
 	}
 
 	public function count(string $field = '*') : int
 	{
 		$this->params['fields'] = "COUNT($field)";
 		$result = $this->exec();
-		return (int) $result->result()->first()["COUNT($field)"];
+		return (int) $result->result()->first()?->{"COUNT($field)"};
 	}
 
 	public function sum(string $field) : int
@@ -1015,12 +1011,21 @@ class DBQuery extends DB implements Interfaces\QueryInterface
 		return $this;
 	}
 
-	public function getParams()
+	/**
+	 * Returns the query parameters
+	 * @return array
+	 */
+	public function getParams(): array
 	{
 		return $this->params;
 	}
 
-	public function getOptions()
+	/**
+	 * Returns the query options
+	 * 
+	 * @return ?array
+	 */
+	public function getOptions(): ?array
 	{
 		return $this->options;
 	}

@@ -1,5 +1,5 @@
 <?php
-namespace Clicalmani\Database\Interfaces;
+namespace Clicalmani\Database;
 
 interface JoinClauseInterface
 {

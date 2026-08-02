@@ -1,20 +1,20 @@
 <?php
 namespace Clicalmani\Database\SubQueries;
 
-use Clicalmani\Database\DBQuery;
-use Clicalmani\Database\DBQueryBuilder;
+use Clicalmani\Database\BuilderInterface;
+use Clicalmani\Database\QueryInterface;
 use Clicalmani\Database\Select;
 
 class DBSubQuery
 {
-    protected array $options;
-    protected DBQueryBuilder $builder;
+    protected array $options = [];
+    protected BuilderInterface $builder;
 
     private array $query_params = [];
     private array $query_options = [];
 
     public function __construct(
-        protected DBQuery $query,
+        protected QueryInterface $query,
         protected \Closure $callback
     )
     {
@@ -22,29 +22,46 @@ class DBSubQuery
         $this->backup();
     }
 
-    public function getOptions()
+    /**
+     * Returns the subquery options.
+     * @return array
+     */
+    public function getOptions(): array
     {
         return $this->options;
     }
 
-    public function getBuilder()
+    /**
+     * Returns the query builder.
+     * @return BuilderInterface
+     */
+    public function getBuilder(): BuilderInterface
     {
         return $this->builder;
     }
 
-    public function backup()
+    /**
+     * Backups sub-query data
+     */
+    public function backup(): void
     {
         $this->query_params = $this->query->getParams();
         $this->query_options = $this->query->getOptions();
     }
 
-    public function restore()
+    /**
+     * Restores the sub-query data
+     */
+    public function restore(): void
     {
         $this->query->setParams($this->query_params);
         $this->query->setOptions($this->query_options);
     }
 
-    public function call()
+    /**
+     * Execute the sub-query.
+     */
+    public function call(): void
     {
         // Set the parameters for the subquery
 		$this->query->setParams([]);
@@ -60,7 +77,11 @@ class DBSubQuery
         );
     }
 
-    public function getQuery()
+    /**
+     * Returns the main query.
+     * @return QueryInterface
+     */
+    public function getQuery(): QueryInterface
     {
         return $this->query;
     }

@@ -2,7 +2,9 @@
 namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Database\DBQuery;
+use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Database\Factory\Factory;
+use Clicalmani\Database\QueryInterface;
 use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Exceptions\ModelException;
 use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
@@ -16,7 +18,7 @@ use Override;
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-class Elegant extends AbstractModel implements ModelInterface, \Serializable
+class Elegant extends AbstractModel implements ModelInterface, \Serializable, \JsonSerializable
 {
     use SQLClauses;
     use SQLCases;
@@ -35,7 +37,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
      * 
      * @return bool True if defined, false otherwise
      */
-    private function isAliasRequired() : bool
+    public function isAliasRequired() : bool
     {
         /**
          * Escape insert query
@@ -76,63 +78,52 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
         return with ( new $class($id) );
     }
 
-    public function get(string $fields = '*') : CollectionInterface
+    protected function exec(string $fields = '*') : CollectionInterface
     {
         try {
-            if ( !$this->query->getParam('where') AND $this->id) {
-                $this->query->set('where', $this->getKeySQLCondition( $this->isAliasRequired() ));
-            }
-
-            // Exclude soft deleted records from the query results.
-            if ( $this->isSoftDeletable() ) {
-                $this->query->set('recycle', $this->query->getParam('recycle') ?? 1);
-            }
-
-            $this->query->set('calc', $this->calc_found_rows);     // Set SQL_CALC_FOUND_ROWS flag
-            
-            $results = $this->query->get($fields);
-
-            if ($this->with) {
-                $this->eagerLoad($results);
-            }
-
-            return $results;
-            
+            $this->query->set('calc', $this->calc_found_rows); // Set SQL_CALC_FOUND_ROWS flag
+            return $this->query->get($fields);                 // Send the request to the request builder
         } catch (\PDOException $e) {
             throw new \Clicalmani\Database\Exceptions\DBQueryException($e->getMessage());
         }
     }
 
-    public static function select(string $fields = '*') : self
+    public static function select(string $fields = '*') : static
     {
         $instance = static::getInstance();
-        $instance->query->set('fields', $fields);
-        return $instance;
+        $instance->query->set('fields', $fields); // Select specified columns from the model's table
+        return $instance;                         
     }
 
-    public function fetch(?string $class = null) : CollectionInterface
+    public function get(?string $fields = '*') : CollectionInterface
     {
-        $alias = $class ? (new $class)->getTableAlias(): $this->getTableAlias();
-
-        if (!$alias) {
-            $alias = $this->query->getPrefix() . ($class ? (new $class)->getTable(): $this->getTable());
+        if ( $fields && class_exists($fields) ) {
+            $model = new $fields;
+            $alias = $model->getTableAlias();
+            $select = "$alias.*";
+        } else {                                // Default the current model table's alias
+            $model = null;
+            $alias = $this->getTableAlias();
+            $select = $fields === '*' ? "$alias.*": $fields;
         }
         
-        return $this->get("$alias.*")->map(function($row) use($class) {
-            if ($class) return $class::getInstance( with( new $class )->guessKeyValue((array)$row) );
-            return static::getInstance( with( static::getInstance() )->guessKeyValue((array)$row) );
+        $results = $this->exec($select)->map(function($row) use($model) {
+            // If a class is specified create a model of that class
+            // By guessing the model key/value paire from the result.
+            // Then we instanciate the corresponding model for each result value.
+            if ($model) $instance = $model::class::getInstance( $model->guessKeyValue((array)$row) );
+
+            // Default to the current model class
+            else $instance = static::getInstance( with( static::getInstance() )->guessKeyValue((array)$row) );
+
+            return $instance->hydrate((array)$row); // Return the model with hydrated data.
         });
-    }
+        
+        if ($this->with) {
+            $this->eagerLoad($results);
+        }
 
-    public function fetchOne(?string $class = null) : ?self
-    {
-        return $this->fetch($class)->first();
-    }
-
-    public function fetchWith(?string $class = null, array $with = []): CollectionInterface
-    {
-        $this->with($with);
-        return $this->fetch($class);
+        return $results;
     }
 
     public function delete() : bool
@@ -318,15 +309,8 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
 
     public static function create(array $attributes = [], bool $replace = false) : self
     {
-        $attributes = [$attributes];
-        /** @var self */
-        $instance = static::getInstance();
-        
-        if ($id = $instance->getQuery()->insertGetId($attributes) ?: $instance->guessKeyValue($attributes)) {
-            return self::find($id);
-        }
-        
-        return new self;
+        return tap(static::getInstance(), 
+            fn($instance) => $instance->insert([$attributes], $replace));
     }
 
     public static function createOrFail(array $fields = [], ?bool $replace = false) : bool
@@ -388,7 +372,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
 
     public function first() : ?static
     {
-        if ($row = $this->get()->first()) 
+        if ($row = $this->exec()->first()) 
             return static::find( $this->guessKeyValue((array)$row) );
 
         return null;
@@ -417,13 +401,13 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
 
     public static function findMany(array $ids) : CollectionInterface
     {
-        return self::where()->whereIn(static::getInstance()->getKey(), $ids)->fetch();
+        return self::where()->whereIn(static::getInstance()->getKey(), $ids)->get();
     }
 
     public static function findOrFail(string|array|null $id) : self
     {
         $instance = self::find($id);
-        return @$instance->get()->{$instance->getKey()} ? $instance: throw new ModelNotFoundException("Model not found", 404);
+        return @$instance->exec()->{$instance->getKey()} ? $instance: throw new ModelNotFoundException("Model not found", 404);
     }
 
     public static function findOr(string|array|null $id, callable $callback) : mixed
@@ -439,7 +423,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
     {
         $instance = static::getInstance();
         
-        return $instance->get()->map(function($row) use($instance) {
+        return $instance->exec()->map(function($row) use($instance) {
             return static::getInstance( $instance->guessKeyValue((array)$row) );
         });
     }
@@ -476,7 +460,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
                 $obj->limit(@ $options?->offset, $options->limit);
             }
             
-            return $obj->fetch();
+            return $obj->get();
 
         } catch (\PDOException $e) {
             return collection();
@@ -508,9 +492,13 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
         return static::find($this->id);
     }
 
-    public static function query(): \Clicalmani\Database\DBQuery
+    public static function query(string|\Closure $select = '*'): \Clicalmani\Database\DBQuery
     {
-        return clone static::getInstance()->getQuery();
+        $q = clone static::getInstance()->getQuery();
+        if ($select instanceof \Closure) {
+            $select($q);
+        } else $q->set('fields', $select);
+        return $q;
     }
 
     public static function seed() : \Clicalmani\Database\Factory\FactoryInterface
@@ -615,67 +603,9 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
         return static::getInstance()->query->getPdo();
     }
 
-    public function with(array $relations): self
+    public function with(string|array $relations): static
     {
-        foreach ($relations as $method => $relation) {
-            
-            // 1. Method with() is called statically with relation name as key and relation class as value (eg. StaffingPlan::with(['requester' => Employee::class]))
-            if ( class_exists($relation) ) {
-                $this->with[$method] = $relation;
-                continue;
-            }
-
-            // 2. Method with() is called with nested relations (eg. StaffingPlan::with(['requester.position.company']))
-            $segments = explode('.', $relation);
-            $baseClass = $this::class;
-
-            foreach ($segments as $segment) {
-
-                // Try to guess relation class based on segment name (eg. requester => App\Models\Requester)
-                $supposedly_relation = "\\App\\Models\\" . Str::classify($segment);
-
-                if ( ! class_exists($supposedly_relation) ) {
-
-                    // If relation class doesn't exist, check if it is already defined in the with array (eg. requester => App\Models\Employee)
-                    if ( !isset($this->with[$segment]) ) {
-                        throw new \BadFunctionCallException(
-                            sprintf("Relation class %s not found for segment %s in relation path %s", $supposedly_relation, $segment, $relation)
-                        );
-                    }
-
-                    // If relation class is defined in the with array, use it as base class for the next segment (eg. requester => App\Models\Employee, position => App\Models\Position)
-                    if ( is_string($this->with[$segment]) ) {
-
-                        $relationClass = $this->with[$segment];
-
-                        $this->with[$segment] = $relationClass;
-
-                        $baseClass = $relationClass;
-                    }
-
-                    continue;
-                }
-
-                $this->with[$relation] = $supposedly_relation;
-
-                $baseClass = $supposedly_relation;
-            }
-
-            // 1. seg = employee
-            // sr = App\Models\Employee
-            // [employee => [relation => App\Models\Employee, base => App\Models\StaffingPlan]]
-            // baseClass = App\Models\Employee
-
-            // 2. seg = position
-            // sr = App\Models\Position
-            // [position => [relation => App\Models\Position, base => App\Models\Employee]]
-            // baseClass = App\Models\Position
-
-            // 3. seg = company
-            // sr = App\Models\Company
-            // [company => [relation => App\Models\Company, base => App\Models\Position]]
-        }
-
+        $this->with = (array) $relations;
         return $this;
     }
 
@@ -696,16 +626,58 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
         return json_encode( $this );
     }
 
+    public function __invoke(?string $fields = '*')
+    {
+        return $this->exec($fields);
+    }
+
+    public function jsonSerialize() : mixed
+    {
+        if (!$this->id) return null;
+
+        $entity = $this->getEntity();
+        $cache = $entity->getCachedAttributesValues();
+
+        // Attributes
+        $data = [];
+        $asFresh = [];
+        foreach ($entity->getAttributes() as $attribute) {
+            if ($attribute->isHidden()) continue;
+            $data[$attribute->name] = $cache[$attribute->name] ?? null;
+            $this->attributes[] = $attribute->name;
+
+            if ($attribute->keepFresh()) {
+                if (empty($asFresh)) {
+                    $asFresh = (array)($this)(implode(', ', array_map(fn($name) => "`$name`", $this->asFresh)))->first();
+                }
+                $data[$this->asFreshPrefix . $attribute->name] = $asFresh[$attribute->name] ?? null;
+            }
+        }
+        
+        // Custom attributes
+        $data2 = [];
+        foreach ($this->custom as $name) {
+            $entity->setAccess(Entity::READ_RECORD);
+            $attribute = $entity->getAttribute($name);
+            $data2[$name] = $attribute->getCustomValue();
+        }
+        
+        return array_merge($data, $data2, $this->relations);
+    }
+
     private function eagerLoad(CollectionInterface $results)
     {
-        foreach ($this->with as $relation => $data) {
-            if ( !method_exists($this, $relation) ) continue;
-
-            $reflection = new \ReflectionMethod($this, $relation);
-            $returnType = $reflection->getReturnType();
+        foreach ($this->with as $relation) {
+            $parts = explode('.', $relation);
+            $root = array_shift($parts);
+            if ( !method_exists($this, $root) ) continue;
             
-            if ($returnType && $class = $returnType->getName()) {
-                $this->$relation()->loadNestedRelations($results, $relation, $data);
+            $reflection = new \ReflectionMethod($this, $root);
+            $returnType = $reflection->getReturnType();
+            $class = $returnType?->getName();
+            
+            if ($returnType && is_subclass_of($class, \Clicalmani\Database\Factory\Models\Relations\Relationship::class)) {
+                $this->{$root}()->loadNestedRelations($results, $relation);
             }
         }
     }
@@ -714,16 +686,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
     public function serialize()
     {
         return serialize([
-            'id' => $this->id,
-            // 'table' => $this->table,
-            // 'params' => $this->query->params,
-            // 'attributes' => $this->attributes,
-            // 'fillable' => $this->fillable,
-            // 'guarded' => $this->guarded,
-            // 'custom' => $this->custom,
-            // 'dates' => $this->dates,
-            // 'dispatchesEvents' => $this->dispatchesEvents,
-            // 'entity_instance' => $this->entity_instance
+            'id' => $this->id
         ]);
     }
 
@@ -731,18 +694,180 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable
     public function unserialize(string $data)
     {
         $payload = unserialize($data);
-
-        // $this->id = $payload['id'];
-        // $this->table = $payload['table'];
-        // $this->query()->setParams($payload['params']);
-        // $this->attributes = $payload['attributes'];
-        // $this->fillable = $payload['fillable'];
-        // $this->guarded = $payload['guarded'];
-        // $this->custom = $payload['custom'];
-        // $this->dates = $payload['dates'];
-        // $this->dispatchesEvents = $payload['dispatchesEvents'];
-        // $this->entity_instance = $payload['entity_instance'];
-
         parent::__construct($payload['id']);
+    }
+
+    /**
+     * Set a relationship on the model
+     * 
+     * @param string $relation
+     * @param self $value
+     * @return self
+     */
+    public function setRelation(string $relation, $value): self
+    {
+        $parts = explode('.', $relation);
+        $root = array_shift($parts);
+        
+        if (isset($this->relations[$root])) {
+            $value = $this->relations[$root];
+        } else {
+            $this->relations[$root] = $value;
+        }
+
+        if ( $parts && method_exists($value, $parts[0]) ) {
+            $reflection = new \ReflectionMethod($value, $parts[0]);
+            $returnType = $reflection->getReturnType();
+            $class = $returnType->getName();
+
+            if ($returnType && is_subclass_of($class, \Clicalmani\Database\Factory\Models\Relations\Relationship::class)) {
+                $value->{$parts[0]}()->loadNestedRelations(collect([$value]), join('.', $parts));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get a relationship
+     */
+    public function getRelation(string $relation)
+    {
+        return $this->relations[$relation] ?? null;
+    }
+
+    /**
+     * Get all relations
+     */
+    public function getRelations(): array
+    {
+        return $this->relations;
+    }
+
+    /**
+	 * Extract pivot columns (prefixed with 'pivot_')
+	 * 
+	 * @param array $data
+	 */
+	public function hydrate(array $data): self
+    {
+        if ($data) {
+            $pivotData = [];
+            foreach ($data as $key => $value) {
+                if (strpos($key, 'pivot_') === 0) {
+                    $pivotKey = substr($key, 6);
+                    $pivotData[$pivotKey] = $value;
+                    unset($data[$key]);
+                }
+            }
+            
+            $this->pivot = $pivotData;
+            
+            // Set other attributes
+            foreach ($data as $key => $value) {
+                $this->{$key} = $value;
+            }
+        }
+        
+        return $this;
+    }
+
+    public function setPivot(array $pivot): self
+    {
+        $this->pivot = $pivot;
+        return $this;
+    }
+
+    public function getPivot(): array
+    {
+        return $this->pivot;
+    }
+
+    /**
+     * Pivot
+     * 
+     * @param class-string<self> $pivotClass
+     * @param ?string $foreignKey
+     * @return self
+     */
+    public function pivotLeft(string $pivotClass, ?string $foreignKey = null, ?string $parentKey = null)
+    {
+        return $this->pivot($pivotClass, $foreignKey);
+    }
+
+    /**
+     * Pivot
+     * 
+     * @param class-string<self> $pivotClass
+     * @param ?string $foreignKey
+     * @return self
+     */
+    public function pivotRight(string $pivotClass, ?string $foreignKey = null)
+    {
+        return $this->pivot($pivotClass, $foreignKey, 'right');
+    }
+
+    /**
+     * Pivot
+     * @return self
+     */
+    private function pivot(string $pivotClass, ?string $foreignKey = null, ?string $direction = 'left'): self
+    {
+        $indexes = ['left' => 0, 'right' => 1]; // Direction indexes
+
+        $pivotModel = new $pivotClass;
+        $foreignKey = $foreignKey ?? Str::singularize($this->getTable()) . '_id';
+
+        $tables = explode('_', $pivotModel->getTable());
+
+        if ( count($table) !== 2 ) {
+            return $this;
+        }
+
+        $secondKey  = $tables[$indexes[$direction]] . '_id'; 
+
+        $rows = $pivotModel->newQuery()
+                    ->where("{$foreignKey} = ?", [$this->{$this->getKey()}])
+                    ->get();
+
+        $data = [];
+        foreach ($rows as $row) {
+            $data[$row->{$foreignKey}] = $row->{$secondKey};
+        }
+
+        return $this->setPivot($data);
+    }
+    
+    public function fresh(string|array $name): mixed
+    {
+        if ( is_string($name) ) return $this->exec("`{$name}`")->first()?->{$name};
+        return $this->exec(collect($name)->map(fn(string $n) => "`{$n}`")->join(', '))->toArray();
+    }
+
+    /**
+     * Add a "where exists" clause to the query for a given relationship.
+     * @param array $relation The relationship to check for existence.
+     * @param \Closure $callback A callback to modify the query for the relationship.
+     * @return self
+     */
+    public function withExists(array $relation, \Closure $callback) : self
+    {
+        /** @var class-string<self> */
+        $morphClass = array_key_first($relation);
+        /** @var string */
+        $alias = $relation[$morphClass];
+        $morphModel = new $morphClass;
+
+        $foreignKey = Str::singularize($this->getTable()) . '_id';
+        $morphType = Str::singularize($morphModel->getTable()) . '_type';
+
+        (new \Clicalmani\Database\SubQueries\WithExists($this->query, function(QueryInterface $query) use($morphModel, $foreignKey, $morphType, $callback) {
+            $query->selectRaw('1')
+                ->from($morphModel->getTable(true))
+                ->where("{$foreignKey} = {$this->getTableAlias()}.{$this->getKey()}");
+                $callback($query);
+        }))($alias);
+
+        return $this;
     }
 }

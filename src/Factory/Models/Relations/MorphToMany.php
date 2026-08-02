@@ -2,62 +2,213 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
 use Override;
 
 class MorphToMany extends Relationship
 {
+    private Elegant $related;
+    private string $tablePrefix = '';
+    private string $morphType;
+    private Elegant $pivotModel;
+    private string $table = '';
+    private string $tableAlias = '';
+
     /**
-     * @param Elegant $model        Le modèle parent (ex: Post)
-     * @param string $relatedClass  Le modèle cible (ex: Comment)
-     * @param string $name          Le nom de la relation (ex: 'commentable')
-     * @param string $table         Le nom de la table pivot (ex: 'commentables')
-     * @param string $morphKey      Clé pointant vers le parent (ex: 'commentable_id')
-     * @param string $foreignKey    Clé pointant vers la cible (ex: 'comment_id')
+     * @param Elegant $model        The parent model (e.g., Post)
+     * @param class-string<Elegant> $relatedClass  The target model (e.g., Comment)
+     * @param string $name                 The relationship name (e.g., 'commentable')
+     * @param string $pivotClass           The pivot class name (e.g., 'Commentable')
+     * @param string $morphKey             Key pointing to the parent (e.g., 'commentable_id')
+     * @param string $foreignKey           Key pointing to the target (e.g., 'comment_id')
      */
     public function __construct(
         protected Elegant $model,
         protected string $relatedClass,
         protected string $name,
-        protected ?string $table = null,
+        protected ?string $pivotClass = null,
         protected ?string $morphKey = null,
         protected ?string $foreignKey = null
     ) {
-        $this->table = $table ?: Str::pluralize($name);
+        $this->pivotClass = $pivotClass ?: Str::pluralize($name);
+        $this->pivotModel = new $pivotClass;
+
+        $this->related = new $relatedClass;
+        $this->query   = $this->related->newQuery();
+
+        $this->table      = $this->pivotModel->getTable(true);
+        $this->tableAlias = $this->pivotModel->getTableAlias();
+        $this->morphKey   = $this->morphKey   ?: $this->name . '_id';
+        $this->morphType  = $this->name . '_type';
+        $this->foreignKey = $this->foreignKey ?: Str::singularize($this->related->getTable()) . '_id'; // e.g., comment_id
+
+        $this->tablePrefix = DB::getPrefix(); // Database table prefix (Optional)
     }
 
-    public function get(): mixed
+    public function get(?string $fields = '*'): mixed
     {
-        /** @var \Clicalmani\Database\Factory\Models\Elegant */
-        $related = new $this->relatedClass;
-        /** @var string */
-        $tablePrefix = DB::getPrefix();
+        // Select target table column only
+        $this->query->selectRaw($this->related->getTableAlias() . '.*');
         
-        // Déduction des noms de colonnes
-        $morphKey   = $this->morphKey   ?: $this->name . '_id';
-        $morphType  = $this->name . '_type';
-        $foreignKey = $this->foreignKey ?: Str::singularize($related->getTable()) . '_id';
+        // Join : comments.id = commentables.comment_id
+        $this->query->joinInner($this->table, $this->related->getKey(true), "{$this->tableAlias}.{$this->foreignKey}");
 
-        // Initialisation du query builder du modèle cible (ex: Comment)
-        $query = $related->newQuery();
+        // Filters:
+        // 1. Parent ID (e.g., posts.id) commentables.commentable_id = posts.id
+        $this->query->where("{$this->tableAlias}.{$this->morphKey} = ?", [$this->model->{$this->model->getKey()}]);
         
-        // On sélectionne les données de la table cible
-        $query->selectRaw($related->getTable() . '.*');
-        
-        // Jointure : related_table.id = pivot_table.comment_id
-        $query->joinInner($this->table, $related->getKey(true), "{$tablePrefix}{$this->table}.{$foreignKey}");
+        // 2. Parent type (e.g., 'App\Models\Post')
+        // e.g., commentables.commentable_type = 'App\Models\Post'
+        $this->query->where("{$this->tableAlias}.{$this->morphType} = ?", [$this->model::class]);
 
-        // Filtres :
-        // 1. L'id du parent (ex: post_id)
-        $query->where("{$tablePrefix}{$this->table}.{$morphKey} = ?", [$this->model->{$this->model->getKey()}]);
-        
-        // 2. Le type du parent (ex: 'App\Models\Post')
-        // Important pour ne pas récupérer les commentaires d'une Vidéo qui aurait le même ID qu'un Post
-        $query->where("{$tablePrefix}{$this->table}.{$morphType} = ?", [$this->model::class]);
-
-        $this->result = $related->fetch($this->relatedClass);
+        $this->result = $this->related->get($fields);
 
         return $this->result;
+    }
+
+    public function getParentKeys(array $models): array
+    {
+        return $this->getModelKeys($models, $this->model->getKey());
+    }
+
+    public function getEager(array $keys): CollectionInterface
+    {
+        if (empty($keys)) {
+            return collect();
+        }
+        
+        return $this->relatedClass::select()                                                                  // SELECT comments.* FROM comments
+            ->whereIn("{$this->pivotModel->getTableAlias()}.{$this->morphKey}", $keys)                          // commentables.commentable_id IN (IDs)
+            ->andWhere("{$this->pivotModel->getTableAlias()}.{$this->morphType} = ?", [$this->model::class])    // commentables.commentable_type = 'App\Models\Post'
+            ->innerJoin($this->pivotClass,                                                                         // Join commentables
+                "{$this->related->getTableAlias()}.{$this->related->getKey()}",             // comments.id                                                   // comments.id
+                "{$this->pivotModel->getTableAlias()}.{$this->foreignKey}"                                      // commentables.comment_id
+            )
+            ->get("{$this->related->getTableAlias()}.*, {$this->pivotModel->getTableAlias()}.{$this->morphKey}");                               
+    }
+
+    public function match(array $models, CollectionInterface $results, string $relation): void
+    {
+        $dictionary = [];
+        
+        /** @var Elegant $result Target model (e.g., Comment) */
+        foreach ($results as $result) {
+            // Retrieve morphKey from the pivot 
+            // Otherwise retrieve it from the hydrated data
+            $pivotData = $result->getPivot() ?? [];
+            $key = isset($pivotData[$this->morphKey]) ? $pivotData[$this->morphKey]: $result->{$this->morphKey};
+            
+            if ($key) {
+                if (!isset($dictionary[$key])) {
+                    $dictionary[$key] = [];
+                }
+                $dictionary[$key][] = $result;
+            }
+        }
+        
+        foreach ($models as $model) {
+            $key = (string) $model->{$this->model->getKey()};
+            
+            if (isset($dictionary[$key])) {
+                $model->setRelation($relation, $dictionary[$key]);
+            } else {
+                $model->setRelation($relation, collect());
+            }
+        }
+    }
+
+    /**
+     * Attach a model
+     * 
+     * @param string|array $id
+     * @param ?array $attributes
+     * @return bool
+     */
+    public function attach(string|array $id, ?array $attributes = []): bool
+    {
+        $ids = is_array($id) ? $id : [$id];
+        $success = true;
+
+        $morphType = $this->name . '_type';
+
+        foreach ($ids as $currentId) {
+            $data = [
+                $this->morphKey => $this->model->{$this->model->getKey()},
+                $this->foreignKey => $currentId,
+                $morphType => $this->model::class
+            ];
+
+            $insertData = array_merge($data, $attributes);
+
+            try {
+                $success = DB::table($this->table)->insert($insertData)->exec() === 'success';
+            } catch (\Exception $e) {
+                $success = false;
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Detache a model
+     * 
+     * @param string|array|null $id
+     * @return bool
+     */
+    public function detach(string|array|null $id = null): bool
+    {
+        $ids = is_array($id) ? $id : [$id];
+
+        try {
+            return DB::table($this->table)->delete()
+                        ->where("{$this->morphKey} = ? AND {$this->morphType} = ?", [
+                            $this->model->{$this->model->getKey()},
+                            $this->model::class
+                        ])
+                        ->whereIn($this->foreignKey, $ids)
+                        ->exec()
+                        ->status() === 'success';
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Synchronize relationships
+     * 
+     * @param array $ids
+     * @return array
+     */
+    public function sync(array $ids): array
+    {
+        $changes = ['attached' => [], 'detached' => [], 'updated' => []];
+
+        $current = [];
+
+        $results = DB::table($this->table)->where("{$this->morphKey} = ? AND {$this->morphType} = ?", [
+                        $this->model->{$this->model->getKey()},
+                        $this->model::class
+                    ])->get($this->foreignKey);
+        
+        foreach ($results as $row) {
+            $current[] = (int) $row->{$this->foreignKey};
+        }
+
+        $detach = array_diff($current, $ids);
+        if (!empty($detach)) {
+            $this->detach($detach);
+            $changes['detached'] = array_values($detach);
+        }
+
+        $attach = array_diff($ids, $current);
+        if (!empty($attach)) {
+            $this->attach($attach);
+            $changes['attached'] = array_values($attach);
+        }
+
+        return $changes;
     }
 }

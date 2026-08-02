@@ -1,7 +1,6 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Database\Interfaces\QueryInterface;
 use Clicalmani\Foundation\Support\Facades\Log;
 use PDO;
 use PDOStatement;
@@ -16,18 +15,33 @@ use PDOStatement;
  * @package Flesco\Database
  * @author @clicalmani
  */
-abstract class DB implements Interfaces\DBInterface
+abstract class DB implements DBInterface
 {
+	/**
+	 * Permit dirty reads
+	 * 
+	 * @var int
+	 */
 	const TRANSACTION_DIRTY_READS = 0x0;
 
+	/**
+	 * Permit non repeatable reads
+	 * 
+	 * @var int
+	 */
 	const TRANSACTION_NON_REPEATABLE_READS = 0x0;
 
+	/**
+	 * Permit phantom reads
+	 * 
+	 * @var int
+	 */
 	const TRANSACTION_PHANTOM_READS = 0x1;
 
 	/**
-	 * Stores the single database instance for all connections.
+	 * Stores database instance.
 	 * 
-	 * @var \Clicalmani\Database\Interfaces\QueryInterface
+	 * @var QueryInterface
 	 */
 	private static $instance;
 
@@ -43,28 +57,31 @@ abstract class DB implements Interfaces\DBInterface
 	 * 
 	 * @var string
 	 */
-	private static $prefix;
+	private static string $prefix = '';
 
 	/**
 	 * Toggle query log
+	 * When enabled, all the queries will be logged.
 	 * 
 	 * @var bool
 	 */
-	private static $logQuery = false;
+	private static bool $logQuery = false;
 
 	/**
-	 * DB config
+	 * Database config
 	 * 
 	 * @var array
 	 */
-	private static $db_config;
+	private static array $db_config = [];
 
 	/**
-	 * Database connection
+	 * Stores the current database connection
 	 * 
 	 * @var array
 	 */
-	private static $connection;
+	private static array $connection = [];
+
+	private int $transactionLevel = 0;
 	
 	public function setConnection(string $driver = '') : void
 	{
@@ -123,6 +140,7 @@ abstract class DB implements Interfaces\DBInterface
 			static::$connection = static::$db_config['connections'][static::$db_config['default']];
 		} else {
 
+			// Verify the connection driver parameter
 			if ( ! isset(static::$db_config['connections'][$driver]) ) {
 				die('Database connection not set');
 			}
@@ -165,7 +183,11 @@ abstract class DB implements Interfaces\DBInterface
 	
 	public function getPrefix() : string { return static::$prefix ?? env('DB_TABLE_PREFIX'); }
 	
-	public function getInstance() : \Clicalmani\Database\Interfaces\QueryInterface
+	/**
+	 * Returns the current database instance.
+	 * @return QueryInterface
+	 */
+	public function getInstance() : QueryInterface
 	{
 	    if ( ! static::$instance ) {
 			self::getPdo();
@@ -175,6 +197,10 @@ abstract class DB implements Interfaces\DBInterface
 		return self::$instance;
 	}
 
+	/**
+	 * Returns the current pdo instance.
+	 * @return \PDO
+	 */
 	public function getPdo() : \PDO
 	{
 		if ( static::$pdo ) return static::$pdo;
@@ -212,30 +238,60 @@ abstract class DB implements Interfaces\DBInterface
 		}
 	}
 
+	/**
+	 * Set a PDO instance to be use for the next query.
+	 * 
+	 * @param \PDO $pdo A PDO object
+	 */
 	public function setPdo(\PDO $pdo) : void
 	{
 		static::$pdo = $pdo;
 	}
 	
+	/**
+	 * Execute a statement request on the database.
+	 * 
+	 * @param string $sql The SQL code to execute
+	 * @param ?array $options Parameters options
+	 * @param ?array $flags Option flags
+	 * @return \PDOStatement
+	 */
 	public function query(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
 	{
 		$statement = static::prepare(DBQueryBuilder::bindVars($sql), $flags);
 		$statement->execute($options);
-		
 		return $statement;
 	} 
 
+	/**
+	 * Enable query log
+	 * Statement generated SQL code will be logged starting from where the call is made.
+	 * @return void
+	 */
 	public function enableQueryLog() : void
 	{
 		static::$logQuery = true;
 	}
 
+	/**
+	 * Execute a statement request.
+	 * 
+	 * @param string $sql
+	 * @return int|false
+	 */
 	public function execute(string $sql) : int|false
 	{
 		return static::$pdo->exec($sql);
 	}
 
-	public function fetch($statement, int $flag = PDO::FETCH_BOTH) : mixed
+	/**
+	 * Fetch rows
+	 * 
+	 * @param \PDOStatement $statement
+	 * @param int $flag
+	 * @return mixed
+	 */
+	public function fetch(\PDOStatement $statement, int $flag = PDO::FETCH_BOTH) : mixed
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
 		return null;
@@ -254,23 +310,47 @@ abstract class DB implements Interfaces\DBInterface
 		return [];
 	}
 	
+	/**
+	 * Retrieve a single row from the result
+	 * 
+	 * @param \PDOStatement $statement
+	 * @param ?int $flag
+	 * @return mixed
+	 */
 	public function getRow($statement, ?int $flag = PDO::FETCH_NUM) : mixed
 	{
 		if ($statement instanceof PDOStatement) return $statement->fetch($flag);
 		return [];
 	}
 	
+	/**
+	 * Return the row count for the statement result.
+	 * 
+	 * @return int
+	 */
 	public function numRows(PDOStatement $statement) : int
 	{ 
 		if ($statement instanceof PDOStatement) return $statement->rowCount(); 
 		return 0;
 	}
 
+	/**
+	 * Return the number of found rows for a SQL statement
+	 * 
+	 * @return int
+	 */
 	public function foundRows() : int
 	{
 		return @ static::query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
 	}
 
+	/**
+	 * Prepare a statement
+	 * 
+	 * @param string $sql
+	 * @param ?array $options
+	 * @return \PDOStatement
+	 */
 	public function prepare(string $sql, ?array $options = []) : PDOStatement
 	{
 		if (!static::$pdo) self::getPdo();
@@ -282,8 +362,18 @@ abstract class DB implements Interfaces\DBInterface
 		return self::$pdo->prepare(DBQueryBuilder::bindVars($sql), $options);
 	}
 	
+	/**
+	 * Retrieve the error message
+	 * 
+	 * @return array
+	 */
 	public function error() : array { return static::$pdo->errorInfo(); }
 	
+	/**
+	 * Retrieve the error code
+	 * 
+	 * @return string
+	 */
 	public function errno() : string { return static::$pdo->errorCode(); }
 	
 	/**
@@ -291,58 +381,99 @@ abstract class DB implements Interfaces\DBInterface
 	 */
 	public function insertId() : string|false { return static::$pdo->lastInsertId(); }
 
+	/**
+	 * Retrieve the last insert id
+	 * 
+	 * @return string|false
+	 */
 	public function lastInsertId() : string|false { return static::$pdo->lastInsertId(); }
 
+	/**
+	 * Free a statement
+	 * 
+	 * @param \PDOStatement $statement Statement to free
+	 * @return ?bool
+	 */
 	public function free(PDOStatement $statement) : ?bool
 	{ 
 		if ($statement instanceof PDOStatement) return $statement = null; 
 		return false;
 	}
 
-	public function transaction(?callable $callback = null) : mixed
+	/**
+	 * Begin a transaction
+	 * 
+	 * @param ?\Closure $callback
+	 */
+	public function transaction(?\Closure $callback = null) : mixed
 	{
-		if ( !isset($callback) ) {
-			static::$pdo->beginTransaction(); 
-			return static::$pdo;
+		$pdo = static::$pdo ?? static::getPdo();
+
+		if ( ! isset($callback) ) {
+			if ( ! $pdo->inTransaction() ) $pdo->beginTransaction();
+			return $pdo;
 		}
 
 		if ( is_callable($callback) ) {
-			
-			static::$pdo->beginTransaction();
-			
+
+			$nested = $pdo->inTransaction();
+			$savepoint = 'trans_sp_' . (++$this->transactionLevel);
+
 			try {
+				$nested ? $pdo->exec("SAVEPOINT $savepoint") : $pdo->beginTransaction();
 
 				$success = $callback();
-				
+
 				if ( $success ) {
-					static::commit();
+					$nested ? $pdo->exec("RELEASE SAVEPOINT $savepoint") : self::commit();
+					$this->transactionLevel--;
 					return $success;
 				}
 
-				static::rollback();
-
+				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : self::rollback();
+				$this->transactionLevel--;
 				return $success;
+
 			} catch (\Exception $e) {
-				static::rollback();
-				throw new \Exception($e->getMessage(), 0, $e);
+				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : self::rollback();
+				$this->transactionLevel--;
+				throw $e;
 			}
 		}
 
 		return null;
 	}
 
+	/**
+	 * Begin a transaction
+	 * Alias of transaction
+	 * 
+	 * @param ?\Closure $callback
+	 * @return mixed
+	 */
 	public function beginTransaction(?callable $callback = null) : mixed
 	{
 		return static::transaction($callback);
 	}
 
-	public function deadlock(callable $callback, int $attemps = 5, int $sleep = 100) : mixed
+	/**
+	 * Handling deadlocks in a simultanous transactions by using a callback function.
+	 * 
+	 * @param \Closure $callback
+	 * @param ?int $attemps Number of attemps to recover
+	 * @param ?int $sleep Time delay for each attemp
+	 * @return mixed
+	 */
+	public function deadlock(\Closure $callback, int $attemps = 5, int $sleep = 100) : mixed
 	{
 		while ($attemps--) {
 			try {
 				return static::transaction($callback);
 			} catch (\PDOException $e) {
-				if ($attemps === 0) {
+				$isRealDeadlock = $e->getCode() === '40001' 
+					|| str_contains($e->getMessage(), 'Deadlock found');
+
+				if ( ! $isRealDeadlock || $attemps === 0 ) {
 					throw $e;
 				}
 				usleep($sleep);
@@ -352,21 +483,60 @@ abstract class DB implements Interfaces\DBInterface
 		return null;
 	}
 
+	/**
+	 * Commit statements
+	 * 
+	 * @return bool
+	 */
 	public function commit() : bool { return !!static::$pdo?->commit(); }
 
+	/**
+	 * Rollback back statements
+	 * 
+	 * @return bool
+	 */
 	public function rollback() : bool { return !!static::$pdo?->rollback(); }
 
+	/**
+	 * Verify if a transaction is already running.
+	 * 
+	 * @return bool
+	 */
 	public function inTransaction() : bool { return !!static::$pdo?->inTransaction(); }
 
+	/**
+	 * Savepoint statement: Create a savepoint to rollback to.
+	 * 
+	 * @param string $name The savepoint name
+	 * @return \PDOStatement
+	 */
 	public function savePoint(string $name) : \PDOStatement { return static::statement("SAVEPOINT $name"); }
 
+	/**
+	 * Rollback to save point
+	 * 
+	 * @param string $savePoint 
+	 * @see savePoint
+	 */
 	public function rollbackTo(string $savepoint) : \PDOStatement { return static::statement("ROLLBACK TO SAVEPOINT $savepoint"); }
 	
-	public function isolateTransaction(int $isolation_lavel, ?string $scope = '') : \PDOStatement
+	/**
+	 * Prevent transaction anomalies
+	 * 
+	 * @param int $isolationLevel Specify which isolation level to use
+	 * 	Here are the four possible transaction isolation levels
+	 * 		- READ UNCOMMITED Allow dirty, nonrepeatable, and phantom reads.
+	 * 		- READ COMMITED Allow nonrepeatable and phantom reads.
+	 * 		- REPEATABLE READ Allow phantom reads only.
+	 * 		- SERIALIZABLE full transaction isolation.
+	 * @param ?string $scope Specify the isolation scope: global isolation (GLOBAL) or session isolation (SESSION)
+	 * @return \PDOStatement
+	 */
+	public function isolateTransaction(int $isolationLevel, ?string $scope = '') : \PDOStatement
 	{
 		$query = "SET TRANSACTION ISOLATION LEVEL $scope";
 
-		return match ($isolation_lavel) {
+		return match ($isolationLevel) {
 			self::TRANSACTION_DIRTY_READS|self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ UNCOMMITED'),
 			self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ COMMITED'),
 			self::TRANSACTION_NON_REPEATABLE_READS => static::$pdo->query($query . ' REPEATABLE READ'),
@@ -392,17 +562,13 @@ abstract class DB implements Interfaces\DBInterface
 
 	public function select(string $sql, ?array $options = [], ?array $flags = []) : array
 	{
-		$statement = static::$pdo->prepare($sql);
-		$statement->execute($options);
-		
+		$statement = self::statement($sql, $options, $flags);
 		return $statement->fetchAll(...$flags);
 	}
 
 	public function selectOne(string $sql, ?array $options = [], ?array $flags = []) : array
 	{
-		$statement = static::$pdo->prepare($sql);
-		$statement->execute($options);
-		
+		$statement = self::statement($sql, $options, $flags);
 		return $statement->fetch(...$flags);
 	}
 
@@ -410,7 +576,6 @@ abstract class DB implements Interfaces\DBInterface
 	{
 		$statement = static::getPdo()->prepare($sql, ...$flags);
 		$statement->execute($options);
-		
 		return $statement;
 	}
 

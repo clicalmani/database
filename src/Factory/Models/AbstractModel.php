@@ -13,7 +13,7 @@ use Clicalmani\Foundation\Support\Facades\Str;
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-abstract class AbstractModel implements Joinable, \JsonSerializable
+abstract class AbstractModel implements Joinable
 {
     use MultipleKeys;
 
@@ -50,7 +50,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @var array
      */
-    protected $attributes = [];
+    protected array $attributes = [];
 
     /**
      * Model entity
@@ -155,14 +155,49 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @var string[]
      */
-    protected $with;
+    protected array $with = [];
+
+    /**
+     * Store loaded relations
+	 * 
+	 * @var array<string, object|null>
+     */
+    protected array $relations = [];
+
+    /**
+	 * Pivot data
+	 * 
+	 * @var array
+	 */
+	protected array $pivot = [];
 
     /**
      * Model entity single instance
      * 
      * @var \Clicalmani\Database\Factory\Entity
      */
-    protected $entity_instance;
+    protected $entityInstance;
+
+    /**
+     * Auto cast attributes
+     * 
+     * @var bool
+     */
+    protected bool $autoCast = true;
+
+    /**
+     * Keep attributes fresh
+     * 
+     * @var array
+     */
+    protected array $asFresh = [];
+
+    /**
+     * Fesh attributes prefix
+     * 
+     * @var string
+     */
+    protected string $asFreshPrefix = 'fresh_';
 
     /**
      * Register model events
@@ -299,7 +334,7 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      * 
      * @return bool
      */
-    protected function isEmpty() : bool
+    public function isEmpty() : bool
     {
         return !($this->id && $this->primaryKey);
     }
@@ -315,7 +350,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $out = [];
 
         $entity = $this->getEntity();
-        $entity->setModel($this);
         
         foreach ($entity->getAttributes() as $attribute) {
             
@@ -370,8 +404,11 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function getEntity()
     {
-        if ($this->entity_instance) return $this->entity_instance;
-        return tap(new $this->entity, fn(Entity $entity) => $this->entity_instance = $entity);
+        if ($this->entityInstance) return $this->entityInstance;
+        $entity = new $this->entity;
+        $entity->setModel($this);
+        $this->entityInstance = $entity;
+        return $entity;
     }
 
     /**
@@ -414,6 +451,16 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->attributes;
     }
 
+    public function getAsFreshAttributes() : array
+    {
+        return $this->asFresh;
+    }
+
+    public function getAsFreshPrefix() : string
+    {
+        return $this->asFreshPrefix;
+    }
+
     /**
      * Get attribute default value
      * 
@@ -425,13 +472,15 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->attributes[$name] ?? null;
     }
 
-    public function join(string|callable|Elegant $model, ?callable $callback = null): static
+    public function join(string|\Closure|Elegant $model, ?\Closure $callback = null): self
     {
         if (is_string($model)) {
             /** @var \Clicalmani\Database\Factory\Models\Elegant */
             $model = new $model;
-            $this->query->join($model->getTable(true), $callback);
-        } elseif (is_callable($model)) $this->query->join($model);
+        }
+
+        if ($model instanceof \Closure) $this->query->join($model);
+        else $this->query->join($model->getTable(true), $callback);
         
         return $this;
     }
@@ -489,58 +538,6 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return $this->__join($model, null, null, 'CROSS');
     }
 
-    public function jsonSerialize() : mixed
-    {
-        if (!$this->id) return null;
-
-        if ($this->isSoftDeletable()) {
-            $this->query->set('recycle', $this->query->getParam('recycle') ?? 1);
-        }
-        
-        if (NULL === $row = $this->query->where($this->getKeySQLCondition())->get()->first()) return null;
-
-        $entity = $this->getEntity();
-        $entity->setModel($this);
-
-        $seemsJson = function(string $name, mixed &$value) use($entity) {
-            try {
-                $type = $entity->getPropertyType($name);
-
-                if ($type === \Clicalmani\Database\DataTypes\Json::class) {
-                    $value = (new $type)->decode((string) $value);
-                }
-            } catch (\Exception $e) {}
-        };
-
-        // Attributes
-        $data = [];
-        foreach ($row as $name => $value) {
-            $entity->setAccess(Entity::READ_RECORD);
-            $attribute = $entity->getAttribute($name);
-            $seemsJson($name, $value);
-            $attribute->value = $value;
-
-            if ($attribute->isHidden()) continue;
-
-            $data[$attribute->name] = $attribute->isNull() ? null: $attribute->value;
-            $this->attributes[] = $attribute->name;
-        }
-        
-        // Custom attributes
-        $data2 = [];
-
-        foreach ($this->custom as $name) {
-            $entity->setAccess(Entity::READ_RECORD);
-            $attribute = $entity->getAttribute($name);
-            $seemsJson($name, $value);
-            $attribute->value = $value;
-
-            $data2[$name] = $attribute->getCustomValue();
-        }
-        
-        return array_merge($data, $data2);
-    }
-
     /**
      * Set model connection
      * 
@@ -552,6 +549,18 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         $this->connection = $connection;
         $this->query->set('connection', $connection);
         return $this;
+    }
+
+    /**
+     * Enable or disable auto-cast
+     * 
+     * @param ?bool $state
+     * @return bool
+     */
+    public function autoCast(?bool $state = null) : bool
+    {
+        if (null !== $state) return $this->autoCast = $state;
+        return $this->autoCast;
     }
 
     /**
@@ -663,43 +672,58 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function __get(string $name) : mixed
     {
-        if ( empty($name) || $this->isEmpty() ) return null;
+        // ── Non Instanciated Model ────────────────────────
+        if ( $this->isEmpty() ) return null;
         
         $entity = $this->getEntity();
-        $entity->setModel($this);
+
         $entity->setAccess(Entity::READ_RECORD);
-        $attribute = $entity->getAttribute($name);
+        $attribute = $entity->getAttribute($name); // ── Column Attribute ───────────
+
+        // ── Relation Call ─────────────────────────────────
+        // Relationship exists
+        if ( array_key_exists($name, $this->relations) ) {
+            return $this->relations[$name];
+        }
+
+        // When a relation is called as an attribute.
+        if ( method_exists($this, $name) ) {
+            $relation = $this->{$name}();
+            if ( is_subclass_of($relation, \Clicalmani\Database\Factory\Models\Relations\Relationship::class)) {
+                return $relation->get();
+            }
+        }
+
+        // ── Custom Attribute ──────────────────────────────────────────────────
+        if ( $attribute->isCustom() ) {
+            return $this->{$attribute->customize()}();
+        }
+
+        // ── Fresh Attributes ──────────────────────────────────────────────────────
+        if (str_starts_with($name, $this->asFreshPrefix)) {
+            $name = str_replace($this->asFreshPrefix, '', $name);
+            if (in_array($name, $this->asFresh)) {
+                return ($this)()->first()?->$name ?? null;
+            }
+        }
+        
+        // ── Data Hydaration ───────────────────────────────
+        if (!$this->attributeExists($name)) {
+            return $this->attributes[$name] ?? null;
+        }
         
         try {
-            if ( $attribute->isCustom() ) {
-                return $this->{$attribute->customize()}();
-            }
-    
-            /**
-             * Hold up joints because the request will be made on the main query
-             */
-            $joint = $this->query->getParam('join');
-            $this->query->unset('join');
-            
-            $collection = $this->query->set('where', $this->getKeySQLCondition(true))->get("`$name`");
-            
-            /**
-             * Restore joints
-             */
-            $this->query->set('join', $joint);
-            
-            if ($row = $collection->first()) {
+            $value = $attribute->value;
 
-                $value = $row->{$name};
+            // ── Auto-Cast ──────────────────────────────────────────────────────
+            if ($value) {
+                /** @var class-string<\Clicalmani\Database\Factory\DataTypes\DataType> */
                 $type = $entity->getPropertyType($name);
-
-                if ($type === \Clicalmani\Database\DataTypes\Json::class) {
-                    $value = (new $type)->decode((string) $value);
-                }
-                
+                (new $type)->cast($value);
                 return $value;
             }
 
+            // ── Default Value ──────────────────────────────────────────────────────
             if ( $attribute->isDefault() ) {
                 return $attribute->getDefault();
             }
@@ -707,6 +731,8 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
             return null;
         } catch (\PDOException $e) {
             return null;
+        } catch (\Exception $e) {
+            return $attribute->value;
         }
     }
 
@@ -717,35 +743,38 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
      */
     public function __set(string $name, mixed $value) : void
     {
-        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable());
-        $found   = false;
+        // ── Model Entity ──────────────────────────────────────────────────────
+        $entity = $this->getEntity();
+        $found  = false;
         
-        foreach ($columns as $column) {
-            if ($column == $name) {
+        /**
+         * If column does not exist we keep it as an additional data.
+         * So that we can hydrate the model with external data.
+         */
+        if (!$this->attributeExists($name)) {
+            $this->attributes[$name] = $value;
+            return;
+        }
+        
+        // Seach for the attribute
+        foreach ($entity->getAttributes() as $attribute) {
+            if ($attribute->name == $name) {
                 $found = true;
                 break;
             }
         }
         
         if (false !== $found) {
-
-            $entity = $this->getEntity();
-            $entity->setModel($this);
-
             if ( $this->id && $this->primaryKey ) {
-
-                $entity->setAccess(Entity::UPDATE_RECORD);
-
+                $entity->setAccess(Entity::UPDATE_RECORD);  // Update a table row
             } else {
-
-                $entity->setAccess(Entity::ADD_RECORD);
-
+                $entity->setAccess(Entity::ADD_RECORD);     // Create a table row
             }
 
-            $entity->setProperty($name, $value);
+            $entity->setProperty($name, $value);            // Set the entity property value
 
         } else {
-            $error = sprintf("Error: can not update or insert new record on table %s", $this->getTable());
+            $error = sprintf("Error: can not update or insert new record on table %s", $this->table);
             throw new ModelException($error, ModelException::ERROR_3060);
         }
     }
@@ -776,57 +805,14 @@ abstract class AbstractModel implements Joinable, \JsonSerializable
         return !!@class_uses($this)[\Clicalmani\Database\Traits\SoftDelete::class];
     }
 
-    // private function eagerLoadRelationships(array $data) : array
-    // {
-    //     if (empty($this->with)) return $data;
-
-    //     foreach ($this->with as $relationship) {
-    //         if (method_exists($this, $relationship)) {
-    //             $data[$relationship] = $this->{$relationship}();
-    //         }
-    //     }
-
-    //     return $data;
-    // }
-
-    // protected function eagerLoad(array $models)
-    // {
-    //     foreach ($this->with as $relationship) {
-    //         if (method_exists($this, $relationship)) {
-    //             $related_models = $this->{$relationship}()->getRelatedModels($models);
-    //             foreach ($models as $model) {
-    //                 $model->{$relationship} = $related_models[$model->getKey()] ?? null;
-    //             }
-    //         }
-    //     }
-
-    //     return $models;
-    // }
-
-    // private function queryRelatedModels(string $relationName, array $keys)
-    // {
-    //     if (method_exists($this, $relationName)) {
-    //         return $this->{$relationName}()->getRelatedModelsByKeys($keys);
-    //     }
-
-    //     return [];
-    // }
-
-    // private function getRelatedModelsByKeys(string $relationName, array $keys)
-    // {
-    //     if (method_exists($this, $relationName)) {
-    //         return $this->{$relationName}()->getRelatedModelsByKeys($keys);
-    //     }
-
-    //     return [];
-    // }
-
-    // private function getRelatedModels(string $relationName, array $models)
-    // {
-    //     if (method_exists($this, $relationName)) {
-    //         return $this->{$relationName}()->getRelatedModels($models);
-    //     }
-
-    //     return [];
-    // }
+    /**
+     * Verify if an attribute exists
+     * 
+     * @param string $name Attribute name
+     * @return bool
+     */
+    public function attributeExists(string $name): bool
+    {
+        return $this->entityInstance->attributeExists($name);
+    }
 }
