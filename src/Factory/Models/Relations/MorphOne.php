@@ -37,7 +37,7 @@ class MorphOne extends Relationship
         // Filters
         // 1. imageable_id = ID 
         // 2. imageable_type = User::class
-        $this->query->where("{$this->idKey} = ?", [$this->model->{$this->model->getKey()}]);
+        $this->query->where("{$this->idKey} = ?", [$this->model->getKey()->scalarValue()]);
         $this->query->where("{$this->typeKey} = ?", [$this->model::class]);
 
         $this->result = $this->related->top(1)->get($fields);
@@ -47,7 +47,7 @@ class MorphOne extends Relationship
 
     public function getParentKeys(array $models): array
     {
-        return $this->getModelKeys($models, $this->model->getKey());
+        return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
     public function getEager(array $keys): CollectionInterface
@@ -76,7 +76,7 @@ class MorphOne extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()};
+            $key = (string) $model->{$this->model->getKey()->scalarName()};
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

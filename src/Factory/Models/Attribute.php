@@ -59,6 +59,8 @@ class Attribute
      */
     private $entity;
 
+    private bool $isCustom = false;
+
     public function __construct(string $name, mixed $value = null, ?int $access = 2)
     {
         $this->name = $name;
@@ -119,7 +121,15 @@ class Attribute
      */
     public function isCustom() : bool
     {
-        return !!in_array($this->name, $this->model->getCustomAttributes());
+        try {
+            $property = new \ReflectionProperty($this->entity, $this->name);
+            if ($property->hasHook(\PropertyHookType::Get)) {
+                return $this->isCustom = true;
+            }
+            return false;
+        } catch (\ReflectionException $e) {
+            return false;
+        } 
     }
 
     /**
@@ -162,6 +172,10 @@ class Attribute
      */
     public function getCustomValue() : mixed
     {
+        if ($this->isCustom) {
+            return $this->entity->resolveCustomAttribute($this->name);
+        }
+
         $custmized = $this->customize();
 
         if ( method_exists($this->model, $custmized) ) {
@@ -191,6 +205,7 @@ class Attribute
                 $this->entity = $this->model->getEntity();
                 $this->entity->setModel($value);
             break;
+            case 'isCustom': $this->isCustom = $value; break;
         }
     }
 
@@ -202,6 +217,7 @@ class Attribute
             case 'access': return $this->access;
             case 'entity': return $this->entity;
             case 'model': return $this->model;
+            case 'isCustom': return $this->isCustom;
         }
     }
 

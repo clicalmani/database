@@ -2,6 +2,7 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Support\Facades\DB;
 use Clicalmani\Foundation\Support\Facades\Str;
 
@@ -31,7 +32,7 @@ class MorphedByMany extends Relationship
         $this->query  = $this->parent->newQuery();
 
         // Guess the key from child table name if not specified (e.g., comment_id)
-        $this->foreignKey = $this->foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
+        $this->foreignKey = $this->foreignKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
         $this->morphKey   = $this->morphKey   ?: $this->name . '_id'; // e.g., commentable_id
         $this->morphType  = $this->name . '_type';                    // e.g., commentable_type
     }
@@ -42,15 +43,15 @@ class MorphedByMany extends Relationship
         $tablePrefix = DB::getPrefix();
 
         // Retrieve only parent columns
-        $this->query->selectRaw($this->parent->getTableAlias() . '.*');
+        $this->query->selectRaw($this->parent->getTable()->alias() . '.*');
         
         // Join to the pivot table (e.g., posts.id = commentables.commentable_id)
-        $this->query->joinInner($this->table, $this->parent->getKey(true), "{$tablePrefix}{$this->table}.{$this->morphKey}");
+        $this->query->joinInner($this->table, $this->parent->getKey()->scalarName(true), "{$tablePrefix}{$this->table}.{$this->morphKey}");
 
         // Filters: 
         // 1. Link the current model ID (child)
         // 2. Filter by morph type (parent class e.g., Post class)
-        $this->query->where("{$tablePrefix}{$this->table}.{$this->foreignKey} = ?", [$this->model->{$this->model->getKey()}]); // e.g., commentables.comment_id = ID
+        $this->query->where("{$tablePrefix}{$this->table}.{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()]); // e.g., commentables.comment_id = ID
         $this->query->where("{$tablePrefix}{$this->table}.{$this->morphType} = ?", [$this->parentClass]);                      // e.g., commentables.commentable_type = Post::class
 
         $this->result = $this->parent->get($fields);
@@ -60,7 +61,7 @@ class MorphedByMany extends Relationship
 
     public function getParentKeys(array $models): array
     {
-        return $this->getModelKeys($models, $this->model->getKey());
+        return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
     public function getEager(array $keys): CollectionInterface
@@ -75,9 +76,10 @@ class MorphedByMany extends Relationship
         return $this->parentClass::select()                                                 // SELECT * FROM commentables
             ->whereIn("{$tablePrefix}{$this->table}.{$this->foreignKey}", $keys)            // commentables.comment_id IN (IDs)
             ->where("{$tablePrefix}{$this->table}.{$morphType} = ?", [$this->parentClass])  // commentables.commentable_type = Post::class
-            ->joinInner($this->table, 
-                $this->parent->getKey(true),                                                // Join posts
-                "{$tablePrefix}{$this->table}.{$this->morphKey}"                            // commentables.commentable_id = posts.id
+            ->join(fn($join) => 
+                $join->inner()
+                    ->to($this->table) // Join posts
+                    ->on("{$this->parent->getKey()->scalarName(true)} = {$tablePrefix}{$this->table}.{$this->morphKey}") // commentables.commentable_id = posts.id
             )->get();         
     }
     
@@ -104,12 +106,12 @@ class MorphedByMany extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()};
+            $key = (string) $model->{$this->model->getKey()->scalarName()};
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);
             } else {
-                $model->setRelation($relation, new Collection());
+                $model->setRelation($relation, collect());
             }
         }
     }

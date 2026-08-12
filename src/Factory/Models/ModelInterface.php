@@ -15,26 +15,11 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     public function get(string $fields = '*') : CollectionInterface;
 
     /**
-     * Gets the query result
-     * 
-     * @param string $fields SQL select statement.
-     * @return static
-     */
-    public static function select(string $fields = '*') : static;
-
-    /**
      * Delete the model
      * 
      * @return bool true if success, false otherwise
      */
     public function delete() : bool;
-
-    /**
-     * Destroy all records in the table
-     * 
-     * @return bool True on success, false on failure
-     */
-    public static function destroy() : bool;
 
     /**
      * Make a delete possible but never delete
@@ -62,27 +47,6 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     public function insert(array $fields = [], ?bool $replace = false) : bool;
 
     /**
-     * Create a new record and return the instance.
-     * If the key is not auto incremented, the key value 
-     * will be guessed from the attributes values.
-     * 
-     * @param array $attributes Attributes values
-     * @param bool $replace Replace the record if exists
-     * @return self
-     * @throw \PDOException
-     */
-    public static function create(array $attributes = [], bool $replace = false) : self;
-
-    /**
-     * Create a new record or fail
-     * 
-     * @param ?array $fields
-     * @param ?bool $replace
-     * @return bool
-     */
-    public static function createOrFail(array $fields = [], ?bool $replace = false) : bool;
-
-    /**
      * Save changes
      * 
      * @return bool True on success, false on failure
@@ -107,9 +71,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     /**
      * Returns the first value in the selected result
      * 
-     * @return ?static
+     * @return ?self
      */
-    public function first() : ?static;
+    public function first() : ?self;
 
     /**
      * Returns the first value in the selected result or fail.
@@ -216,17 +180,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @throws \RuntimeException
      */
     public function registerObserver(\Clicalmani\Database\Events\EventObserverInterface $observer): void;
-
-    /**
-     * Emit a model event
-     * 
-     * @param string $event Event name
-     * @param mixed $data Event data
-     * @return bool
-     * @throws \RuntimeException
-     */
-    public function emit(string $event, mixed $data = null): void;
-
+    
     /**
      * Switch model connection
      * 
@@ -270,18 +224,9 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     /**
      * Return the model table name
      * 
-     * @param bool $keep_alias Wether to include table alias or not
-     * @return string Table name
+     * @return Table
      */
-    public function getTable(bool $keep_alias = false) : string;
-
-    /**
-     * Guess key value
-     * 
-     * @param array $row
-     * @return string|array|null
-     */
-    public function guessKeyValue(array $row) : string|array|null;
+    public function getTable() : Table;
 
     /**
      * Force delete the model when multiple rows must be affected.
@@ -300,20 +245,13 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     public function union(\Clicalmani\Database\Factory\Models\Elegant $model, bool $all = false) : self;
 
     /**
-     * Return the query builder instance for the model. Usefull for static methods call.
-      * 
-      * @return \Clicalmani\Database\DBQuery
-     */
-    public static function query(): \Clicalmani\Database\DBQuery;
-
-    /**
      * Get the model connection
      * 
      * @return \PDO
      */
     public static function getConnection(): \PDO;
 
-    public function with(array $relations): static|array;
+    public function scopeWith(string|array $relations): self;
 
     /**
      * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
@@ -322,21 +260,4 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return self
      */
     public function marker(?string $value = ':'): self;
-
-    /**
-     * Retrieve fresh data from the database.
-     * Usefull when data is auto-casted or auto-formatted.
-     * 
-     * @param string $name
-     * @return mixed
-     */
-    public function fresh(string|array $name): mixed;
-
-    /**
-     * Add a "where exists" clause to the query for a given relationship.
-     * @param array $relation The relationship to check for existence.
-     * @param \Closure $callback A callback to modify the query for the relationship.
-     * @return self
-     */
-    public function withExists(array $relation, \Closure $callback) : self;
 }

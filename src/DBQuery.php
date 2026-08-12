@@ -644,22 +644,22 @@ class DBQuery extends DB implements QueryInterface
 
 	public function get(string $select = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
 	{
-		$stringify = fn() => match (gettype($this->params['fields'])) {
-			'string' => $this->params['fields'],
-			'array'  => implode(', ', $this->params['fields']),
-			default  => '*',
+		$stringify = fn(mixed $fields, string $default) => match (gettype($fields)) {
+			'string' => $fields,
+			'array'  => implode(', ', $fields),
+			default  => $default,
 		};
 
 		if (!isset($this->params['fields'])) {
 			$this->params['fields'] = $select;
 		} elseif ($select === '*') {
 			$select = $stringify($this->params['fields'], $select);
-		} else {
+		} elseif ($this->params['fields'] !== '*') {
 			$select = $select . ', ' . $stringify($this->params['fields'], '');
 		}
 		
 		$this->params['fields'] = $select;
-
+		
 		if ( $this->union_query instanceof self ) {
 			/** @var \Clicalmani\Database\Union */
 			$builder = $this->builder;

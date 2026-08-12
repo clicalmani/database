@@ -88,22 +88,15 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         }
     }
 
-    public static function select(string $fields = '*') : static
-    {
-        $instance = static::getInstance();
-        $instance->query->set('fields', $fields); // Select specified columns from the model's table
-        return $instance;                         
-    }
-
     public function get(?string $fields = '*') : CollectionInterface
     {
         if ( $fields && class_exists($fields) ) {
             $model = new $fields;
-            $alias = $model->getTableAlias();
+            $alias = $model->getTable()->alias();
             $select = "$alias.*";
         } else {                                // Default the current model table's alias
             $model = null;
-            $alias = $this->getTableAlias();
+            $alias = $this->getTable()->alias();
             $select = $fields === '*' ? "$alias.*": $fields;
         }
         
@@ -111,11 +104,11 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
             // If a class is specified create a model of that class
             // By guessing the model key/value paire from the result.
             // Then we instanciate the corresponding model for each result value.
-            if ($model) $instance = $model::class::getInstance( $model->guessKeyValue((array)$row) );
+            if ($model) $instance = $model::class::getInstance( $model->getKey()->fromResult((array)$row) );
 
             // Default to the current model class
-            else $instance = static::getInstance( with( static::getInstance() )->guessKeyValue((array)$row) );
-
+            else $instance = static::getInstance( with( static::getInstance() )->getKey()->fromResult((array)$row) );
+            
             return $instance->hydrate((array)$row); // Return the model with hydrated data.
         });
         
@@ -131,7 +124,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         if ( $this->isSoftDeletable() ) return $this->softDelete();
 
         if ( $this->isEmpty() ) {
-            $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable());
+            $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable()->name());
             throw new ModelException($error, ModelException::ERROR_3060);
         }
 
@@ -139,7 +132,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
             /**
              * Don't add table alias for single delete.
              */
-            $this->query->set('where', $this->getKeySQLCondition( count( $this->query->getParam('tables') ) > 1 ? true: false ));
+            $this->query->where(...$this->getKey()->toSqlCondition());
         }
 
         // Save params
@@ -167,15 +160,8 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
          */
         if (!empty($this->query->params['where'])) return $this->query->delete()->exec()->status() === 'success';
 
-        $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable());
+        $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable()->name());
         throw new ModelException($error, ModelException::ERROR_3060);
-    }
-
-    public static function destroy() : bool
-    {
-        $instance = static::getInstance();
-        $instance->query->set('table', $instance->getTable());
-        return $instance->query->truncate();
     }
 
     public function softDelete() : bool
@@ -187,9 +173,9 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
     {
         if (empty($values)) return false;
         
-        $criteria = !$this->isEmpty() ? $this->getKeySQLCondition() : $criteria = $this->query->getParam('where');
+        $criteria = !$this->isEmpty() ? $this->getKey()->toSqlCondition() : [$this->query->getParam('where'), []];
         
-        if ( !empty( $criteria ) ) {
+        if ( !empty( $criteria[0] ) && !empty( $criteria[1] ) ) {
 
             if (FALSE === $this->isEmpty()) {
                 $this->emit('updating');
@@ -205,7 +191,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
             $this->query->set('type', DBQuery::UPDATE);
             $this->query->set('fields',  $fields);
 		    $this->query->set('values', $values);
-            $this->query->set('where', $criteria);
+            $this->query->where(...$criteria);
             $this->query->set('ignore', $this->insert_ignore); // Set SQL IGNORE flag
             
             $success = $this->query->exec()->status() === 'success';
@@ -221,7 +207,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
              * 
              * Verify whether key(s) is/are among the updated attributes
              */
-            collection( (array) $this->cleanKey($this->primaryKey) )
+            collection( (array) $this->primaryKey )
                 ->map(function($pkey, $index) use($record) {
                     if ( array_key_exists($pkey, $record) ) {               // The current key has been updated
                         if ( is_string($this->id) ) {
@@ -236,7 +222,10 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
             // Restore state
             $this->query->set('type', DBQuery::SELECT);
             
-            if (FALSE === $this->isEmpty()) $this->emit('updated'); 
+            if (FALSE === $this->isEmpty()) {
+                $this->reset();
+                $this->emit('updated'); 
+            }
             
             return $success;
         } 
@@ -257,7 +246,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         
         $this->query->unset('tables');
         $this->query->set('type', (FALSE === $replace) ? DBQuery::INSERT: DBQuery::REPLACE);
-        $this->query->set('table', $this->getTable());
+        $this->query->set('table', $this->getTable()->name());
         $this->query->set('ignore', $this->insert_ignore); // Set SQL IGNORE flag
 
         $keys = [];
@@ -272,7 +261,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
              */
             else {
                 if (count($keys) !== count(array_keys($field))) {
-                    $error = sprintf("Error: column count doesn't match values count; expected %d, got %d in table %s", count($keys), count(array_keys($field)), $this->getTable());
+                    $error = sprintf("Error: column count doesn't match values count; expected %d, got %d in table %s", count($keys), count(array_keys($field)), $this->getTable()->name());
                     throw new ModelException($error, ModelException::ERROR_3050);
                 }
             }
@@ -297,7 +286,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
 
         $this->query->unset('table');
         $this->query->set('type', DBQuery::SELECT);
-        $this->query->set('tables', [$this->getTable(true)]);
+        $this->query->set('tables', [$this->getTable()->withAlias()]);
         
         if (NULL !== $this->id) {
             // After create boot
@@ -305,17 +294,6 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         }
         
         return $success;
-    }
-
-    public static function create(array $attributes = [], bool $replace = false) : self
-    {
-        return tap(static::getInstance(), 
-            fn($instance) => $instance->insert([$attributes], $replace));
-    }
-
-    public static function createOrFail(array $fields = [], ?bool $replace = false) : bool
-    {
-        return DB::transaction(fn() => static::getInstance()->insert($fields, $replace));
     }
 
     public function save() : bool
@@ -344,12 +322,12 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         $this->unlock();
 
         // Reset back to select parameters 
-        // $this->data = [];
         $this->query->set('type', DBQuery::SELECT);
         $this->query->set('tables', [$this->table]);
         unset($this->query->params['table']);
         
         $this->emit('saved');
+        $this->reset();
 
         return $success;
     }
@@ -364,17 +342,17 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         $last_insert_id = DB::insertId();
         
         if (!$last_insert_id AND $record) {
-            $last_insert_id = $this->guessKeyValue($record);
+            $last_insert_id = $this->getKey()->fromResult($record);
         }
 
         return $last_insert_id;
     }
 
-    public function first() : ?static
+    public function first() : ?self
     {
-        if ($row = $this->exec()->first()) 
-            return static::find( $this->guessKeyValue((array)$row) );
-
+        if ($row = $this->exec()->first()) {
+            return static::find($this->getKey()->fromResult((array)$row));
+        } 
         return null;
     }
 
@@ -401,13 +379,13 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
 
     public static function findMany(array $ids) : CollectionInterface
     {
-        return self::where()->whereIn(static::getInstance()->getKey(), $ids)->get();
+        return static::where()->whereIn(static::getInstance()->getKey()->scalarName(), $ids)->get();
     }
 
     public static function findOrFail(string|array|null $id) : self
     {
         $instance = self::find($id);
-        return @$instance->exec()->{$instance->getKey()} ? $instance: throw new ModelNotFoundException("Model not found", 404);
+        return @$instance->exec()->{$instance->getKey()->scalarName()} ? $instance: throw new ModelNotFoundException("Model not found", 404);
     }
 
     public static function findOr(string|array|null $id, callable $callback) : mixed
@@ -424,7 +402,9 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         $instance = static::getInstance();
         
         return $instance->exec()->map(function($row) use($instance) {
-            return static::getInstance( $instance->guessKeyValue((array)$row) );
+            return static::getInstance( 
+                $instance->getKey()->fromResult((array)$row)
+            );
         });
     }
 
@@ -469,7 +449,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
 
     public function swap() : void
     {
-        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable());
+        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable()->name());
         $request = \Clicalmani\Foundation\Http\Request::current();
         
         foreach ($columns as $column) {
@@ -490,15 +470,6 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
     public function refresh() : self
     {
         return static::find($this->id);
-    }
-
-    public static function query(string|\Closure $select = '*'): \Clicalmani\Database\DBQuery
-    {
-        $q = clone static::getInstance()->getQuery();
-        if ($select instanceof \Closure) {
-            $select($q);
-        } else $q->set('fields', $select);
-        return $q;
     }
 
     public static function seed() : \Clicalmani\Database\Factory\FactoryInterface
@@ -603,7 +574,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         return static::getInstance()->query->getPdo();
     }
 
-    public function with(string|array $relations): static
+    public function scopeWith(string|array $relations): self
     {
         $this->with = (array) $relations;
         return $this;
@@ -648,7 +619,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
 
             if ($attribute->keepFresh()) {
                 if (empty($asFresh)) {
-                    $asFresh = (array)($this)(implode(', ', array_map(fn($name) => "`$name`", $this->asFresh)))->first();
+                    $asFresh = (array)($this)()->first();
                 }
                 $data[$this->asFreshPrefix . $attribute->name] = $asFresh[$attribute->name] ?? null;
             }
@@ -656,10 +627,10 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         
         // Custom attributes
         $data2 = [];
-        foreach ($this->custom as $name) {
-            $entity->setAccess(Entity::READ_RECORD);
-            $attribute = $entity->getAttribute($name);
-            $data2[$name] = $attribute->getCustomValue();
+        foreach ($entity->getAttributes() as $attribute) {
+            if ($attribute->isCustom()) {
+                $data2[$attribute->name] = $entity->resolveCustomAttribute($attribute->name);
+            }
         }
         
         return array_merge($data, $data2, $this->relations);
@@ -816,9 +787,9 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         $indexes = ['left' => 0, 'right' => 1]; // Direction indexes
 
         $pivotModel = new $pivotClass;
-        $foreignKey = $foreignKey ?? Str::singularize($this->getTable()) . '_id';
+        $foreignKey = $foreignKey ?? Str::singularize($this->getTable()->name()) . '_id';
 
-        $tables = explode('_', $pivotModel->getTable());
+        $tables = explode('_', $pivotModel->getTable()->name());
 
         if ( count($table) !== 2 ) {
             return $this;
@@ -827,7 +798,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         $secondKey  = $tables[$indexes[$direction]] . '_id'; 
 
         $rows = $pivotModel->newQuery()
-                    ->where("{$foreignKey} = ?", [$this->{$this->getKey()}])
+                    ->where("{$foreignKey} = ?", [$this->{$this->getKey()->scalarName()}])
                     ->get();
 
         $data = [];
@@ -836,38 +807,5 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         }
 
         return $this->setPivot($data);
-    }
-    
-    public function fresh(string|array $name): mixed
-    {
-        if ( is_string($name) ) return $this->exec("`{$name}`")->first()?->{$name};
-        return $this->exec(collect($name)->map(fn(string $n) => "`{$n}`")->join(', '))->toArray();
-    }
-
-    /**
-     * Add a "where exists" clause to the query for a given relationship.
-     * @param array $relation The relationship to check for existence.
-     * @param \Closure $callback A callback to modify the query for the relationship.
-     * @return self
-     */
-    public function withExists(array $relation, \Closure $callback) : self
-    {
-        /** @var class-string<self> */
-        $morphClass = array_key_first($relation);
-        /** @var string */
-        $alias = $relation[$morphClass];
-        $morphModel = new $morphClass;
-
-        $foreignKey = Str::singularize($this->getTable()) . '_id';
-        $morphType = Str::singularize($morphModel->getTable()) . '_type';
-
-        (new \Clicalmani\Database\SubQueries\WithExists($this->query, function(QueryInterface $query) use($morphModel, $foreignKey, $morphType, $callback) {
-            $query->selectRaw('1')
-                ->from($morphModel->getTable(true))
-                ->where("{$foreignKey} = {$this->getTableAlias()}.{$this->getKey()}");
-                $callback($query);
-        }))($alias);
-
-        return $this;
     }
 }

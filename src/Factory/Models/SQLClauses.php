@@ -3,12 +3,6 @@ namespace Clicalmani\Database\Factory\Models;
 
 trait SQLClauses
 {
-    protected function scopeWhere(mixed ...$args) : self
-    {
-        $this->query->where(...$args);
-        return $this;
-    }
-
     public function orWhere(mixed ...$args) : self
     {
         $this->query->orWhere(...$args);
@@ -33,63 +27,15 @@ trait SQLClauses
         $this->query->where($criteria, $options);
         return $this;
     }
-    
-    protected function scopeWhereIn(string $key, array $values): self
-    {
-        return $this->scopeWhere("$key IN (" . 
-                    implode(', ', array_fill(0, count($values), '?')) . ")", $values);
-    }
-
-    /**
-     * Add a where clause to the query based on the existence of a related model.
-     * 
-     * The method accepts the name of the related model and a closure that defines the conditions for the related model.
-     * The closure receives an instance of the query builder for the related model, allowing for complex conditions to be defined.
-     * Example usage:
-     * - whereHas(RelatedModel::class, function($query) { $query->where('status = ?', ['active']); })
-     * 
-     * @param class-string<Elegant> $relation The name of the related model class.
-     * @param \Closure $callback A closure that defines the conditions for the related model.
-     * @return self
-     */
-    protected function scopeWhereHas(string $relation, \Closure $callback, string $boolean = 'AND') : self
-    {
-        $this->query->whereHas(instance($relation)->getTable(), $callback, $boolean);
-        return $this;
-    }
-
-    /**
-	 * Add a where clause to the query based on the non-existence of a related model.
-	 * 
-	 * This method is the inverse of whereHas. It adds a clause that checks for the absence of related records matching the specified conditions.
-	 * The resulting SQL will include a NOT EXISTS subquery that checks for the non-existence of related records matching the specified conditions.
-	 * 
-	 * @example
-	 * $query->whereDoesntHave('comments', function($query) {
-	 *     $query->where('status = ?', ['approved']);
-	 * });
-	 * 
-	 * This example will generate a SQL query that selects records from the main table where there does not exist any related record in the 'comments' table with a status of 'approved'.
-	 * 
-	 * @param class-string<Elegant> $relation The name of the related model
-	 * @param \Closure $callback A closure that defines the conditions for the related model
-	 * @param string $boolean [Optional] The boolean operator to use when combining this clause with others (default is 'AND')
-	 * @return self
-	 */
-	protected function scopeWhereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self
-    {
-        $this->query->whereDoesntHave(instance($relation)->getTable(), $callback, $boolean);
-        return $this;
-    }
 
     public function orWhereHas(string $relation, \Closure $callback) : self
     {
-        return $this->scopeWhereHas($relation, $callback, 'OR');
+        return $this->query->whereHas(instance($relation)->getTable()->name(), $callback, $boolean);
     }
 
     public function orWhereDoesntHave(string $relation, \Closure $callback) : self
     {
-        return $this->scopeWhereDoesntHave($relation, $callback, 'OR');
+        return $this->query->orWhereDoesntHave(instance($relation)->getTable()->name(), $callback, $boolean);
     }
     
     public function orderBy(string $order) : static

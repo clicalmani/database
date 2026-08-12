@@ -75,7 +75,7 @@ trait Relationships
     protected function belongsToMany(string $relatedClass, ?string $pivotClass = null, ?string $foreignKey = null, ?string $relatedKey = null): BelongsToMany
     {
         return new BelongsToMany(
-            $this, $relatedClass, $pivotClass ? (new $pivotClass)->getTable() : null, $foreignKey, $relatedKey
+            $this, $relatedClass, $pivotClass ? (new $pivotClass)->getTable()->name() : null, $foreignKey, $relatedKey
         );
     }
 

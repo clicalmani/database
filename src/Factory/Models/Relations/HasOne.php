@@ -27,8 +27,8 @@ class HasOne extends Relationship
         $this->query   = $this->related->newQuery();
 
         // Default: user_id if $foreignKey is not specified
-        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->localKey   = $localKey ?: $this->model->getKey();
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
+        $this->localKey   = $localKey ?: $this->model->getKey()->scalarName();
     }
 
     /**
@@ -74,7 +74,7 @@ class HasOne extends Relationship
         }
 
         foreach ($models as $model) {
-            $parentId = $model->{$this->model->getKey()}; // e.g., $parentId = $user->id
+            $parentId = $model->{$this->model->getKey()->scalarName()}; // e.g., $parentId = $user->id
             $childRow = $dictionary[$parentId] ?? null;   // e.g., $dictionay[$user->id] = $profile
             $model->setRelation($relation, $childRow);    // e.g., $user->profile 
         }

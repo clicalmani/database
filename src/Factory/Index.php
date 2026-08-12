@@ -126,8 +126,8 @@ class Index
             if (is_subclass_of($references, \Clicalmani\Database\Factory\Models\Elegant::class)) {
                 /** @var \Clicalmani\Database\Factory\Models\Elegant */
                 $model = new $references;
-                $table = $model->getTable();
-                $primary_key = $model->getKey();
+                $table = $model->getTable()->name();
+                $primary_key = $model->getKey()->scalarName();
 
                 if ( is_array($primary_key) ) throw new \TypeError("Expected string; array given. Reference table should not have multiple keys.");
 

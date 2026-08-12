@@ -35,7 +35,7 @@ class MorphMany extends Relationship
         // Filters 
         // 1. commentable_id = ID
         // 2. commentable_type = Post::class
-        $this->query->where("{$this->idKey} = ?", [$this->model->{$this->model->getKey()}]);
+        $this->query->where("{$this->idKey} = ?", [$this->model->getKey()->scalarValue()]);
         $this->query->where("{$this->typeKey} = ?", [$this->model::class]);
 
         $this->result = $this->related->get($fields);
@@ -45,7 +45,7 @@ class MorphMany extends Relationship
 
     public function getParentKeys(array $models): array
     {
-        return $this->getModelKeys($models, $this->model->getKey());
+        return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
     public function getEager(array $keys): CollectionInterface
@@ -77,7 +77,7 @@ class MorphMany extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()};
+            $key = (string) $model->{$this->model->getKey()->scalarName()};
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

@@ -34,27 +34,30 @@ class BelongsToMany extends Relationship
 
         // 1. Deduce the pivot table name (alphabetical order by convention)
         if (!$this->table) {
-            $tables = [$this->model->getTable(), $this->related->getTable()];
+            $tables = [$this->model->getTable(), $this->related->getTable()->name()];
             sort($tables);
             $this->table = Str::singularize($tables[0]) . '_' . Str::singularize($tables[1]);
         }
 
         // 2. Deduce the keys
-        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->relatedKey = $relatedKey ?: Str::singularize($this->related->getTable()) . '_id';
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
+        $this->relatedKey = $relatedKey ?: Str::singularize($this->related->getTable()->name()) . '_id';
     }
 
     public function get(?string $fields = '*'): mixed
     {
-        /** @var string */
         $tablePrefix = DB::getPrefix();
+        $fullPivotTable = $tablePrefix . $this->table;
 
         // 1. Target table columns (e.g., roles.*)
-        $select = [$this->related->getTableAlias() . '.*'];
+        $select = [$this->related->getTable()->alias() . '.*'];
 
-        // 2. Add pivot columns with a prefix to avoid collisions
+        // 2. Add pivot foreign key and additional pivot columns
+        $select[] = "{$fullPivotTable}.{$this->foreignKey} AS pivot_{$this->foreignKey}";
+        $select[] = "{$fullPivotTable}.{$this->relatedKey} AS pivot_{$this->relatedKey}";
+
         foreach ($this->pivotColumns as $column) {
-            $select[] = "{$tablePrefix}{$this->table}.{$column} AS pivot_{$column}";
+            $select[] = "{$fullPivotTable}.{$column} AS pivot_{$column}";
         }
 
         $this->query->selectRaw(implode(', ', $select));
@@ -62,21 +65,21 @@ class BelongsToMany extends Relationship
         // Join: roles.id = role_user.role_id
         $this->query->joinInner(
             $this->table,
-            "{$tablePrefix}{$this->table}.{$this->relatedKey}",
-            $this->related->getKey(true)
+            "{$fullPivotTable}.{$this->relatedKey}",
+            $this->related->getKey()->scalarName(true)
         );
 
         // Filter: role_user.user_id = Current user ID
-        $this->query->where("{$tablePrefix}{$this->table}.{$this->foreignKey} = ?", [$this->model->{$this->model->getKey()}]);
+        $this->query->where("{$fullPivotTable}.{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()]);
 
-        $this->result = $this->related->get($fields);
+        $this->result = $this->related->get();
 
         return $this->result;
     }
 
     public function getParentKeys(array $models): array
     {
-        return $this->getModelKeys($models, $this->model->getKey());
+        return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
     public function getEager(array $keys): CollectionInterface
@@ -86,18 +89,24 @@ class BelongsToMany extends Relationship
         }
         
         $tablePrefix = DB::getPrefix();
-        $select = [$this->related->getTableAlias() . '.*'];
+        $fullPivotTable = $tablePrefix . $this->table;
+
+        $select = [$this->related->getTable()->alias() . '.*'];
+
+        // Ensure foreign keys are present in pivot data for matching
+        $select[] = "{$fullPivotTable}.{$this->foreignKey} AS pivot_{$this->foreignKey}";
+        $select[] = "{$fullPivotTable}.{$this->relatedKey} AS pivot_{$this->relatedKey}";
 
         foreach ($this->pivotColumns as $column) {
-            $select[] = "{$tablePrefix}{$this->table}.{$column} AS pivot_{$column}";
+            $select[] = "{$fullPivotTable}.{$column} AS pivot_{$column}";
         }
 
         return $this->relatedClass::select()
-            ->whereIn("{$tablePrefix}{$this->table}.{$this->foreignKey}", $keys)
+            ->whereIn("{$fullPivotTable}.{$this->foreignKey}", $keys)
             ->join(fn($join) => 
                 $join->inner()
                     ->to($this->table)
-                    ->on("{$tablePrefix}{$this->table}.{$this->relatedKey} = {$this->related->getKey(true)}")
+                    ->on("{$fullPivotTable}.{$this->relatedKey} = {$this->related->getKey()->scalarName(true)}")
             )
             ->get(implode(', ', $select));
     }
@@ -106,27 +115,24 @@ class BelongsToMany extends Relationship
     {
         $dictionary = [];
         
-        /** 
-         * Key data mapping for easy access
-         * @var Elegant 
-         * **/
+        /** @var Elegant $result */
         foreach ($results as $result) {
             $pivotData = $result->getPivot() ?? [];
-            $key = (string) ($pivotData[$result->{$result->getKey()}] ?? null); // Model key
+            $key = (string) ($pivotData[$this->foreignKey] ?? null);
             
-            if ($key) {
+            if ($key !== null && $key !== '') {
                 if (!isset($dictionary[$key])) {
                     $dictionary[$key] = [];
                 }
                 $dictionary[$key][] = $result;
             }
         }
-
+        
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()};
+            $key = (string) $model->{$this->model->getKey()->scalarName()};
             
             if (isset($dictionary[$key])) {
-                $model->setRelation($relation, $dictionary[$key]);
+                $model->setRelation($relation, collect($dictionary[$key]));
             } else {
                 $model->setRelation($relation, collect());
             }
@@ -135,47 +141,32 @@ class BelongsToMany extends Relationship
 
     /**
      * Define the pivot table columns to retrieve.
-     * 
-     * @param array $columns
-     * @return $this
      */
     public function withPivot(array $columns): self
     {
-        $this->pivotColumns = array_merge($this->pivotColumns, $columns);
+        $this->pivotColumns = array_unique(array_merge($this->pivotColumns, $columns));
         return $this;
     }
 
     /**
      * Attach a model (or a list of IDs) to the current model in the pivot table.
-     * 
-     * @param int|array $id          ID or array of IDs to attach
-     * @param array $attributes      Additional columns for the pivot table
-     * @return bool
      */
     public function attach(mixed $id, array $attributes = []): bool
     {
         $ids = is_array($id) ? $id : [$id];
         $success = true;
+        $fullPivotTable = DB::getPrefix() . $this->table;
 
         foreach ($ids as $currentId) {
-            // Prepare base data (foreign keys)
             $data = [
-                $this->foreignKey => $this->model->{$this->model->getKey()},
+                $this->foreignKey => $this->model->getKey()->scalarValue(),
                 $this->relatedKey => $currentId
             ];
 
-            // Merge with additional attributes (e.g., ['status' => 'active'])
             $insertData = array_merge($data, $attributes);
 
-            // Insert via the DB manager
-            // DB::table($this->table)->insert($insertData);
             try {
-                $fields = implode(', ', array_keys($insertData));
-                $placeholders = implode(', ', array_fill(0, count($insertData), '?'));
-                
-                $sql = "INSERT INTO {$this->table} ($fields) VALUES ($placeholders)";
-                
-                DB::statement($sql, array_values($insertData));
+                $success = DB::table($this->table)->insert($insertData)->exec()->status() === 'success';
             } catch (\Exception $e) {
                 $success = false;
             }
@@ -186,70 +177,49 @@ class BelongsToMany extends Relationship
 
     /**
      * Detach one or more models from the current model in the pivot table.
-     * 
-     * @param int|array|null $id ID or array of IDs to detach. If null, detaches everything.
-     * @return bool
      */
     public function detach(mixed $id = null): bool
     {
-        $query = "DELETE FROM {$this->table} WHERE {$this->foreignKey} = ?";
-        $params = [$this->model->{$this->model->getKey()}];
-
-        if ($id !== null) {
-            if (is_array($id)) {
-                // Handle an array of IDs (WHERE IN)
-                $placeholders = implode(', ', array_fill(0, count($id), '?'));
-                $query .= " AND {$this->relatedKey} IN ($placeholders)";
-                $params = array_merge($params, $id);
-            } else {
-                // Handle a single ID
-                $query .= " AND {$this->relatedKey} = ?";
-                $params[] = $id;
-            }
-        }
-
         try {
-            return DB::statement($query, $params);
+            $query = DB::table($this->table)->where("{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()]);
+
+            if ($id !== null) {
+                $query->whereIn($this->relatedKey, (array)$id);
+            }
+            
+            return $query->delete()->exec()->status() === 'success';
         } catch (\Exception $e) {
-            // Log error if necessary
             return false;
         }
     }
 
     /**
      * Synchronize the pivot table with a list of IDs.
-     * 
-     * @param array $ids List of target IDs (e.g., [1, 2, 5])
-     * @return array A summary of the changes made
      */
     public function sync(array $ids): array
     {
+        $results = DB::table($this->table)->selectRaw($this->relatedKey)
+                        ->where("{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()])
+                        ->get();
         $changes = [
             'attached' => [],
             'detached' => [],
             'updated'  => []
         ];
-
-        // 1. Retrieve the IDs currently present in the pivot table for this model
-        $current = [];
-        $sql = "SELECT {$this->relatedKey} FROM {$this->table} WHERE {$this->foreignKey} = ?";
-        $results = DB::select($sql, [$this->model->{$this->model->getKey()}]);
         
         foreach ($results as $row) {
-            $current[] = (int)$row->{$this->relatedKey};
+            $current[] = (int) $row->{$this->relatedKey};
         }
 
-        // 2. Calculate IDs to detach (present in DB but not in the new list)
         $detach = array_diff($current, $ids);
         if (!empty($detach)) {
-            $this->detach($detach);
+            $this->detach(array_values($detach));
             $changes['detached'] = array_values($detach);
         }
 
-        // 3. Calculate IDs to attach (present in the list but not in DB)
         $attach = array_diff($ids, $current);
         if (!empty($attach)) {
-            $this->attach($attach);
+            $this->attach(array_values($attach));
             $changes['attached'] = array_values($attach);
         }
 

@@ -15,8 +15,6 @@ use Clicalmani\Foundation\Support\Facades\Str;
  */
 abstract class AbstractModel implements Joinable
 {
-    use MultipleKeys;
-
     /**
      * Database connection
      * 
@@ -64,28 +62,28 @@ abstract class AbstractModel implements Joinable
      * 
      * @var string|array Primary key
      */
-    protected $primaryKey;
+    protected string|array $primaryKey;
 
     /**
      * Hidden attributes.
      * 
      * @var string[]
      */
-    protected $hidden = [];
+    protected array $hidden = [];
 
     /**
      * Fillable attributes
      * 
      * @var string[]
      */
-    protected $fillable = [];
+    protected array $fillable = [];
 
     /**
      * Guarded attributes
      * 
      * @var string[]
      */
-    protected $guarded = [];
+    protected array $guarded = [];
 
     /**
      * Lock state
@@ -99,7 +97,7 @@ abstract class AbstractModel implements Joinable
      * 
      * @var string[] Custom attributes
      */
-    protected $custom = [];
+    protected array $custom = [];
 
     /**
      * Date attributes
@@ -258,45 +256,21 @@ abstract class AbstractModel implements Joinable
         }
     }
 
-    /**
-     * Returns table primary key name.
-     * 
-     * @param bool $keep_alias When true table alias will be prepended to the key.
-     * @return string|array
-     */
-    public function getKey(bool $keep_alias = false) : string|array
+    public function getKey() : Key
     {
-        $cleanedKey = $this->cleanKey( $this->primaryKey );
-        if (false == $keep_alias) return $cleanedKey;
-
-        return $this->getTableAlias() . '.' . $cleanedKey;
-    }
-
-    /**
-     * Returns the model table alias
-     * 
-     * @return string
-     */
-    public function getTableAlias() : string
-    {
-        @[$table, $alias] = explode(' ', $this->table);
-
-        return $alias ?? DB::getInstance()->getPrefix() . $table;
+        return $this->id ? Key::fromValue($this->id, $this->primaryKey)
+                    ->withAlias(Table::from($this->table)->alias()): 
+                        Key::fromName($this->primaryKey, Table::from($this->table)->alias());
     }
 
     /**
      * Return the model table name
      * 
-     * @param bool $keep_alias Wether to include table alias or not
-     * @return string Table name
+     * @return Table
      */
-    public function getTable(bool $keep_alias = false) : string
+    public function getTable() : Table
     {
-        if ($keep_alias) return $this->table;
-       
-        @[$table, $alias] = explode(' ', $this->table);
-        
-        return $table;
+        return Table::from($this->table);
     }
 
     /**
@@ -480,7 +454,7 @@ abstract class AbstractModel implements Joinable
         }
 
         if ($model instanceof \Closure) $this->query->join($model);
-        else $this->query->join($model->getTable(true), $callback);
+        else $this->query->join($model->getTable()->withAlias(), $callback);
         
         return $this;
     }
@@ -488,10 +462,11 @@ abstract class AbstractModel implements Joinable
     protected function __join(Elegant|string $model, ?string $foreign_key = null, ?string $original_key = null, ?string $type = 'LEFT', ?string $operator = '=') : self 
     {
         if (is_string($model)) {
+            /** @var Elegant */
             $model = new $model;
         }
         
-        $table = $model->getTable(true);
+        $table = $model->getTable()->withAlias();
         
         /**
          * Duplicate joints
@@ -507,8 +482,6 @@ abstract class AbstractModel implements Joinable
                 }
             }
         }
-        
-        [$foreign_key, $original_key] = $this->guessRelationshipKeys($foreign_key, $original_key, (!$foreign_key && !$joints) ? $model::class: $this::class);
         
         $type = ucfirst(strtolower($type));
 
@@ -618,54 +591,6 @@ abstract class AbstractModel implements Joinable
         app()->config->set('database.prevent_silent_discard_attribute', true);
     }
 
-    protected function guessRelationshipKeys(?string $foreign_key = null, ?string $original_key = null, ?string $model = null) : array
-    {
-        // Current table context
-        $current_alias = strtolower($this->getTableAlias());
-        $current_table_singular = Str::singularize($this->getTable());
-        
-        // Related table context
-        $related_alias = $current_alias;
-        $related_table_singular = $current_table_singular;
-
-        if ($model) {
-            $model_instance = new $model;
-            $related_alias = $model_instance->getTableAlias();
-            $related_table_singular = Str::singularize($model_instance->getTable());
-        }
-
-        // ---------------------------------------------------------
-        // 1 : All keys are provided
-        // ---------------------------------------------------------
-        if (!is_null($foreign_key) && !is_null($original_key)) {
-            return [$foreign_key, $original_key];
-        }
-
-        // ---------------------------------------------------------
-        // 2 : Only one key is provided
-        // ---------------------------------------------------------
-        if (!is_null($foreign_key) && is_null($original_key)) {
-            return [$foreign_key, $foreign_key];
-        }
-
-        // ---------------------------------------------------------
-        // 3 : No key is provided, try to guess
-        // ---------------------------------------------------------
-
-        if ($model) {
-            $fk = ($current_alias ? $current_alias . '.': '') . $related_table_singular . '_id';
-            $pk = ($related_alias ? $related_alias . '.': '') . 'id';
-
-            return [$fk, $pk];
-        }
-        
-        // Fallback to default keys
-        $fk = $related_table_singular . '_id';
-        $pk = $this->getTableAlias() . '.id';
-        
-        return [$fk, $pk];
-    }
-
     /**
      * @param string $name 
      * @return mixed
@@ -675,11 +600,6 @@ abstract class AbstractModel implements Joinable
         // ── Non Instanciated Model ────────────────────────
         if ( $this->isEmpty() ) return null;
         
-        $entity = $this->getEntity();
-
-        $entity->setAccess(Entity::READ_RECORD);
-        $attribute = $entity->getAttribute($name); // ── Column Attribute ───────────
-
         // ── Relation Call ─────────────────────────────────
         // Relationship exists
         if ( array_key_exists($name, $this->relations) ) {
@@ -689,14 +609,19 @@ abstract class AbstractModel implements Joinable
         // When a relation is called as an attribute.
         if ( method_exists($this, $name) ) {
             $relation = $this->{$name}();
-            if ( is_subclass_of($relation, \Clicalmani\Database\Factory\Models\Relations\Relationship::class)) {
+            if ( is_subclass_of($relation, \Clicalmani\Database\Factory\Models\Relations\Relationship::class) ) {
                 return $relation->get();
             }
         }
+        
+        $entity = $this->getEntity();
 
+        $entity->setAccess(Entity::READ_RECORD);
+        $attribute = $entity->getAttribute($name); // ── Column Attribute ───────────
+        
         // ── Custom Attribute ──────────────────────────────────────────────────
         if ( $attribute->isCustom() ) {
-            return $this->{$attribute->customize()}();
+            return $entity->resolveCustomAttribute($name);
         }
 
         // ── Fresh Attributes ──────────────────────────────────────────────────────
@@ -714,7 +639,7 @@ abstract class AbstractModel implements Joinable
         
         try {
             $value = $attribute->value;
-
+            
             // ── Auto-Cast ──────────────────────────────────────────────────────
             if ($value) {
                 /** @var class-string<\Clicalmani\Database\Factory\DataTypes\DataType> */
@@ -722,7 +647,7 @@ abstract class AbstractModel implements Joinable
                 (new $type)->cast($value);
                 return $value;
             }
-
+            
             // ── Default Value ──────────────────────────────────────────────────────
             if ( $attribute->isDefault() ) {
                 return $attribute->getDefault();
@@ -814,5 +739,11 @@ abstract class AbstractModel implements Joinable
     public function attributeExists(string $name): bool
     {
         return $this->entityInstance->attributeExists($name);
+    }
+
+    protected function reset()
+    {
+        $entity = $this->getEntity();
+        $entity->setCachedAttributesValues([]);
     }
 }

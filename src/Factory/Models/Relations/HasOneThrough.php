@@ -32,26 +32,26 @@ class HasOneThrough extends Relationship
         $this->farModel = new $this->farModelClass;
         $this->query    = $this->farModel->newQuery();
         
-        $this->firstKey  = $firstKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->secondKey = $secondKey ?: Str::singularize($this->through->getTable()) . '_id';
-        $this->localKey  = $localKey ?: $this->model->getKey();
-        $this->secondLocalKey = $secondLocalKey ?: $this->through->getKey();
+        $this->firstKey  = $firstKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
+        $this->secondKey = $secondKey ?: Str::singularize($this->through->getTable()->name()) . '_id';
+        $this->localKey  = $localKey ?: $this->model->getKey()->scalarName();
+        $this->secondLocalKey = $secondLocalKey ?: $this->through->getKey()->scalarName();
     }
 
     public function get(?string $fields = '*'): mixed
     {
         // 1. Select far model columns
-        $this->query->selectRaw($this->farModel->getTableAlias() . '.*');
+        $this->query->selectRaw($this->farModel->getTable()->alias() . '.*');
 
         // 2. Join through model: logs.profile_id = profiles.id
         $this->query->joinInner(
-            $this->through->getTable(true),
-            "{$this->farModel->getTableAlias()}.{$this->secondKey}",
-            "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
+            $this->through->getTable()->withAlias(),
+            "{$this->farModel->getTable()->alias()}.{$this->secondKey}",
+            "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
         );
 
         // 3. Filter for actual modal ID : profiles.user_id = user.id
-        $this->query->where("{$this->through->getTableAlias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
+        $this->query->where("{$this->through->getTable()->alias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
 
         // 4. Only one resut (HasONE)
         $this->result = $this->farModel->top(1)->get($fields)->first();
@@ -72,11 +72,11 @@ class HasOneThrough extends Relationship
         
         // One request for all the parents: 
         return $this->farModelClass::select()                                       // SELECT logs.* FROM logs
-            ->whereIn("{$this->through->getTableAlias()}.{$this->firstKey}", $keys) // e.g., profiles.user_id IN ()
+            ->whereIn("{$this->through->getTable()->alias()}.{$this->firstKey}", $keys) // e.g., profiles.user_id IN ()
             ->joinInner(
-                $this->through->getTable(true),                                   // Join: profiles
-                "{$this->farModel->getTableAlias()}.{$this->secondKey}",          // logs.profile_id = profiles.id
-                "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
+                $this->through->getTable()->withAlias(),                                   // Join: profiles
+                "{$this->farModel->getTable()->alias()}.{$this->secondKey}",          // logs.profile_id = profiles.id
+                "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
             )->get(); 
     }
 

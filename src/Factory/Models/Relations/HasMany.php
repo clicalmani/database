@@ -23,8 +23,8 @@ class HasMany extends Relationship
         protected ?string $localKey = null
     ) {
         // If foreign key is not specified, we guess it (e.g., department_id)
-        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->localKey   = $localKey ?: $this->model->getKey();
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
+        $this->localKey   = $localKey ?: $this->model->getKey()->scalarName();
 
         $this->related = new $this->relatedClass;
         $this->query   = $this->related->newQuery();

@@ -21,11 +21,11 @@ class MorphTo extends Relationship
         protected Elegant $model,
         protected string $name
     ) {
-        $idKey   = $this->name . '_id';
-        $typeKey = $this->name . '_type';
+        $this->idKey   = $this->name . '_id';
+        $this->typeKey = $this->name . '_type';
         
-        $this->parentId   = $this->model->$idKey;       // e.g., 10
-        $this->parentType = $this->model->$typeKey;     // e.g., Post::class
+        $this->parentId   = $this->model->{$this->idKey};       // e.g., 10
+        $this->parentType = $this->model->{$this->typeKey};     // e.g., Post::class
 
         $this->parentModel = new $this->parentType;
         $this->query       = $this->parentModel->newQuery();
@@ -37,7 +37,7 @@ class MorphTo extends Relationship
             return null;
         }
 
-        $this->query->where($this->parentModel->getKey() . " = ?", [$this->parentId]); // SELECT * FROM posts WHERE posts.id = 10 LIMIT 1
+        $this->query->where($this->parentModel->getKey()->scalarName() . " = ?", [$this->parentId]); // SELECT * FROM posts WHERE posts.id = 10 LIMIT 1
         $this->result = $this->parentModel->top(1)->get($fields);
 
         return $this->result;
@@ -82,7 +82,7 @@ class MorphTo extends Relationship
             /** @var Elegant */
             $model = new $type;
             /** @var Elegant[] type models */
-            $typeResults = $type::whereIn($model->getKey(), $keys)->get();
+            $typeResults = $type::whereIn($model->getKey()->scalarName(), $keys)->get();
             
             foreach ($typeResults as $result) {
                 $results->add($result);
@@ -100,7 +100,7 @@ class MorphTo extends Relationship
         /** @var Elegant $result a model for each type e.g., Post, Video, ... */
         foreach ($results as $result) {
             $type = get_class($result);
-            $id = $result->{$result->getKey()};
+            $id = $result->{$result->getKey()->scalarName()};
             
             if (!isset($dictionary[$type])) {
                 $dictionary[$type] = [];
@@ -126,15 +126,12 @@ class MorphTo extends Relationship
      * Miscelinous method for morphTo
      * Allow to specify an explicit type
      * 
-     * @param class-string<Elegant>|ModelInterface
+     * @param ModelInterface
      */
-    public function associate(string|ModelInterface $model): self
+    public function associate(ModelInterface $model): self
     {
-        if ( !is_object($model) ) $model = new $model;
-        if ($model instanceof ModelInterface) {
-            $this->model->{$this->idKey} = $model->{$model->getKey()};
-            $this->model->{$this->typeKey} = get_class($model);
-        }
+        $this->model->{$this->idKey} = $model->{$model->getKey()->scalarName()};
+        $this->model->{$this->typeKey} = get_class($model);
         return $this;
     }
 }

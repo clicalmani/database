@@ -26,8 +26,8 @@ class BelongsTo extends Relationship
         $this->parent = new $parentClass;
         $this->query  = $this->parent->newQuery();
         
-        $this->foreignKey = $foreignKey ?: Str::singularize($this->parent->getTable()) . '_id';
-        $this->ownerKey   = $ownerKey ?: $this->parent->getKey();
+        $this->foreignKey = $foreignKey ?: Str::singularize($this->parent->getTable()->name()) . '_id';
+        $this->ownerKey   = $ownerKey ?: $this->parent->getKey()->scalarName();
     }
 
     /**
@@ -39,7 +39,7 @@ class BelongsTo extends Relationship
     {
         // We retrieve the foreign key value from the model
         $idToFind = $this->model->{$this->foreignKey};
-
+        
         if (!$idToFind) {
             return null;
         }
@@ -47,19 +47,12 @@ class BelongsTo extends Relationship
         $this->result = $this->parentClass::where("{$this->ownerKey} = ?", [$idToFind])
                             ->get($fields)
                             ->first();
-
+        
         return $this->result;
     }
     
     public function getParentKeys(array $models): array
     {
-        $keys = [];
-        foreach ($models as $model) {
-            $key = $model->{$this->foreignKey};
-            if ($key) {
-                $keys[] = $key;
-            }
-        }
         return $this->getModelKeys($models, $this->foreignKey);
     }
 
@@ -77,9 +70,9 @@ class BelongsTo extends Relationship
         $dictionary = [];
 
         foreach ($results as $row) {
-            $dictionary[$row->{$this->parent->getKey()}] = $row;
+            $dictionary[$row->{$this->parent->getKey()->scalarName()}] = $row;
         }
-
+        
         foreach ($models as $model) {
             $parentId = $model->{$this->foreignKey};
             $parentRow = $dictionary[$parentId] ?? null;

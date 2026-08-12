@@ -34,26 +34,26 @@ class HasManyThrough extends Relationship
         $this->through  = new $this->throughModelClass;
         $this->query    = $this->farModel->newQuery();
         
-        $this->firstKey  = $firstKey ?: Str::singularize($this->model->getTable()) . '_id';
-        $this->secondKey = $secondKey ?: Str::singularize($this->through->getTable()) . '_id';
-        $this->localKey  = $localKey ?: $this->model->getKey();
-        $this->secondLocalKey = $secondLocalKey ?: $this->through->getKey();
+        $this->firstKey  = $firstKey ?: Str::singularize($this->model->getTable()->name()) . '_id';
+        $this->secondKey = $secondKey ?: Str::singularize($this->through->getTable()->name()) . '_id';
+        $this->localKey  = $localKey ?: $this->model->getKey()->scalarName();
+        $this->secondLocalKey = $secondLocalKey ?: $this->through->getKey()->scalarName();
     }
 
     public function get(?string $fields = '*'): mixed
     {
         // 1. Select target columns (e.g., User)
-        $this->query->selectRaw($this->farModel->getTable() . '.*');
+        $this->query->selectRaw($this->farModel->getTable()->name() . '.*');
 
         // 2. Join : (e.g., users.task_id = tasks.id)
         $this->query->joinInner(
-            $this->through->getTable(true),
-            "{$this->farModel->getTableAlias()}.{$this->secondKey}",
-            "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
+            $this->through->getTable()->withAlias(),
+            "{$this->farModel->getTable()->alias()}.{$this->secondKey}",
+            "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
         );
         
         // 3. Filter : (e.g., tasks.project_id = project.id)
-        $this->query->where("{$this->through->getTableAlias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
+        $this->query->where("{$this->through->getTable()->alias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
         
         // 4. Complete collection
         $this->result = $this->farModel->get($fields);
@@ -73,11 +73,11 @@ class HasManyThrough extends Relationship
         }
         
         return $this->farModelClass::select()
-            ->whereIn("{$this->through->getTableAlias()}.{$this->firstKey}", $keys) // Filter: (e.g., tasks.project_id IN (retrieved ids))
+            ->whereIn("{$this->through->getTable()->alias()}.{$this->firstKey}", $keys) // Filter: (e.g., tasks.project_id IN (retrieved ids))
             ->joinInner(                                                            // Join: (e.g., users.task_id = tasks.id)
-                $this->through->getTable(true),
-                "{$this->farModel->getTableAlias()}.{$this->secondKey}",
-                "{$this->through->getTableAlias()}.{$this->secondLocalKey}"
+                $this->through->getTable()->withAlias(),
+                "{$this->farModel->getTable()->alias()}.{$this->secondKey}",
+                "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
             )->get();
     }
 
@@ -92,7 +92,7 @@ class HasManyThrough extends Relationship
         foreach ($results as $result) {
             // We use through model for mapping
             // SELECT * FROM tasks WHERE id = ? [task_id in User model]
-            $row = DB::table($this->through->getTable())->where($this->secondLocalKey . ' = ?', [$result->{$this->secondKey}])->first();
+            $row = DB::table($this->through->getTable()->name())->where($this->secondLocalKey . ' = ?', [$result->{$this->secondKey}])->first();
             
             if ($row) {
                 if (!isset($dictionary[$row->{$this->firstKey}])) { // [$row->project_id => []]
