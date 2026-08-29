@@ -14,6 +14,8 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      */
     public function get(string $fields = '*') : CollectionInterface;
 
+    public function getKey() : Key;
+
     /**
      * Delete the model
      * 
@@ -49,9 +51,10 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     /**
      * Save changes
      * 
+     * @param bool $update Force update if record exists.
      * @return bool True on success, false on failure
      */
-    public function save() : bool;
+    public function save(bool $update = false) : bool;
 
     /**
      * Save changes quietly
@@ -88,50 +91,6 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return self
      */
     public function firstOrFail() : self;
-
-    /**
-     * Returns a specified row defined by a specified primary key.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return static|null
-     */
-    public static function find(string|array|null $id) : static|null;
-
-    public static function findMany(array $ids) : CollectionInterface;
-
-    /**
-     * Returns a specified row defined by a specified primary key or fail.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return self
-     */
-    public static function findOrFail(string|array|null $id) : self;
-
-    /**
-     * Returns a specified row defined by a specified primary key or create a new one.
-     * 
-     * @param string|array|null $id Primary key value
-     * @return mixed Returns the model instance if found, otherwise callback result.
-     */
-    public static function findOr(string|array|null $id, callable $callback) : mixed;
-
-    /**
-     * Returns all rows from the query statement result
-     * 
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
-     */
-    public static function all() : CollectionInterface;
-
-    /**
-     * Filter the query result by using the request parameters. Equal sign 
-     * will be used to compare the request parameter value with the column value.
-     * 
-     * @param array $exclude Parameters to exclude
-     * @param array $options Options can be used to order the result set by specifics request parameters or limit the 
-     *  number of rows to be returned in the result set.
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
-     */
-    public static function filter(array $exclude = [], array $options = []) : CollectionInterface;
 
     /**
      * Insert new row or update row from request parameters
@@ -250,8 +209,6 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return \PDO
      */
     public static function getConnection(): \PDO;
-
-    public function scopeWith(string|array $relations): self;
 
     /**
      * Marker for prepared statements. It is used to set the marker for prepared statements in the query.

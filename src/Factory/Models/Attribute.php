@@ -61,7 +61,7 @@ class Attribute
 
     private bool $isCustom = false;
 
-    public function __construct(string $name, mixed $value = null, ?int $access = 2)
+    public function __construct(string $name, mixed $value = null, ?int $access = self::READ)
     {
         $this->name = $name;
         $this->access = $access;
@@ -130,6 +130,11 @@ class Attribute
         } catch (\ReflectionException $e) {
             return false;
         } 
+    }
+
+    public function isKey() : bool
+    {
+        return in_array($this->name, $this->model->getKey()->names());
     }
 
     /**

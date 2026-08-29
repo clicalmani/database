@@ -9,7 +9,8 @@ use Clicalmani\Foundation\Support\Facades\DB;
 class ScopeCreateOrFail implements ScopeInterface
 {
     public function __construct(
-        protected readonly array $attributes = []
+        protected readonly array $attributes = [],
+        protected readonly bool $orUpdate = false
     )
     {}
 
@@ -18,8 +19,7 @@ class ScopeCreateOrFail implements ScopeInterface
     {
         return DB::deadlock(function() use ($query, $model) {
             try {
-                $query->set('table', $model->getTable()->name());
-                return $query->insert([$this->attributes], false);
+                return $model::class::create($this->attributes, $this->orUpdate);
             } catch (\Throwable $e) {
                 return false;
             }

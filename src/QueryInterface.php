@@ -111,19 +111,19 @@ interface QueryInterface extends DBInterface
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
-	 * @param bool $replace Run REPLACE query if record exists
+	 * @param bool $update Update if record exists
 	 * @return self true on success, false on failure
 	 */
-	public function insert(array $options = [], bool $replace = false): self;
+	public function insert(array $options = [], bool $update = false): self;
 
 	/**
 	 * Insert ignore query
 	 * 
 	 * @param array $options Insert options
-	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
+	 * @param bool $update [Optional] Whether to update existing records or ignore them
 	 * @return self
 	 */
-	public function insertIgnore(array $options = [], bool $replace = false): self;
+	public function insertIgnore(array $options = [], bool $update = false): self;
 
 	/**
 	 * Insert new record to the selected table or fail.

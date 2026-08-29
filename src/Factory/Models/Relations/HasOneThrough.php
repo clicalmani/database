@@ -71,12 +71,12 @@ class HasOneThrough extends Relationship
         }
         
         // One request for all the parents: 
-        return $this->farModelClass::select()                                       // SELECT logs.* FROM logs
+        return $this->farModelClass::select()                                           // SELECT logs.* FROM logs
             ->whereIn("{$this->through->getTable()->alias()}.{$this->firstKey}", $keys) // e.g., profiles.user_id IN ()
-            ->joinInner(
-                $this->through->getTable()->withAlias(),                                   // Join: profiles
-                "{$this->farModel->getTable()->alias()}.{$this->secondKey}",          // logs.profile_id = profiles.id
-                "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
+            ->join(fn($join) =>
+                $join->inner()
+                    ->to($this->through->getTable()->withAlias()) // Join: profiles
+                    ->on("{$this->farModel->getTable()->alias()}.{$this->secondKey} = {$this->through->getTable()->alias()}.{$this->secondLocalKey}") // logs.profile_id = profiles.id
             )->get(); 
     }
 

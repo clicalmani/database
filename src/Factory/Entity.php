@@ -22,6 +22,8 @@ use Clicalmani\Validation\Validator;
  * Serves as an abstract base class for database schema mapping, record lifecycle tracking, 
  * data type validation, and automatic schema migrations using PHP Reflection and Attributes.
  * 
+ * @template TModel of Elegant
+ * 
  * @package Clicalmani\Database\Factory
  * @author @clicalmani
  */
@@ -51,7 +53,7 @@ abstract class Entity
     /**
      * The underlying data model instance.
      * 
-     * @var \Clicalmani\Database\Factory\Models\Elegant
+     * @var TModel
      */
     protected \Clicalmani\Database\Factory\Models\Elegant $model;
 
@@ -308,6 +310,11 @@ abstract class Entity
         }
         
         throw new \Exception();
+    }
+
+    public function getPropertyDefaultValue(string $name) : mixed
+    {
+        return ( new \ReflectionProperty($this, $name) )->getDefaultValue();
     }
 
     /**

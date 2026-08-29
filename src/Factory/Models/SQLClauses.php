@@ -72,7 +72,7 @@ trait SQLClauses
     
     public function value(string $column) : mixed
     {
-        return $this->get()->first()->{$column} ?? null;
+        return $this->get()->first()?->{$column};
     }
 
     /**

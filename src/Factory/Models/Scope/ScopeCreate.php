@@ -16,6 +16,9 @@ class ScopeCreate implements ScopeInterface
     #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
-        return $model->insert([$this->attributes], $this->orUpdate);
+        $model->fill($this->attributes)->save($this->orUpdate);
+        return $model::class::find($model->lastInsertId(
+            array_intersect(array_keys($this->attributes), $model->getKey()->names()) ? $this->attributes: [])
+        );
     }
 }

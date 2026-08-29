@@ -13,6 +13,7 @@ use Clicalmani\Database\SubQueries\SubWhere;
 use Clicalmani\Database\SubQueries\WhereExists;
 use Clicalmani\Database\SubQueries\WhereNotExists;
 use Clicalmani\Database\SubQueries\WithExists;
+use Clicalmani\Foundation\Collection\CollectionInterface;
 use Clicalmani\Foundation\Collection\Map;
 
 /**
@@ -281,13 +282,17 @@ class DBQuery extends DB implements QueryInterface
 				break;
 		}
 
-		$this->builder->query();
+		try {
+			$this->builder->query();
 
-		// Clear events data
-		unset($this->params['muted_events']);
-		unset($this->params['prevent_events']);
+			// Clear events data
+			unset($this->params['muted_events']);
+			unset($this->params['prevent_events']);
 
-		return $this->builder;
+			return $this->builder;
+		} catch (\PDOException $e) {
+			throw $e;
+		}
 	}
 
 	public function delete() : static
@@ -337,7 +342,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this->update( array_merge($fields, [$field => $field . ' - ' . $value]) );
 	}
 
-	public function insert(array $options = [], bool $replace = false) : self
+	public function insert(array $options = [], bool $update = false) : self
 	{
 		if ( array_filter($options, fn($entry) => ! is_array($entry)) ) {
 			$options = [$options];
@@ -362,22 +367,15 @@ class DBQuery extends DB implements QueryInterface
 			$this->params['values'][] = $values;
 		}
 		
-		$this->set('query', (FALSE === $replace) ? self::INSERT: self::REPLACE); 
+		$this->set('query', (FALSE === $update) ? self::INSERT: self::REPLACE); 
 		
 		return $this;
 	}
-
-	/**
-	 * Insert ignore query
-	 * 
-	 * @param array $options Insert options
-	 * @param bool $replace [Optional] Whether to replace existing records or ignore them
-	 * @return self
-	 */
-	public function insertIgnore(array $options = [], bool $replace = false): self
+	
+	public function insertIgnore(array $options = [], bool $update = false): self
 	{
 		$this->params['ignore'] = true;
-		return $this->insert($options, $replace);
+		return $this->insert($options, $update);
 	}
 
 	public function insertOrFail(array $options = []) : bool
@@ -642,38 +640,42 @@ class DBQuery extends DB implements QueryInterface
 		return $this;
 	}
 
-	public function get(string $select = '*') : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function get(string $select = '*') : CollectionInterface
 	{
-		$stringify = fn(mixed $fields, string $default) => match (gettype($fields)) {
-			'string' => $fields,
-			'array'  => implode(', ', $fields),
-			default  => $default,
-		};
+		try {
+			$stringify = fn(mixed $fields, string $default) => match (gettype($fields)) {
+				'string' => $fields,
+				'array'  => implode(', ', $fields),
+				default  => $default,
+			};
 
-		if (!isset($this->params['fields'])) {
+			if (!isset($this->params['fields'])) {
+				$this->params['fields'] = $select;
+			} elseif ($select === '*') {
+				$select = $stringify($this->params['fields'], $select);
+			} elseif ($this->params['fields'] !== '*') {
+				$select = $select . ', ' . $stringify($this->params['fields'], '');
+			}
+			
 			$this->params['fields'] = $select;
-		} elseif ($select === '*') {
-			$select = $stringify($this->params['fields'], $select);
-		} elseif ($this->params['fields'] !== '*') {
-			$select = $select . ', ' . $stringify($this->params['fields'], '');
-		}
-		
-		$this->params['fields'] = $select;
-		
-		if ( $this->union_query instanceof self ) {
-			/** @var \Clicalmani\Database\Union */
-			$builder = $this->builder;
-			$builder->setFields($select);
-		}
-		
-		$result = $this->exec();
-		$collection = new Collection;
-		
-		foreach ($result as $row) {
-			$collection->add($row);
-		}
+			
+			if ( $this->union_query instanceof self ) {
+				/** @var \Clicalmani\Database\Union */
+				$builder = $this->builder;
+				$builder->setFields($select);
+			}
+			
+			$result = $this->exec();
+			$collection = new Collection;
+			
+			foreach ($result as $row) {
+				$collection->add($row);
+			}
 
-		return $collection;
+			return $collection;
+		} catch (\PDOException $e) {
+			throw $e;
+		}
 	}
 
 	public function all() : \Clicalmani\Foundation\Collection\CollectionInterface

@@ -41,7 +41,7 @@ abstract class AbstractModel implements Joinable
      * 
      * @var string Table name
      */
-    protected $table;
+    protected string $table;
 
     /**
      * Default attributes.
@@ -91,13 +91,6 @@ abstract class AbstractModel implements Joinable
      * @var bool
      */
     protected $locked = false;
-
-    /**
-     * Append custom attributes
-     * 
-     * @var string[] Custom attributes
-     */
-    protected array $custom = [];
 
     /**
      * Date attributes
@@ -326,7 +319,6 @@ abstract class AbstractModel implements Joinable
         $entity = $this->getEntity();
         
         foreach ($entity->getAttributes() as $attribute) {
-            
             // Escape none fillable attributes for update
             if ( FALSE === $attribute->isFillable() && $attribute->access === Attribute::UPDATE) continue;
             
@@ -335,16 +327,15 @@ abstract class AbstractModel implements Joinable
             
             if ($attribute->access === Attribute::INSERT && $entity->isWriting($attribute->name)) $in[$attribute->name] = $value;
             elseif ($attribute->access === Attribute::UPDATE && $entity->isUpdating($attribute->name)) $out[$attribute->name] = $value;
-        }
 
-        // Append default values
-        foreach ($this->attributes as $name => $default_value) {
-            if ( !isset($in[$name]) && !isset($out[$name]) ) {
-                if ( $entity->getAccess() === Entity::ADD_RECORD ) $in[$name] = $default_value;
-                elseif ( $entity->getAccess() === Entity::UPDATE_RECORD ) $out[$name] = $default_value;
+            if ( !isset($in[$attribute->name]) && !isset($out[$attribute->name]) ) {
+                $defaultValue = $entity->getPropertyDefaultValue($attribute->name);
+                if (!$defaultValue) continue;
+                if ( $entity->getAccess() === Entity::ADD_RECORD ) $in[$attribute->name] = $defaultValue;
+                elseif ( $entity->getAccess() === Entity::UPDATE_RECORD ) $out[$attribute->name] = $defaultValue;
             }
         }
-
+        
         if ( $in ) return ['in' => $in];
         if ( $out ) return ['out' => $out];
 
@@ -403,16 +394,6 @@ abstract class AbstractModel implements Joinable
     public function getHiddenAttributes() : array
     {
         return $this->hidden;
-    }
-
-    /**
-     * Custom getter
-     * 
-     * @return string[]
-     */
-    public function getCustomAttributes() : array
-    {
-        return $this->custom;
     }
 
     /**
@@ -482,11 +463,20 @@ abstract class AbstractModel implements Joinable
                 }
             }
         }
+
+        [$fkKey, $pkKey] = Key::guessRelationship(
+            $foreign_key, 
+            $original_key, 
+            $this->getTable()->alias(), 
+            Str::singularize($this->getTable()->name()),
+            $model ? $model->getTable()->alias(): null,
+            $model ? Str::singularize($model->getTable()->name()): null
+        );
         
         $type = ucfirst(strtolower($type));
 
         if ($type === 'Cross') $this->query->{'join' . $type}($table);
-        else $this->query->{'join' . $type}($table, $foreign_key, $original_key, $operator);
+        else $this->query->{'join' . $type}($table, $fkKey->scalarName(true), $pkKey->scalarName(true), $operator);
 
         return $this;
     }
@@ -597,9 +587,6 @@ abstract class AbstractModel implements Joinable
      */
     public function __get(string $name) : mixed
     {
-        // ── Non Instanciated Model ────────────────────────
-        if ( $this->isEmpty() ) return null;
-        
         // ── Relation Call ─────────────────────────────────
         // Relationship exists
         if ( array_key_exists($name, $this->relations) ) {
@@ -632,11 +619,6 @@ abstract class AbstractModel implements Joinable
             }
         }
         
-        // ── Data Hydaration ───────────────────────────────
-        if (!$this->attributeExists($name)) {
-            return $this->attributes[$name] ?? null;
-        }
-        
         try {
             $value = $attribute->value;
             
@@ -652,8 +634,9 @@ abstract class AbstractModel implements Joinable
             if ( $attribute->isDefault() ) {
                 return $attribute->getDefault();
             }
-    
-            return null;
+            
+            // ── Data Hydaration ───────────────────────────────
+            return $this->attributes[$name] ?? null;
         } catch (\PDOException $e) {
             return null;
         } catch (\Exception $e) {

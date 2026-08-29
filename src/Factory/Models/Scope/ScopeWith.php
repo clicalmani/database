@@ -16,8 +16,7 @@ class ScopeWith implements ScopeInterface
     #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
-        $model->scopeWith($this->relation);
         if ($this->callback) call($this->callback, $query);
-        return $model;
+        return $model->setRelation($this->relation);
     }
 }

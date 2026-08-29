@@ -74,10 +74,10 @@ class HasManyThrough extends Relationship
         
         return $this->farModelClass::select()
             ->whereIn("{$this->through->getTable()->alias()}.{$this->firstKey}", $keys) // Filter: (e.g., tasks.project_id IN (retrieved ids))
-            ->joinInner(                                                            // Join: (e.g., users.task_id = tasks.id)
-                $this->through->getTable()->withAlias(),
-                "{$this->farModel->getTable()->alias()}.{$this->secondKey}",
-                "{$this->through->getTable()->alias()}.{$this->secondLocalKey}"
+            ->join(fn($join) =>
+                $join->inner()
+                    ->to($this->through->getTable()->withAlias()) 
+                    ->on("{$this->farModel->getTable()->alias()}.{$this->secondKey} = {$this->through->getTable()->alias()}.{$this->secondLocalKey}")                                                        // Join: (e.g., users.task_id = tasks.id)
             )->get();
     }
 
