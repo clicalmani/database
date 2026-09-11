@@ -8,14 +8,30 @@ use Clicalmani\Database\QueryInterface;
 class ScopeDestroy implements ScopeInterface
 {
     public function __construct(
-        protected readonly string $fields = '*'
+        protected string|int|array $keys
     )
-    {}
+    {
+        $this->keys = (array) $keys;
+    }
 
     #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): bool
     {
+        if (! count($this->keys) ) return false;
+
         $query->set('table', $model->getTable()->name());
-        return $query->truncate();
+
+        $key = $model->getKey();
+
+        if (!$key->isComposite()) {
+            $query->whereIn($key->scalarName(), $this->keys);
+        } else {
+            $ids = $this->keys;
+            foreach ($key->names() as $index => $name) {
+                $query->where("{$name} = ?", [$this->keys[$index]]);
+            }
+        }
+        
+        return $query->exec()->status() === 'success';
     }
 }

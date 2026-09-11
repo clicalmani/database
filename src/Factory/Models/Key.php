@@ -294,6 +294,8 @@ final class Key
      */
     public function fromResult(array $row): self
     {
+        if (empty($row)) return $this;
+        
         $values = [];
 
         foreach (array_keys($this->pairs) as $name) {

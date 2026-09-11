@@ -792,7 +792,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this->builder->result();
 	}
 
-	public function getBuilder() : ?\Clicalmani\Database\Interfaces\BuilderInterface
+	public function getBuilder()
 	{
 		return $this->builder;
 	}

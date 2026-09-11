@@ -79,10 +79,10 @@ trait CaptureEvents
     {
         /** @var callable|string */
         $handler = $this->getEventHandler($name);
-
+        
         // We nullify handler to prevent event from firing
         if ( $this->isEventMuted($name) ) $handler = null;
-
+        
         /**
          * |-------------------------------------------------------
          * | Trigger Built-In Events
@@ -102,12 +102,7 @@ trait CaptureEvents
              */
             if ( strrpos($name, 'ing') ) $this->lock();
             
-            if ( is_callable($handler) ) $handler($this);
-            elseif ( is_array($handler) ) {
-                $observer = $handler[0];
-                $method = $handler[1];
-                $observer->$method($this);
-            }
+            if ( is_callable($handler) ) call_user_func($handler, $this);
 
             /**
              * Release the lock

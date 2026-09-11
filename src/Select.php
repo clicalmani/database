@@ -9,7 +9,7 @@ use Clicalmani\Foundation\Support\Facades\DB;
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Select extends DBQueryBuilder implements \IteratorAggregate 
+class Select extends DBQueryBuilder implements \IteratorAggregate
 {
 	public function __construct(
 		protected $params = array(), 
@@ -88,6 +88,9 @@ class Select extends DBQueryBuilder implements \IteratorAggregate
 	    $this->error_code = DB::errno();
 	    $this->error_msg  = DB::error();
 		$this->num_rows   = DB::numRows($statement);
+		$this->row_count  = 0;
+
+		if (isset($this->params['calc'])) $this->row_count  = DB::foundRows();
 		
 	    while ($row = DB::fetch($statement, \PDO::FETCH_OBJ)) {
 	    	$this->result->add($row);

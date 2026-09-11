@@ -4,75 +4,97 @@ namespace Clicalmani\Database\Factory;
 /**
  * Class Factory
  * 
- * @package Clicalmani\Database
- * @author @clicalmani
+ * Provides database factory functionality for seeding and generating model instances.
+ * 
+ * @package Clicalmani\Database\Factory
+ * @author clicalmani
  */
 class Factory implements FactoryInterface
 {
     /**
-     * The name of the factory corresponding model.
+     * The target model class associated with the factory.
      *
-     * @var string Model class name
+     * @var string|null Model class name
      */
     protected $model;
 
     /**
-     * Holds the number of seed to execute
+     * Number of model instances or seeds to generate.
      * 
-     * @var int Default 1
+     * @var int Default is 1
      */
-    private $counter = 1;
+    private int $counter = 1;
 
     /**
-     * Holds the overriden attributes
+     * Attribute overrides applied to the default model definition.
      * 
      * @var array Attributes to override
      */
-    private $attributes_override = [];
+    private array $attributes_override = [];
     
     /**
-     * Merges attributes
+     * Merges custom attributes into the existing attribute overrides.
      * 
-     * @param array $attributes [Optional] Attributes to merge to overriden attributes
-     * @return array 
+     * @param array|null $attributes Attributes to merge with existing overrides.
+     * @return array Combined attributes array.
      */
-    private function merge(?array $attributes = []) : array
+    private function merge(?array $attributes = []): array
     {
-        return array_merge($this->attributes_override, $attributes);
+        return array_merge($this->attributes_override, $attributes ?? []);
     }
 
     /**
-     * Override attributes in the seed
+     * Applies attribute overrides to the default factory definition.
      * 
-     * @param array $attributes Only specified attributes will be overriden
-     * @return array New seed
+     * @param array|null $attributes Attribute key-value pairs to override.
+     * @return array Evaluated seed dataset.
      */
-    private function override(?array $attributes = [])
+    private function override(?array $attributes = []): array
     {
         $this->attributes_override = $this->merge($attributes);
         $seed = $this->definition();
         
         foreach ($this->attributes_override as $attribute => $value) {
-            $seed[$attribute] = ($value instanceof Sequence) ? call( $value ): $value;
+            $seed[$attribute] = ($value instanceof Sequence) ? call($value) : $value;
         }
         
         return $seed;
     }
 
-    public function definition() : array
+    /**
+     * Defines the default model attribute state.
+     * 
+     * @return array Model attribute structure.
+     */
+    public function definition(): array
     {
         return [
-            // Definition
+            // Model attribute definitions
         ];
     }
 
-    public function state(?callable $callback) : static
+    /**
+     * Applies a state transformation callback to override default attributes.
+     * 
+     * @param callable|null $callback Transformation callback returning modified attributes.
+     * @return static Current factory instance.
+     */
+    public function state(?callable $callback): static
     {
-        $this->override( $callback($this->definition()) );
+        if ($callback) {
+            $this->override($callback($this->definition()));
+        }
+        
         return $this;
     }
 
-    public function states(Sequence $seqs) : static
+    /**
+     * Applies a sequence of state transformations across multiple iterations.
+     * 
+     * @param Sequence $seqs Sequence instance holding transformation callbacks.
+     * @return static Current factory instance.
+     */
+    public function states(Sequence $seqs): static
     {
         foreach (range(1, $seqs->count) as $num) {  
             $this->state($seqs());
@@ -81,19 +103,36 @@ class Factory implements FactoryInterface
         return $this;
     }
 
-    public static function new() : static
+    /**
+     * Instantiates a new factory instance for the called child class.
+     * 
+     * @return static New factory instance.
+     */
+    public static function new(): static
     {
-        $factory = get_called_class();
+        $factory = static::class;
         return new $factory;
     }
 
-    public function count($num = 1) : static
+    /**
+     * Sets the number of seeds or models to generate.
+     * 
+     * @param int $num Count of records to generate.
+     * @return static Current factory instance.
+     */
+    public function count($num = 1): static
     {
         $this->counter = $num;
         return $this;
     }
 
-    public function make($attributes = []) : void
+    /**
+     * Generates seeds and inserts them directly into the underlying model storage.
+     * 
+     * @param array $attributes Additional attribute overrides.
+     * @return void
+     */
+    public function make($attributes = []): void
     {
         $seeds = [];
 
@@ -101,15 +140,27 @@ class Factory implements FactoryInterface
             $seeds[] = $this->override($attributes);
         }
         
-        if ( $this->model ) with (new $this->model)->insert($seeds);
+        if ($this->model) {
+            with(new $this->model)->insert($seeds);
+        }
     }
 
-    public function faker()
+    /**
+     * Creates and returns a new Faker instance for generating dummy data.
+     * 
+     * @return \Clicalmani\Database\Faker\Faker
+     */
+    public function faker(): \Clicalmani\Database\Faker\Faker
     {
         return new \Clicalmani\Database\Faker\Faker;
     }
 
-    public function sequence()
+    /**
+     * Creates and returns a new Sequence instance.
+     * 
+     * @return Sequence
+     */
+    public function sequence(): Sequence
     {
         return new Sequence;
     }

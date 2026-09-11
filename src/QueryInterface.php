@@ -403,7 +403,7 @@ interface QueryInterface extends DBInterface
 	 * 
 	 * @return ?\Clicalmani\Database\Interfaces\BuilderInterface
 	 */
-	public function getBuilder() : ?\Clicalmani\Database\Interfaces\BuilderInterface;
+	public function getBuilder();
 
 	/**
 	 * Returns the first row in a query result set.

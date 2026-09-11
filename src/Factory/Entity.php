@@ -69,7 +69,7 @@ abstract class Entity
      * 
      * @var int
      */
-    protected $access;
+    protected $access = 0;
 
     /**
      * List of attribute names flagged for insertion.
@@ -295,15 +295,17 @@ abstract class Entity
         if (property_exists($this, $name) && $property->hasType()) {
             
             $type = $property->getType();
-
+            
             if ($type instanceof \ReflectionUnionType) {
                 $types = $property->getType()->getTypes();
+                $named = null;
                 foreach ($types as $tp) {
                     if ($tp instanceof \ReflectionNamedType) {
-                        $name = $tp->getName();
-                        if (is_subclass_of($name, DataType::class)) return $name;
+                        $n = $tp->getName();
+                        if (is_subclass_of($n, DataType::class)) $named = $n;
                     }
                 }
+                return $named ? $named: (string) $type;
             }
 
             return $type->getName();
@@ -314,7 +316,9 @@ abstract class Entity
 
     public function getPropertyDefaultValue(string $name) : mixed
     {
-        return ( new \ReflectionProperty($this, $name) )->getDefaultValue();
+        $property = new \ReflectionProperty($this, $name);
+        if ($property->hasDefaultValue()) return $property->getDefaultValue();
+        return null;
     }
 
     /**
@@ -437,7 +441,7 @@ abstract class Entity
 
         $property = new $type(...$args);
         $property->value = $property->toDatabase($value);
-
+        
         if ($this->isPrimaryKeyProperty($name)) {
             $property->primary();
         }
@@ -690,7 +694,7 @@ abstract class Entity
         if ($instance->references) {
             $index = $index->foreignKey($instance->key)
                             ->references($instance->references['table'], $instance->references['key']);
-
+            
             $index = $this->applyReferentialAction($index, 'onUpdate', $instance->onUpdate);
             $index = $this->applyReferentialAction($index, 'onDelete', $instance->onDelete);
         }
@@ -709,8 +713,8 @@ abstract class Entity
     private function applyReferentialAction(Index $index, string $type, string $action): Index
     {
         $prefix = $type === 'onUpdate' ? 'onUpdate' : 'onDelete';
-
-        return match ($action) {
+        
+        return match ((int) $action) {
             IndexType::ON_UPDATE_CASCADE, IndexType::ON_DELETE_CASCADE   => $index->{"{$prefix}Cascade"}(),
             IndexType::ON_UPDATE_RESTRICT, IndexType::ON_DELETE_RESTRICT => $index->{"{$prefix}Restrict"}(),
             IndexType::ON_UPDATE_SETNULL, IndexType::ON_DELETE_SETNULL   => $index->{"{$prefix}SetNull"}(),

@@ -18,7 +18,7 @@ use Override;
  * @package Clicalmani\Foundation
  * @author @clicalmani
  */
-class Elegant extends AbstractModel implements ModelInterface, \Serializable, \JsonSerializable
+class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 {
     use SQLClauses;
     use SQLCases;
@@ -356,9 +356,11 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
     public function lastInsertId(array $record = []) : mixed
     {
         $last_insert_id = DB::insertId();
+
+        $key = $this->getKey();
         
         if (!$last_insert_id AND $record) {
-            $last_insert_id = $this->getKey()->fromResult($record);
+            $last_insert_id = $key->fromResult(array_intersect($key->names(), array_keys($record)) ? $record : [])->toValue();
         }
 
         return $last_insert_id;
@@ -455,7 +457,7 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
             throw new \RuntimeException(
                 sprintf("Failed to emit %s, make sure it is a registered event.", $event)
             );
-
+        
         if (DB::inTransaction()) self::preventEventsCapturing();
 
         $this->triggerEvent($event, $data);
@@ -588,29 +590,32 @@ class Elegant extends AbstractModel implements ModelInterface, \Serializable, \J
         }
     }
 
-    #[Override]
-    public function serialize()
+    public function __serialize()
     {
         return serialize([
             'id' => $this->id
         ]);
     }
 
-    #[Override]
-    public function unserialize(string $data)
+    public function __unserialize(array $data)
     {
-        $payload = unserialize($data);
-        parent::__construct($payload['id']);
+        // $payload = unserialize($data);
+        parent::__construct($data['id']);
+    }
+
+    public function getBuilder()
+    {
+        return $this->query->getBuilder();
     }
 
     /**
      * Set a relationship on the model
      * 
      * @param string $relation
-     * @param ?self $value
+     * @param mixed $value
      * @return self
      */
-    public function setRelation(string|array $relation, ?self $value = null): self
+    public function setRelation(string|array $relation, mixed $value = null): self
     {
         if ($value === null) {
             $this->with = (array) $relation;

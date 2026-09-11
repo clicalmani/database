@@ -678,7 +678,7 @@ abstract class AbstractModel implements Joinable
             } else {
                 $entity->setAccess(Entity::ADD_RECORD);     // Create a table row
             }
-
+            
             $entity->setProperty($name, $value);            // Set the entity property value
 
         } else {

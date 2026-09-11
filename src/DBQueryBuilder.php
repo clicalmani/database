@@ -70,6 +70,8 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 */
 	protected $num_rows = 0;
 
+	protected $row_count = 0;
+
 	/**
 	 * profile
 	 * 
@@ -211,6 +213,8 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 * @return int
 	 */
 	public function numRows() : int { return $this->num_rows; }
+
+	public function rowCount() : int { return $this->row_count; }
 	
 	/**
 	 * Returns human understandable word to show wether the execution of the
