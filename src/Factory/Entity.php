@@ -13,7 +13,8 @@ use Clicalmani\Database\Factory\Property;
 use Clicalmani\Database\Factory\Models\Attribute;
 use Clicalmani\Database\Factory\Models\Elegant;
 use Clicalmani\Database\Factory\Models\Key;
-use Clicalmani\Foundation\Support\Facades\Log;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Support\Facades\Log;
 use Clicalmani\Validation\Validator;
 
 /**
@@ -351,7 +352,7 @@ abstract class Entity
      */
     public function attributeExists(string $name): bool
     {
-        return !!collect($this->getAttributes())->find(fn(Attribute $attribute) => $attribute->name === $name);
+        return !!(new Collection($this->getAttributes()))->find(fn(Attribute $attribute) => $attribute->name === $name);
     }
 
     /**
@@ -545,7 +546,7 @@ abstract class Entity
      */
     public function drop(?bool $foreign_key_check = false) : bool
     {
-        if ($foreign_key_check) \Clicalmani\Foundation\Support\Facades\DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
+        if ($foreign_key_check) \Clicalmani\Core\Support\Facades\DB::getInstance()->getPdo()->query('SET FOREIGN_KEY_CHECKS = 0');
         return with( new Maker($this->model->getTable()->name(), Maker::DROP_TABLE_IF_EXISTS) )->make();
     }
 

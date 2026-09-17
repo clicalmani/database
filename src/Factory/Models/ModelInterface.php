@@ -1,7 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
-use Clicalmani\Foundation\Collection\CollectionInterface;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Collection\CollectionInterface;
 
 interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinable, SQLAggregateInterface, EventInterface, StateChangeInterface
 {
@@ -9,10 +10,10 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * Get the query results.
      * 
      * @param string $fields SQL select statement.
-     * @return \Clicalmani\Foundation\Collection\CollectionInterface
+     * @return \Clicalmani\Core\Collection\CollectionInterface
      * @throws \Clicalmani\Database\Exceptions\DBQueryException
      */
-    public function get(string $fields = '*') : CollectionInterface;
+    public function get(string $fields = '*') : Collection;
 
     public function getKey() : Key;
 
@@ -35,7 +36,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * 
      * @param array $value Attributs values key pairs
      * @return bool True on success, false on failure
-     * @throws \Clicalmani\Foundation\Exceptions\ModelException
+     * @throws \Clicalmani\Core\Exceptions\ModelException
      */
     public function update(array $values = []) : bool;
 
@@ -44,7 +45,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * 
      * @param array $fields Row attributes values
      * @return bool True on success, false on failure
-     * @throws \Clicalmani\Foundation\Exceptions\ModelException
+     * @throws \Clicalmani\Core\Exceptions\ModelException
      */
     public function insert(array $fields = [], ?bool $replace = false) : bool;
 

@@ -5,17 +5,18 @@ use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
 use Clicalmani\Database\Factory\Factory;
 use Clicalmani\Database\QueryInterface;
-use Clicalmani\Foundation\Collection\CollectionInterface;
-use Clicalmani\Foundation\Exceptions\ModelException;
-use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
-use Clicalmani\Foundation\Support\Facades\DB;
-use Clicalmani\Foundation\Support\Facades\Str;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Collection\CollectionInterface;
+use Clicalmani\Core\Exceptions\ModelException;
+use Clicalmani\Core\Exceptions\ModelNotFoundException;
+use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\Str;
 use Override;
 
 /**
  * Class Elegant
  * 
- * @package Clicalmani\Foundation
+ * @package Clicalmani\Core
  * @author @clicalmani
  */
 class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
@@ -78,7 +79,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return with ( new $class($id) );
     }
 
-    protected function exec(string $fields = '*') : CollectionInterface
+    protected function exec(string $fields = '*') : Collection
     {
         try {
             $this->query->set('calc', $this->calc_found_rows); // Set SQL_CALC_FOUND_ROWS flag
@@ -88,7 +89,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         }
     }
 
-    public function get(?string $fields = '*') : CollectionInterface
+    public function get(?string $fields = '*') : Collection
     {
         /** @var ?self */
         $model = null;
@@ -242,7 +243,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
             return $success;
         } 
         
-        throw new \Clicalmani\Foundation\Exceptions\ModelException("Can not bulk update or delete records when on safe mode");
+        throw new \Clicalmani\Core\Exceptions\ModelException("Can not bulk update or delete records when on safe mode");
     }
 
     public function insert(array $fields = [], ?bool $update = false) : bool
@@ -393,7 +394,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
     public function swap() : void
     {
         $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable()->name());
-        $request = \Clicalmani\Foundation\Http\Request::current();
+        $request = \Clicalmani\Core\Http\Request::current();
         
         foreach ($columns as $column) {
             foreach (array_keys($request->all()) as $attribute) {
@@ -573,7 +574,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return array_merge($data, $data2, $this->relations);
     }
 
-    private function eagerLoad(CollectionInterface $results)
+    private function eagerLoad(Collection $results)
     {
         foreach ($this->with as $relation) {
             $parts = explode('.', $relation);

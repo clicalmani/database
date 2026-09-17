@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Support\Facades\Log;
+use Clicalmani\Core\Support\Facades\Log;
 use PDO;
 use PDOStatement;
 
@@ -451,7 +451,7 @@ abstract class DB implements DBInterface
 	 * @param ?\Closure $callback
 	 * @return mixed
 	 */
-	public function beginTransaction(?\Closure $callback = null) : mixed
+	public function beginTransaction(?callable $callback = null) : mixed
 	{
 		return static::transaction($callback);
 	}

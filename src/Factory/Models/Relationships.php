@@ -14,8 +14,8 @@ use Clicalmani\Database\Factory\Models\Relations\MorphOne;
 use Clicalmani\Database\Factory\Models\Relations\MorphTo;
 use Clicalmani\Database\Factory\Models\Relations\MorphToMany;
 use Clicalmani\Database\JoinClauseInterface;
-use Clicalmani\Foundation\Collection\CollectionInterface;
-use Clicalmani\Foundation\Support\Facades\Str;
+use Clicalmani\Core\Collection\CollectionInterface;
+use Clicalmani\Core\Support\Facades\Str;
 
 trait Relationships
 {

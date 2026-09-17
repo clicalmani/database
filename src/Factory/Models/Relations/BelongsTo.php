@@ -2,10 +2,9 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
-use Clicalmani\Foundation\Collection\Collection;
-use Clicalmani\Foundation\Collection\CollectionInterface;
-use Clicalmani\Foundation\Support\Facades\DB;
-use Clicalmani\Foundation\Support\Facades\Str;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\Str;
 
 class BelongsTo extends Relationship
 {
@@ -56,7 +55,7 @@ class BelongsTo extends Relationship
         return $this->getModelKeys($models, $this->foreignKey);
     }
 
-    public function getEager(array $keys): CollectionInterface
+    public function getEager(array $keys): Collection
     {
         if (empty($keys)) {
             return new Collection();
@@ -65,7 +64,7 @@ class BelongsTo extends Relationship
         return $this->parentClass::whereIn($this->ownerKey, $keys)->get();
     }
 
-    public function match(array $models, CollectionInterface $results, string $relation): void
+    public function match(array $models, Collection $results, string $relation): void
     {
         $dictionary = [];
 

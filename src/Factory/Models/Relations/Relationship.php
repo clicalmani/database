@@ -3,14 +3,13 @@ namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
 use Clicalmani\Database\Factory\Models\ModelInterface;
-use Clicalmani\Foundation\Collection\Collection;
-use Clicalmani\Foundation\Collection\CollectionInterface;
+use Clicalmani\Core\Collection\Collection;
 
 abstract class Relationship implements \JsonSerializable
 {
     protected Elegant $model;
     protected \Clicalmani\Database\DBQuery $query;
-    protected ModelInterface|CollectionInterface|null $result = null;
+    protected ModelInterface|Collection|null $result = null;
     protected array|\Closure|null $default = null;
 
     abstract public function get(?string $fields = '*'): mixed;
@@ -27,19 +26,19 @@ abstract class Relationship implements \JsonSerializable
      * Execute eager-loading request
      * 
      * @param string[] $keys
-     * @return CollectionInterface
+     * @return Collection
      */
-    abstract public function getEager(array $keys): CollectionInterface;
+    abstract public function getEager(array $keys): Collection;
 
     /**
      * Assign results to models
      * 
      * @param Elegant[] $models
-     * @param CollectionInterface $results
+     * @param Collection $results
      * @param string $relation
      * @return array
      */
-    abstract public function match(array $models, CollectionInterface $results, string $relation): void;
+    abstract public function match(array $models, Collection $results, string $relation): void;
 
     /**
      * Load nested relations
@@ -48,7 +47,7 @@ abstract class Relationship implements \JsonSerializable
      * @param string $relation
      * @return void
      */
-    public function loadNestedRelations(CollectionInterface $results, string $relation) : void
+    public function loadNestedRelations(Collection $results, string $relation) : void
     {
         $this->match(
             $results->toArray(), $this->getEager(
@@ -100,7 +99,7 @@ abstract class Relationship implements \JsonSerializable
     /**
      * Groupe les résultats par type pour les relations polymorphiques
      */
-    protected function groupByType(CollectionInterface $results, string $typeKey): array
+    protected function groupByType(Collection $results, string $typeKey): array
     {
         $grouped = [];
         foreach ($results as $result) {

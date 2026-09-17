@@ -3,10 +3,9 @@
 namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
-use Clicalmani\Foundation\Collection\Collection;
-use Clicalmani\Foundation\Collection\CollectionInterface;
-use Clicalmani\Foundation\Support\Facades\DB;
-use Clicalmani\Foundation\Support\Facades\Str;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\Str;
 use Override;
 
 class BelongsToMany extends Relationship
@@ -82,7 +81,7 @@ class BelongsToMany extends Relationship
         return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
-    public function getEager(array $keys): CollectionInterface
+    public function getEager(array $keys): Collection
     {
         if (empty($keys)) {
             return collect();
@@ -111,7 +110,7 @@ class BelongsToMany extends Relationship
             ->get(implode(', ', $select));
     }
 
-    public function match(array $models, CollectionInterface $results, string $relation): void
+    public function match(array $models, Collection $results, string $relation): void
     {
         $dictionary = [];
         

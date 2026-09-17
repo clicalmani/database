@@ -3,7 +3,7 @@ namespace Clicalmani\Database\Factory\Models\Relations;
 
 use Clicalmani\Database\Factory\Models\Elegant;
 use Clicalmani\Database\Factory\Models\ModelInterface;
-use Clicalmani\Foundation\Collection\CollectionInterface;
+use Clicalmani\Core\Collection\Collection;
 
 class MorphTo extends Relationship
 {
@@ -61,7 +61,7 @@ class MorphTo extends Relationship
         return $keysByType;
     }
 
-    public function getEager(array $keysByType): CollectionInterface
+    public function getEager(array $keysByType): Collection
     {
         $results = collect();
         
@@ -92,7 +92,7 @@ class MorphTo extends Relationship
         return $results;
     }
 
-    public function match(array $models, CollectionInterface $results, string $relation): void
+    public function match(array $models, Collection $results, string $relation): void
     {
         // Group results by type and ID
         $dictionary = [];

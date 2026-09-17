@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\DB;
 
 /**
  * Class Delete
@@ -31,7 +31,7 @@ class Delete extends DBQueryBuilder implements \IteratorAggregate
 				 */
 
 				$prefix = DB::getPrefix();
-				$tables = new \Clicalmani\Foundation\Collection\Collection;
+				$tables = new \Clicalmani\Core\Collection\Collection;
 				$tables->exchange($this->params['tables'])->map(function($val) use($prefix) {
 					return $prefix . $val;
 				})->toArray();

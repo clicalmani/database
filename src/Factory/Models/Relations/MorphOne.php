@@ -50,7 +50,7 @@ class MorphOne extends Relationship
         return $this->getModelKeys($models, $this->model->getKey()->scalarName());
     }
 
-    public function getEager(array $keys): CollectionInterface
+    public function getEager(array $keys): Collection
     {
         if (empty($keys)) {
             return collect();
@@ -62,7 +62,7 @@ class MorphOne extends Relationship
             ->get();
     }
 
-    public function match(array $models, CollectionInterface $results, string $relation): void
+    public function match(array $models, Collection $results, string $relation): void
     {
         $dictionary = [];
         

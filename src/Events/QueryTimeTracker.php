@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database\Events;
 
-use Clicalmani\Foundation\Events\EventListener;
+use Clicalmani\Core\Events\EventListener;
 
 class QueryTimeTracker extends EventListener
 {

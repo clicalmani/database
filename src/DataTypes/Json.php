@@ -17,7 +17,7 @@ class Json extends DataType
 
         parent::sharedOptions($options);
 
-        $this->config = \Clicalmani\Foundation\Support\Facades\Config::app();
+        $this->config = \Clicalmani\Core\Support\Facades\Config::app();
     }
 
     #[Override]

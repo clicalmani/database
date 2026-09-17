@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\DB;
 
 /**
  * Class Insert

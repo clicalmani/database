@@ -3,14 +3,14 @@ namespace Clicalmani\Database\Factory\Models;
 
 use Clicalmani\Database\DBQuery;
 use Clicalmani\Database\Factory\Entity;
-use Clicalmani\Foundation\Exceptions\ModelException;
-use Clicalmani\Foundation\Support\Facades\DB;
-use Clicalmani\Foundation\Support\Facades\Str;
+use Clicalmani\Core\Exceptions\ModelException;
+use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\Str;
 
 /**
  * Class AbstractModel
  * 
- * @package Clicalmani\Foundation
+ * @package Clicalmani\Core
  * @author @clicalmani
  */
 abstract class AbstractModel implements Joinable

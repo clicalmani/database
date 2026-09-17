@@ -1,8 +1,8 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Collection\Collection;
-use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Core\Collection\Collection;
+use Clicalmani\Core\Support\Facades\DB;
 
 /**
  * Class Database Query Builder
@@ -89,7 +89,7 @@ abstract class DBQueryBuilder implements BuilderInterface
 	/**
 	 * SQL result
 	 * 
-	 * @var \Clicalmani\Foundation\Collection\Collection
+	 * @var \Clicalmani\Core\Collection\Collection
 	 */
 	protected $result; 
 
@@ -203,7 +203,7 @@ abstract class DBQueryBuilder implements BuilderInterface
 	/**
 	 * Gets the query result set.
 	 * 
-	 * @return \Clicalmani\Foundation\Collection\Collection
+	 * @return \Clicalmani\Core\Collection\Collection
 	 */
 	public function result() : Collection { return $this->result; }
 	

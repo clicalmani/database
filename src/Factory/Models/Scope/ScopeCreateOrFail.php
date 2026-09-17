@@ -4,7 +4,7 @@ namespace Clicalmani\Database\Factory\Models\Scope;
 use Clicalmani\Database\Factory\Models\ModelInterface;
 use Clicalmani\Database\Factory\Models\ScopeInterface;
 use Clicalmani\Database\QueryInterface;
-use Clicalmani\Foundation\Support\Facades\DB;
+use Clicalmani\Core\Support\Facades\DB;
 
 class ScopeCreateOrFail implements ScopeInterface
 {

@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Collection\Collection;
+use Clicalmani\Core\Collection\Collection;
 use Clicalmani\Database\Factory\Create;
 use Clicalmani\Database\Factory\Drop;
 use Clicalmani\Database\Factory\Alter;
@@ -13,8 +13,8 @@ use Clicalmani\Database\SubQueries\SubWhere;
 use Clicalmani\Database\SubQueries\WhereExists;
 use Clicalmani\Database\SubQueries\WhereNotExists;
 use Clicalmani\Database\SubQueries\WithExists;
-use Clicalmani\Foundation\Collection\CollectionInterface;
-use Clicalmani\Foundation\Collection\Map;
+use Clicalmani\Core\Collection\CollectionInterface;
+use Clicalmani\Core\Collection\Map;
 
 /**
  * Database query
@@ -640,7 +640,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this;
 	}
 
-	public function get(string $select = '*') : CollectionInterface
+	public function get(string $select = '*') : Collection
 	{
 		try {
 			$stringify = fn(mixed $fields, string $default) => match (gettype($fields)) {
@@ -678,7 +678,7 @@ class DBQuery extends DB implements QueryInterface
 		}
 	}
 
-	public function all() : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function all() : \Clicalmani\Core\Collection\Collection
 	{
 		$this->params['where'] = 'TRUE';
 		return $this->exec()->result();
@@ -787,7 +787,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this->exec()->status() === 'success';
 	}
 
-	public function getBuilderResult() : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function getBuilderResult() : \Clicalmani\Core\Collection\Collection
 	{
 		return $this->builder->result();
 	}
@@ -906,7 +906,7 @@ class DBQuery extends DB implements QueryInterface
 		} while ( $result->count() > 0 );
 	}
 
-	public function paginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function paginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection
 	{
 		$offset = ($page - 1) * $size;
 		$this->params['offset'] = $offset;
@@ -914,7 +914,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this->exec()->result();
 	}
 
-	public function simplePaginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function simplePaginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection
 	{
 		$offset = ($page - 1) * $size;
 		$this->params['offset'] = $offset;
@@ -923,7 +923,7 @@ class DBQuery extends DB implements QueryInterface
 		return $this->exec()->result();
 	}
 
-	public function lazy() : \Clicalmani\Foundation\Collection\CollectionInterface
+	public function lazy() : \Clicalmani\Core\Collection\Collection
 	{
 		return $this->exec()->result();
 	}

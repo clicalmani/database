@@ -1,7 +1,7 @@
 <?php
 namespace Clicalmani\Database;
 
-use Clicalmani\Foundation\Collection\Map;
+use Clicalmani\Core\Collection\Map;
 
 interface QueryInterface extends DBInterface
 {
@@ -299,16 +299,16 @@ interface QueryInterface extends DBInterface
 	 * the unique argument.
 	 * 
 	 * @param string $fields a list of request fields separated by comma.
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function get(string $fields = '*') : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function get(string $fields = '*') : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Fetch all rows in a query result set.
 	 * 
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function all() : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function all() : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Limit the number of rows to be returned in a query result set.
@@ -394,9 +394,9 @@ interface QueryInterface extends DBInterface
 	/**
 	 * Returns the query result set.
 	 * 
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function getBuilderResult() : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function getBuilderResult() : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Returns the query builder object.
@@ -502,32 +502,32 @@ interface QueryInterface extends DBInterface
 	 * 
 	 * @param int $page Page number
 	 * @param int $size Page size
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function paginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function paginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Paginate the query result set without FOUND_ROWS.
 	 * 
 	 * @param int $page Page number
 	 * @param int $size Page size
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function simplePaginate(int $page, int $size) : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function simplePaginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Lazy load the query result set.
 	 * 
-	 * @return \Clicalmani\Foundation\Collection\CollectionInterface
+	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function lazy() : \Clicalmani\Foundation\Collection\CollectionInterface;
+	public function lazy() : \Clicalmani\Core\Collection\Collection;
 
 	/**
 	 * Get the query result set as a map.
 	 * 
 	 * @param string $field The field to be used as the map value
 	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
+	 * @return \Clicalmani\Core\Collection\Collection\Map
 	 */
 	public function pluck(string $field, ?string $key = null) : Map;
 
@@ -536,7 +536,7 @@ interface QueryInterface extends DBInterface
 	 * 
 	 * @param string $field The field to be used as the map value
 	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
+	 * @return \Clicalmani\Core\Collection\Collection\Map
 	 */
 	public function lazyBy(string $field, ?string $key = null) : Map;
 
@@ -545,7 +545,7 @@ interface QueryInterface extends DBInterface
 	 * 
 	 * @param string $field The field to be used as the map value
 	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Foundation\Collection\Collection\Map
+	 * @return \Clicalmani\Core\Collection\Collection\Map
 	 */
 	public function lazyByDesc(string $field, ?string $key = null) : Map;
 

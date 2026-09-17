@@ -27,7 +27,7 @@ class ScopeFilter implements ScopeInterface
          */
         /** @var \Clicalmani\Database\Factory\Entity */
         $entity  = $model->getEntity();
-        $hash    = \Clicalmani\Foundation\Auth\EncryptionServiceProvider::hashParameter();
+        $hash    = \Clicalmani\Core\Auth\EncryptionServiceProvider::hashParameter();
         $request = request()->all();
         $attrs   = collect(array_keys($request))->filter(fn(string $attr) => !in_array($attr, array_merge($this->exclude, ['test_user_id', $hash])))
                         ->filter(fn(string $attr) => $entity->attributeExists($attr));

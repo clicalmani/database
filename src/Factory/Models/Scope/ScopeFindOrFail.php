@@ -5,7 +5,7 @@ use Clicalmani\Database\Factory\Models\Key;
 use Clicalmani\Database\Factory\Models\ModelInterface;
 use Clicalmani\Database\Factory\Models\ScopeInterface;
 use Clicalmani\Database\QueryInterface;
-use Clicalmani\Foundation\Exceptions\ModelNotFoundException;
+use Clicalmani\Core\Exceptions\ModelNotFoundException;
 
 class ScopeFindOrFail implements ScopeInterface
 {
