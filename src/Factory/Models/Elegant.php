@@ -268,7 +268,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
         $modified = $this->getData()['in'] ?? [];
 
-        if ($data !== $modified) $data = [$modified];
+        if (array_key_exists('in', $modified)) $data = [$modified];
         
         $this->query->unset('tables');
         $this->query->set('type', DBQuery::INSERT);
@@ -277,7 +277,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
         $keys = [];
         $values = [];
-
+        
         foreach ($data as $field) {
             $this->discardGuardedAttributes($field);
             if (empty($keys)) $keys = array_keys($field);

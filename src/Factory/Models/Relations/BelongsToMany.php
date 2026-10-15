@@ -175,7 +175,7 @@ class BelongsToMany extends Relationship
             $insertData = array_merge($data, $attributes);
 
             try {
-                $stmt = DB::table($this->table)->insert($insertData);
+                $stmt = DB::table($this->table)->insert($insertData)->query();
                 $stmt->query();
                 $success = (bool) $stmt->affectedRows();
             } catch (\Exception $e) {
