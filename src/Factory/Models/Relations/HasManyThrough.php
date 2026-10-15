@@ -94,18 +94,19 @@ class HasManyThrough extends Relationship
             $row = DB::table($this->through->getTable()->name())->where($this->secondLocalKey . ' = ?', [$result->{$this->secondKey}])->first();
             
             if ($row) {
-                if (!isset($dictionary[$row->{$this->firstKey}])) { // [$row->project_id => []]
-                    $dictionary[$row->{$this->firstKey}] = [];
+                $key = (string) $this->getProperty($row, $this->firstKey);
+                if (!$key) { // [$row->project_id => []]
+                    $dictionary[$key] = [];
                 }
-                $dictionary[$row->{$this->firstKey}][] = $result;
+                $dictionary[$key][] = $result;
             }
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->localKey}; // e.g., $project->id
+            $key = (string) $this->getProperty($model, $this->localKey); // e.g., $project->id
             
             if (isset($dictionary[$key])) {
-                $model->setRelation($relation, $dictionary[$key]);
+                $model->setRelation($relation, collect($dictionary[$key]));
             } else {
                 $model->setRelation($relation, collect());
             }

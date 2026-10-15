@@ -15,6 +15,8 @@ use Clicalmani\Database\SubQueries\WhereNotExists;
 use Clicalmani\Database\SubQueries\WithExists;
 use Clicalmani\Core\Collection\CollectionInterface;
 use Clicalmani\Core\Collection\Map;
+use Clicalmani\Database\Factory\Models\Table;
+use Clicalmani\Core\Support\Facades\Str;
 
 /**
  * Database query
@@ -125,32 +127,11 @@ class DBQuery extends DB implements QueryInterface
 	const TRUNCATE = 11;
 
 	/**
-	 * Union flag
-	 * 
-	 * @var int 12
-	 */
-	const UNION = 12;
-
-	/**
-	 * Show columns flag
-	 * 
-	 * @var int 13
-	 */
-	const SHOW_COLUMNS = 13;
-
-	/**
 	 * Builder
 	 * 
 	 * @var \Clicalmani\Database\DBQueryBuilder
 	 */
 	private $builder;
-
-	/**
-	 * Union query
-	 * 
-	 * @var \Clicalmani\Database\DBQuery
-	 */
-	private $union_query;
 
 	/**
 	 * Backup of the current query parameters and options for subqueries
@@ -166,8 +147,13 @@ class DBQuery extends DB implements QueryInterface
 	 * @param array $params [Optional] Query parameters
 	 * @param array $options [Optional] 
 	 */
-	public function __construct(private ?int $query = null, ?array $params = [], private ?array $options = [])
-	{ 
+	public function __construct(
+		private ?int $query = null, 
+		?array $params = [], 
+		private ?array $options = [],
+		private ?Contracts\QueryExecutorInterface $executor = null
+	)
+	{
 		$this->params = isset($params)? $params: [];
 		$this->query = $query;
 	}
@@ -212,110 +198,44 @@ class DBQuery extends DB implements QueryInterface
 		return $default;
 	}
 
-	public function exec() : \Clicalmani\Database\DBQueryBuilder
+	public function exec(bool $runDry = false) : \Clicalmani\Database\DBQueryBuilder
 	{ 
 		$this->query = isset($this->params['query'])? $this->params['query']: $this->query;
 
 		if ( isset($this->params['connection']) ) {
 			self::connection($this->params['connection']);
 		}
+
+		$type = QueryType::from((int) $this->query);
+
+		if ($type === QueryType::DROP_TABLE_IF_EXISTS) {
+			$this->params['exists'] = true;
+		}
+
+		$builderClass  = $type->builderClass();
+		$this->builder = new $builderClass($this->params, $this->options, $this->executor(), $type);
 		
-		switch ($this->query){
-			
-			case static::SELECT:
-				$this->builder = new Select($this->params, $this->options);
-				break;
-			
-			case static::INSERT:
-				$this->builder = new Insert($this->params, $this->options);
-				break;
-				
-			case static::DELETE:
-				$this->builder = new Delete($this->params, $this->options);
-				break;
-				
-			case static::UPDATE:
-				$this->builder = new Update($this->params, $this->options);
-				break;
-
-			case static::CREATE:
-				$this->builder = new Create($this->params, $this->options);
-				break;
-
-			case static::DROP_TABLE:
-				$this->builder = new Drop($this->params, $this->options);
-				break;
-
-			case static::DROP_TABLE_IF_EXISTS:
-				$this->params['exists'] = true;
-				$this->builder = new Drop($this->params, $this->options);
-				break;
-
-			case static::ALTER:
-				$this->builder = new Alter($this->params, $this->options);
-				break;
-
-			case static::LOCK_TABLE:
-				$this->builder = new Lock($this->params, $this->options);
-				break;
-
-			case static::UNLOCK_TABLE:
-				$this->builder = new Unlock($this->params, $this->options);
-				break;
-
-			case static::REPLACE:
-				$this->builder = new Replace($this->params, $this->options);
-				break;
-
-			case static::TRUNCATE:
-				$this->builder = new Truncate($this->params, $this->options);
-				break;
-
-			case static::UNION:
-				if (!isset($this->union_query)) {
-					throw new \Exception('Union query not defined');
-				}
-				break;
-
-			case static::SHOW_COLUMNS:
-				$this->builder = new ShowColumns($this->params, $this->options);
-				break;
-		}
-
-		try {
-			$this->builder->query();
-
-			// Clear events data
-			unset($this->params['muted_events']);
-			unset($this->params['prevent_events']);
-
-			return $this->builder;
-		} catch (\PDOException $e) {
-			throw $e;
-		}
+		if (!is_subclass_of($this->builder, Builders\AbstractInsertStatement::class)) $this->builder->query($runDry);
+		
+		return $this->builder;
 	}
 
-	public function delete() : static
+	public function delete() : bool
 	{
 		$this->query = static::DELETE;
-		return $this;
+		return $this->exec()->status() === 'success';
 	}
 
-	public function truncate() : self
+	public function truncate() : bool
 	{
-		$table = @ isset( $this->params['tables'][0] ) ? $this->params['tables'][0]: null;
-
-		if ( isset( $table ) ) {
-			unset($this->params['tables']);
-			$this->params['table'] = $table;
-		}
+		$this->setSingleTable();
 
 		$this->query = static::TRUNCATE;
 
-		return $this;
+		return $this->exec()->status() === 'success';
 	}
 
-	public function update(?array $options = []) : self
+	public function update(?array $options = []) : int
 	{
 		$this->set('query', DBQuery::UPDATE);
 
@@ -329,33 +249,26 @@ class DBQuery extends DB implements QueryInterface
 			$this->params['marker'] = ':';
 		}
 
-		return $this;
+		return $this->exec()->affectedRows();
 	}
 
-	public function increment(string $field, int $value = 1, ?array $fields = []) : self
+	public function increment(string $field, int $value = 1, ?array $fields = []) : bool
 	{
-		return $this->update( array_merge($fields, [$field => $field . ' + ' . $value]) );
+		return $this->update( array_merge($fields, [$field => $this->raw($field . ' + ' . $value)]) );
 	}
 
-	public function decrement(string $field, int $value = 1, array $fields = []) : self
+	public function decrement(string $field, int $value = 1, array $fields = []) : bool
 	{
-		return $this->update( array_merge($fields, [$field => $field . ' - ' . $value]) );
+		return $this->update( array_merge($fields, [$field => $this->raw($field . ' - ' . $value)]) );
 	}
 
-	public function insert(array $options = [], bool $update = false) : self
+	public function insert(array $options = []) : Builders\AbstractInsertStatement
 	{
 		if ( array_filter($options, fn($entry) => ! is_array($entry)) ) {
 			$options = [$options];
 		}
 		
-		// Make sure there is no table alias in the table name for insert query
-		$arr = explode(' ', $this->params['tables'][0]);
-		$table = @ count( $arr ) ? array_shift($arr): null;
-		
-		if ( isset( $table ) ) {
-			unset($this->params['tables']);
-			$this->params['table'] = $table;
-		}
+		$this->setSingleTable();
 
 		$this->params['values'] = [];
 
@@ -366,48 +279,21 @@ class DBQuery extends DB implements QueryInterface
 			$this->params['fields']   = $fields;
 			$this->params['values'][] = $values;
 		}
+
+		$this->set('query', self::INSERT);
 		
-		$this->set('query', (FALSE === $update) ? self::INSERT: self::REPLACE); 
-		
-		return $this;
-	}
-	
-	public function insertIgnore(array $options = [], bool $update = false): self
-	{
-		$this->params['ignore'] = true;
-		return $this->insert($options, $update);
+		return $this->exec();
 	}
 
-	public function insertOrFail(array $options = []) : bool
+	public function replace(array $options = []) : Builders\AbstractInsertStatement
 	{
-		try {
-			return $this->insert($options)->exec()->status() === 'success';
-		} catch (\PDOException $e) {
-			return false;
-		}
-	}
-
-	public function insertGetId(array $options = [], bool $replace = false) : int
-	{
-		try {
-			$this->insert($options, $replace)->exec();
-			return DB::lastInsertId();
-		} catch (\Throwable $e) {
-			throw $e;
-		}
+		$this->insert($options);
+		$this->set('query', self::REPLACE); 
+		return $this->exec();
 	}
 
 	public function where( ...$args ): self
 	{
-		/**
-		 * Logical grouping with closure: If the first argument is a closure, it will be treated as a logical group of conditions. The closure will receive an instance of the query builder, allowing you to define multiple conditions within the group. The resulting SQL will wrap these conditions in parentheses and combine them with an OR operator.
-		 * Example usage:
-		 * $query->orWhere(function($query) {
-		 *     $query->where('status = ?', ['active'])
-		 *           ->where('created_at > ?', ['2024-01-01']);
-		 * });
-		 * This will generate a SQL query that includes a condition like: OR (status = 'active' AND created_at > '2024-01-01')
-		 */
 		if ($args && $args[0] instanceof \Closure) {
 
 			$callback = $args[0];
@@ -453,7 +339,7 @@ class DBQuery extends DB implements QueryInterface
 		$this->options = is_array($options) ? array_merge($this->options, $options): $this->options;
 		
 		$criteria = trim($criteria);
-
+		
 		if ( empty($criteria) ) $criteria = '1';
 
 		if ( !isset($this->params['where']) ) {
@@ -554,9 +440,14 @@ class DBQuery extends DB implements QueryInterface
 	
 	public function whereDoesntHave(string $relation, \Closure $callback, string $boolean = 'AND') : self
 	{
+		$relation = Table::from($relation)->name();
+		$table = Table::from($this->params['tables'][0] ?? '')->name();
+		$foreignKey = Str::singularize($table) . '_id';
+
 		return (
-			new NotExists($this, static function(self $query) use($relation, $callback) {
+			new NotExists($this, function(self $query) use($relation, $table, $foreignKey, $callback) {
 				$query->setParams(['tables' => [$relation], 'fields' => 1]);
+				$query->where("{$relation}.{$foreignKey} = {$table}.id");
 				$callback($query);
 			})
 		)($boolean);
@@ -574,11 +465,35 @@ class DBQuery extends DB implements QueryInterface
 			$callback($query);
 		}))($key, $operator, $boolean);
 	}
-	
-	public function whereIn(string $key, array $values): self
+
+	public function whereNotIn(string $key, array $values, string $boolean = 'AND', bool $not = true) : self
 	{
-		return $this->where("$key IN (" . 
-			implode(', ', array_fill(0, count($values), '?')) . ")", $values);
+		if (empty($values)) {
+			return $this->where('1 = 1', $boolean, []);
+		}
+
+		$placeholders = implode(', ', array_fill(0, count($values), '?'));
+
+		return $this->where(
+			"$key " . ($not ? 'NOT IN' : 'IN') . " ($placeholders)",
+			$boolean,
+			array_values($values)
+		);
+	}
+
+	public function orWhereNotIn(string $key, array $values) : self
+	{
+		return $this->whereNotIn($key, $values, 'OR');
+	}
+	
+	public function whereIn(string $key, array $values, string $boolean = 'AND') : self
+	{
+		return $this->whereNotIn($key, $values, $boolean, false);
+	}
+
+	public function orWhereIn(string $key, array $values) : self
+	{
+		return $this->whereIn($key, $values, 'OR');
 	}
 
 	public function having(string $criteria) : self
@@ -592,9 +507,9 @@ class DBQuery extends DB implements QueryInterface
 		return $this;
 	}
 
-	public function orderBy(string $order_by) : self
+	public function orderBy(string|array $column, string|array $order = 'ASC') : self
 	{
-		$this->params['order_by'] = $order_by;
+		$this->params['order_by'] = (string) \Clicalmani\Database\Concerns\OrderBy::from($column, $order);
 		return $this;
 	}
 
@@ -659,12 +574,6 @@ class DBQuery extends DB implements QueryInterface
 			
 			$this->params['fields'] = $select;
 			
-			if ( $this->union_query instanceof self ) {
-				/** @var \Clicalmani\Database\Union */
-				$builder = $this->builder;
-				$builder->setFields($select);
-			}
-			
 			$result = $this->exec();
 			$collection = new Collection;
 			
@@ -678,18 +587,23 @@ class DBQuery extends DB implements QueryInterface
 		}
 	}
 
-	public function all() : \Clicalmani\Core\Collection\Collection
+	public function all() : Collection
 	{
-		$this->params['where'] = 'TRUE';
+		$this->params['where'] = true;
+		$this->options = [];
 		return $this->exec()->result();
 	}
 
-	public function limit(int $offset = 0, int $limit = 1) : static
+	public function limit(int $count = 1) : static
 	{
 		$this->params['calc'] = true;
+		$this->params['limit'] = $count;
+		return $this;
+	}
+
+	public function skip(int $offset = 0) : static
+	{
 		$this->params['offset'] = $offset;
-		$this->params['limit'] = $limit;
-		
 		return $this;
 	}
 
@@ -744,7 +658,7 @@ class DBQuery extends DB implements QueryInterface
 		
 		return $this->join($table, function(JoinClauseInterface $join) use ($foreignKey, $is_crossed, $localKey, $type, $operator) {
 			$join->type($type);
-			if ($is_crossed) $join->on('');
+			if ($is_crossed) return;
 			else if ($foreignKey != $localKey) $join->on($foreignKey . $operator . $localKey);
 			else $join->using($foreignKey);
 		});
@@ -772,8 +686,11 @@ class DBQuery extends DB implements QueryInterface
 
 	public function lock(?string $type = 'WRITE', ?bool $disable_keys = false) : bool
 	{
+		if ($this->inTransaction() || !config('database.lock_enabled', true)) return false;
+
 		if ( ! in_array($type, ['READ', 'READ LOCAL', 'WRITE']) ) $type = 'WRITE';
 
+		$this->setSingleTable();
 		$this->query = static::LOCK_TABLE;
 		$this->params['lock_type'] = $type;
 		if ( $disable_keys ) $this->params['disable_keys'] = true;
@@ -782,12 +699,15 @@ class DBQuery extends DB implements QueryInterface
 
 	public function unlock(?bool $enable_keys = false) : bool
 	{
+		if ($this->inTransaction() || !config('database.lock_enabled', true)) return false;
+
+		$this->setSingleTable();
 		$this->query = static::UNLOCK_TABLE;
 		if ( $enable_keys ) $this->params['enable_keys'] = true;
 		return $this->exec()->status() === 'success';
 	}
 
-	public function getBuilderResult() : \Clicalmani\Core\Collection\Collection
+	public function getBuilderResult() : Collection
 	{
 		return $this->builder->result();
 	}
@@ -809,7 +729,7 @@ class DBQuery extends DB implements QueryInterface
 		$this->params['fields'] = $field;
 		$this->params['limit'] = 1;
 		$result = $this->exec();
-		return $result->result()->first()[$field];
+		return $result->result()->first()?->$field;
 	}
 
 	public function firstOrFail() : mixed
@@ -822,70 +742,110 @@ class DBQuery extends DB implements QueryInterface
 		return $result;
 	}
 
-	public function value(string $field) : mixed
+	public function value(string $field, mixed $default = null) : mixed
 	{
 		$this->params['fields'] = $field;
-		$result = $this->exec();
-		return $result->result()->first()?->$field ?? null;
+		$this->params['limit'] = 1;
+
+		$result = $this->exec()->result()->first();
+
+		if (!isset($result)) {
+			return $default;
+		}
+
+		$result = (array) $result;
+
+		return $result[$field] ?? $default;
 	}
 
-	public function count(string $field = '*') : int
+	public function count(string $field = '*', bool $distinct = false, int $default = 0) : int
 	{
-		$this->params['fields'] = "COUNT($field)";
-		$result = $this->exec();
-		return (int) $result->result()->first()?->{"COUNT($field)"};
+		$expression = $distinct ? "DISTINCT $field" : $field;
+
+		return (int) ($this->aggregate('COUNT', $expression) ?? $default);
 	}
 
-	public function sum(string $field) : int
+	public function sum(string $field, mixed $default = null) : mixed
 	{
-		$this->params['fields'] = "SUM($field)";
-		$result = $this->exec();
-		return (int) $result->result()->first()["SUM($field)"];
+		$value = $this->aggregate('SUM', $field);
+
+		return NULL === $value ? $default : $value + 0;
 	}
 
-	public function max(string $field) : int
+	public function max(string $field, mixed $default = null) : mixed
 	{
-		$this->params['fields'] = "MAX($field)";
-		$result = $this->exec();
-		return (int) $result->result()->first()["MAX($field)"];
+		$value = $this->aggregate('MAX', $field);
+
+		return NULL === $value ? $default : $value;
 	}
 
-	public function min(string $field) : int
+	public function min(string $field, mixed $default = null) : mixed
 	{
-		$this->params['fields'] = "MIN($field)";
-		$result = $this->exec();
-		return (int) $result->result()->first()["MIN($field)"];
+		$value = $this->aggregate('MIN', $field);
+
+		return NULL === $value ? $default : $value;
 	}
 
-	public function avg(string $field) : int
+	public function avg(string $field, mixed $default = null) : mixed
 	{
-		$this->params['fields'] = "AVG($field)";
-		$result = $this->exec();
-		return (int) $result->result()->first()["AVG($field)"];
+		$value = $this->aggregate('AVG', $field);
+		
+		return NULL === $value ? $default : $value;
 	}
 
-	public function find(int $id, ?string $column = 'id') : mixed
+	public function find(int|string $id, ?string $column = 'id') : mixed
 	{
 		$this->params['where'] = "$column = :id";
 		$this->options = ['id' => $id];
 		return $this->exec()->result()->first();
 	}
 
-	public function chunk(int $size, callable $callback) : void
+	public function chunk(int $size, callable $callback, ?string $column = null) : bool
 	{
-		$offset = 0;
-		$limit = $size;
+		if ($size < 1) {
+			throw new \InvalidArgumentException('Chunk size must be greater than 0.');
+		}
 
-		do {
-			$this->params['offset'] = $offset;
-			$this->params['limit'] = $limit;
-			$result = $this->exec()->result();
+		// Preserve the original state so we can restore it after chunking.
+		$originalOffset = $this->params['offset'] ?? null;
+		$originalLimit  = $this->params['limit']  ?? null;
+		$originalOrder  = $this->params['order_by'] ?? null;
 
-			if ( $result->count() > 0 ) {
-				if (FALSE === $callback($result)) break;
-				$offset += $size;
-			}
-		} while ( $result->count() > 0 );
+		// Use a stable ordering to avoid duplicates/skips across pages.
+		if (isset($column) && !isset($originalOrder)) {
+			$this->params['order_by'] = $column;
+		} elseif (!isset($originalOrder)) {
+			// Fallback: order by the first selected field if available, otherwise by 1.
+			$this->params['order_by'] = '1';
+		}
+
+		$page = 1;
+
+		try {
+			do {
+				$this->params['offset'] = ($page - 1) * $size;
+				$this->params['limit']  = $size;
+
+				$result = $this->exec()->result();
+
+				if ($result->count() === 0) {
+					break;
+				}
+
+				if ($callback($result, $page) === false) {
+					return false;
+				}
+
+				$page++;
+			} while ($result->count() === $size);
+		} finally {
+			// Restore the original state to keep the query reusable.
+			$this->params['offset']   = $originalOffset;
+			$this->params['limit']    = $originalLimit;
+			$this->params['order_by'] = $originalOrder;
+		}
+
+		return true;
 	}
 
 	public function chunkById(int $size, callable $callback, ?string $column = 'id') : void
@@ -906,98 +866,250 @@ class DBQuery extends DB implements QueryInterface
 		} while ( $result->count() > 0 );
 	}
 
-	public function paginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection
+	public function paginate(int $page = 1, int $size = 15, ?string $column = 'id', bool $countTotal = true) : \Clicalmani\Core\Collection\Paginator
 	{
-		$offset = ($page - 1) * $size;
-		$this->params['offset'] = $offset;
-		$this->params['limit'] = $size;
-		return $this->exec()->result();
-	}
-
-	public function simplePaginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection
-	{
-		$offset = ($page - 1) * $size;
-		$this->params['offset'] = $offset;
-		$this->params['limit'] = $size;
-		$this->params['calc'] = false;
-		return $this->exec()->result();
-	}
-
-	public function lazy() : \Clicalmani\Core\Collection\Collection
-	{
-		return $this->exec()->result();
-	}
-
-	public function pluck(string $field, ?string $key = null) : Map
-	{
-		$this->params['fields'] = $field;
-		$result = $this->exec();
-		$collection = collection()->asMap();
-
-		foreach ($result as $index => $row) {
-			if (NULL !== $key) $collection->set($row[$key], $row[$field]);
-			else $collection->set($index, $row[$field]);
+		if ($page < 1) {
+			throw new \InvalidArgumentException('Page number must be greater than 0.');
 		}
 
-		return $collection;
+		if ($size < 1) {
+			throw new \InvalidArgumentException('Page size must be greater than 0.');
+		}
+
+		// Preserve original state so the query remains reusable.
+		$originalOffset = $this->params['offset'] ?? null;
+		$originalLimit  = $this->params['limit']  ?? null;
+		$originalOrder  = $this->params['order_by'] ?? null;
+
+		// Ensure a stable ordering for deterministic pagination.
+		if (!isset($originalOrder) && isset($column)) {
+			$this->params['order_by'] = "$column ASC";
+		} elseif (!isset($originalOrder)) {
+			$this->params['order_by'] = '1';
+		}
+
+		$total = null;
+
+		try {
+			// Compute total first (before applying offset/limit).
+			if ($countTotal) {
+				$total = $this->countAll();
+			}
+
+			$this->params['offset'] = ($page - 1) * $size;
+			$this->params['limit']  = $size;
+
+			$items = $this->exec()->result();
+		} finally {
+			// Restore original state.
+			$this->restoreParam('offset',   $originalOffset);
+			$this->restoreParam('limit',    $originalLimit);
+			$this->restoreParam('order_by', $originalOrder);
+		}
+
+		return new \Clicalmani\Core\Collection\Paginator(
+			items: $items,
+			total: $total,
+			perPage: $size,
+			currentPage: $page,
+		);
 	}
 
-	public function lazyBy(string $field, ?string $key = null) : Map
+	public function simplePaginate(int $page = 1, int $size = 15, ?string $column = 'id') : \Clicalmani\Core\Collection\Paginator
 	{
-		$this->params['fields'] = $field;
+		if ($page < 1) {
+			throw new \InvalidArgumentException('Page number must be greater than 0.');
+		}
+
+		if ($size < 1) {
+			throw new \InvalidArgumentException('Page size must be greater than 0.');
+		}
+
+		// Preserve original state so the query remains reusable.
+		$originalOffset = $this->params['offset'] ?? null;
+		$originalLimit  = $this->params['limit']  ?? null;
+		$originalOrder  = $this->params['order_by'] ?? null;
+		$originalCalc   = $this->params['calc']   ?? null;
+
+		// Ensure a stable ordering for deterministic pagination.
+		if (!isset($originalOrder) && isset($column)) {
+			$this->params['order_by'] = "$column ASC";
+		} elseif (!isset($originalOrder)) {
+			$this->params['order_by'] = '1';
+		}
+
+		try {
+			// Fetch one extra row to detect whether a next page exists,
+			// without paying for a COUNT(*) query.
+			$this->params['offset'] = ($page - 1) * $size;
+			$this->params['limit']  = $size + 1;
+			$this->params['calc']   = false;
+
+			$items = $this->exec()->result();
+
+			$hasMore = $items->count() > $size;
+
+			// Drop the extra row before returning.
+			if ($hasMore) {
+				$items = $items->slice(0, $size);
+			}
+		} finally {
+			// Restore original state.
+			$this->restoreParam('offset',   $originalOffset);
+			$this->restoreParam('limit',    $originalLimit);
+			$this->restoreParam('order_by', $originalOrder);
+			$this->restoreParam('calc',     $originalCalc);
+		}
+
+		return new \Clicalmani\Core\Collection\Paginator(
+			items: $items,
+			total: null,
+			perPage: $size,
+			currentPage: $page
+		);
+	}
+
+	public function lazy(int $chunk = 1000, ?string $column = 'id') : \Generator
+	{
+		if ($chunk < 1) {
+			throw new \InvalidArgumentException('Chunk size must be greater than 0.');
+		}
+
+		// Ensure a stable ordering to avoid duplicates/skips across pages.
+		$orderBy = $this->params['order_by'] ?? null;
+		if (!isset($orderBy) && isset($column)) {
+			$this->params['order_by'] = "$column ASC";
+		} elseif (!isset($orderBy)) {
+			$this->params['order_by'] = '1';
+		}
+
+		$offset = 0;
+
+		do {
+			// Clone to avoid mutating the original query state between iterations.
+			$query = clone $this;
+			$query->params['offset'] = $offset;
+			$query->params['limit']  = $chunk;
+
+			$result = $query->exec()->result();
+
+			foreach ($result as $row) {
+				yield $row;
+			}
+
+			$offset += $chunk;
+		} while ($result->count() === $chunk);
+	}
+
+	public function pluck(string $column, ?string $key = null): CollectionInterface
+	{
+		if ($key !== null) {
+			$this->params['fields'] = "{$key}, {$column}";
+		} else {
+			$this->params['fields'] = $column;
+		}
+
+		// 2. Exécuter et récupérer les lignes
 		$result = $this->exec()->result();
-		$collection = collection()->asMap();
+		$collection = new Collection;
 
-		foreach ($result as $index => $row) {
-			if (NULL !== $key) $collection->set($row[$key], $row[$field]);
-			else $collection->set($index, $row[$field]);
+		// 4. Construire la collection
+		foreach ($result as $row) {
+			$row = (array) $row;
+
+			$value = $row[$column] ?? null;
+
+			if ($key !== null) {
+				$collection->put($row[$key] ?? null, $value);
+			} else {
+				$collection->push($value);
+			}
 		}
 
 		return $collection;
 	}
 
-	public function lazyByDesc(string $field, ?string $key = null) : Map
+	public function lazyBy(string $column, int $chunk = 1000) : \Generator
 	{
-		$this->params['fields'] = $field;
-		$this->params['order_by'] = "$field DESC";
-		$result = $this->exec()->result();
-		$collection = collection()->asMap();
+		$offset = 0;
 
-		foreach ($result as $index => $row) {
-			if (NULL !== $key) $collection->set($row[$key], $row[$field]);
-			else $collection->set($index, $row[$field]);
-		}
+		do {
+			$query = clone $this;
+			$query->params['order_by'] = "$column ASC";
+			$query->params['offset'] = $offset;
+			$query->params['limit'] = $chunk;
 
-		return $collection;
+			$result = $query->exec()->result();
+
+			foreach ($result as $row) {
+				yield $row;
+			}
+
+			$offset += $chunk;
+		} while ($result->count() === $chunk);
+	}
+
+	public function lazyByDesc(string $column, int $chunk = 1000) : \Generator
+	{
+		$offset = 0;
+
+		do {
+			$query = clone $this;
+			$query->params['order_by'] = "$column DESC";
+			$query->params['offset'] = $offset;
+			$query->params['limit'] = $chunk;
+
+			$result = $query->exec()->result();
+
+			foreach ($result as $row) {
+				yield $row;
+			}
+
+			$offset += $chunk;
+		} while ($result->count() === $chunk);
 	}
 
 	public function exists() : bool
 	{
-		return $this->count() > 0;
+		return $this->firstExists();
 	}
 
 	public function doesntExist() : bool
 	{
-		return $this->count() === 0;
+		return !$this->firstExists();
 	}
 
-	public function when(bool $condition, callable $callback) : static
+	public function when(mixed $condition, callable $callback, ?callable $default = null) : static
 	{
-		if ($condition) $callback($this->query);
+		if ($condition) {
+			$result = $callback($this);
+
+			return $result instanceof self ? $result : $this;
+		}
+
+		if (isset($default)) {
+			$result = $default($this);
+
+			return $result instanceof self ? $result : $this;
+		}
+
 		return $this;
 	}
 
-	public function unless(bool $condition, callable $callback) : static
+	public function unless(mixed $condition, callable $callback, ?callable $default = null) : static
 	{
-		if (!$condition) $callback($this->query);
-		return $this;
-	}
+		if (!$condition) {
+			$result = $callback($this);
 
-	public function union(self $query, bool $all = false) : self
-	{
-		$this->union_query = $query;
-		$this->params['query'] = static::UNION;
-		$this->builder = new Union($this->params, $this->options, $this->union_query->params, $this->union_query->options, $all);
+			return $result instanceof self ? $result : $this;
+		}
+
+		if (isset($default)) {
+			$result = $default($this);
+
+			return $result instanceof self ? $result : $this;
+		}
+
 		return $this;
 	}
 
@@ -1030,5 +1142,105 @@ class DBQuery extends DB implements QueryInterface
 	public function getOptions(): ?array
 	{
 		return $this->options;
+	}
+
+	/**
+	 * Count all rows matching the current query, ignoring offset/limit.
+	 *
+	 * @return int
+	 */
+	private function countAll() : int
+	{
+		$query = clone $this;
+		$query->params['fields'] = 'COUNT(*) AS aggregate';
+		unset($query->params['offset'], $query->params['limit'], $query->params['order_by']);
+
+		$row = $query->exec()->result()->first();
+
+		return (int) (((array) $row)['aggregate'] ?? 0);
+	}
+
+	/**
+	 * Restore a parameter to its original value, or unset it if it was not set.
+	 *
+	 * @param string $key
+	 * @param mixed $value
+	 * @return void
+	 */
+	private function restoreParam(string $key, mixed $value) : void
+	{
+		if (NULL === $value) {
+			unset($this->params[$key]);
+		} else {
+			$this->params[$key] = $value;
+		}
+	}
+
+	/**
+	 * Execute an aggregate function (SUM, AVG, MIN, MAX, COUNT, ...) on the
+	 * given column and return the raw scalar value, or null if no row matches.
+	 *
+	 * The query is cloned so the original instance remains reusable. The
+	 * aggregate is aliased to 'aggregate' to provide a stable key regardless
+	 * of how the database normalizes the expression.
+	 *
+	 * @param string $function Aggregate function name (e.g. 'SUM', 'AVG')
+	 * @param string $field Column to aggregate
+	 * @return mixed Raw scalar value, or null
+	 */
+	private function aggregate(string $function, string $field) : mixed
+	{
+		$function = strtoupper($function);
+
+		if (!in_array($function, ['SUM', 'AVG', 'MIN', 'MAX', 'COUNT'], true)) {
+			throw new \InvalidArgumentException("Unsupported aggregate function: $function");
+		}
+
+		$query = clone $this;
+		$query->params['query'] = self::SELECT;
+		$query->params['fields'] = "$function($field) AS aggregate";
+
+		// Aggregate queries make no sense with ordering or pagination.
+		unset($query->params['order_by'], $query->params['offset'], $query->params['limit']);
+
+		$row = $query->exec()->result()->first();
+
+		if (NULL === $row) {
+			return null;
+		}
+
+		return ((array) $row)['aggregate'] ?? null;
+	}
+
+	/**
+	 * Internal helper: check whether the current query yields at least one row.
+	 *
+	 * Clones the query, replaces the SELECT fields with a constant 1, removes
+	 * ORDER BY (which is pointless for an existence test) and caps the result
+	 * at one row. The original query is left untouched.
+	 *
+	 * @return bool
+	 */
+	private function firstExists() : bool
+	{
+		$query = clone $this;
+		$query->params['fields'] = '1';
+		$query->params['limit']  = 1;
+
+		// ORDER BY is irrelevant when we only need to know if a row exists.
+		unset($query->params['order_by'], $query->params['offset']);
+
+		return $query->exec()->result()->count() > 0;
+	}
+
+	private function setSingleTable(): void
+	{
+		if (!isset($this->params['tables'][0])) {
+			throw new \RuntimeException('No table specified for the query.');
+		}
+
+		$table = Table::from($this->params['tables'][0]);
+		unset($this->params['tables']);
+		$this->params['table'] = $table->name();
 	}
 }

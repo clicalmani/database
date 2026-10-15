@@ -1,50 +1,18 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Database\DBQueryBuilder;
-use Clicalmani\Database\DBQueryIterator;
+use Clicalmani\Database\Builders\AbstractDdlStatement;
+use Clicalmani\Database\Concerns\IfExists;
 
 /**
- * Class Drop
- * 
- * Drop table
- * 
- * @package Clicalmani\Database
- * @author @clicalmani
+ * DROP TABLE [IF EXISTS] `table`;
  */
-class Drop extends DBQueryBuilder implements \IteratorAggregate 
+class Drop extends AbstractDdlStatement
 {
-	public function __construct(
-		protected $params = array(), 
-		protected $options = []
-	) 
-    { 
-		parent::__construct($params, $options);
-		$this->sql .= 'DROP TABLE ' . (isset($this->params['exists']) ? 'IF EXISTS ': '') . $this->db->getPrefix() . $this->params['table'];
-	}
+    use IfExists;
 
-	/**
-	 * (non-PHPdoc)
-	 * @override
-	 * @see \Clicalmani\Database\DBQueryBuilder::query()
-	 * @return void
-	 */
-	public function query() : void
-	{
-	    $result = $this->db->query($this->sql);
-    		
-		$this->status     = $result ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-	}
-	
-	/**
-	 * Get iterator
-	 * 
-	 * @return \Traversable
-	 */
-	public function getIterator() : \Traversable
-	{
-		return new DBQueryIterator($this);
-	}
+    protected function buildSql(): string
+    {
+        return 'DROP TABLE' . $this->ifExistsClause() . ' ' . $this->tableName();
+    }
 }

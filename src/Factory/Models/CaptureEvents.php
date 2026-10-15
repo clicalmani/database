@@ -46,19 +46,7 @@ trait CaptureEvents
     private function getEventHandler(string $name) : mixed
     {
         if ( $this->isCustomEvent($name) ) {
-
-            /**
-             * Observer have priority over custom listeners.
-             */
-            if ( array_key_exists($name, $this->observers) ) {
-                return $this->observers[$name];
-            }
-
-            foreach ($this->dispatchesEvents as $listener) {
-                if ($listener::__NAME__ === $name) return $listener;
-            }
-
-            return null;
+            return $this->getObserver($name);
         }
 
         /**
@@ -69,7 +57,7 @@ trait CaptureEvents
             return $this->eventHandlers[$name];
         }
 
-        return @$this->observers[$name];
+        return $this->getObserver($name);
     }
 
     /**
@@ -79,7 +67,7 @@ trait CaptureEvents
     {
         /** @var callable|string */
         $handler = $this->getEventHandler($name);
-        
+        // logger()->debug([$name, $this->isEventMuted($name), $this->isCustomEvent($name)]);
         // We nullify handler to prevent event from firing
         if ( $this->isEventMuted($name) ) $handler = null;
         
@@ -95,46 +83,7 @@ trait CaptureEvents
          * 
          */
         if ( FALSE === $this->isCustomEvent($name) ) {
-            /**
-             * Check for pre-runtime events such as
-             * creating, updating, deleting and place
-             * a lock on the table in writing mode
-             */
-            if ( strrpos($name, 'ing') ) $this->lock();
-            
             if ( is_callable($handler) ) call_user_func($handler, $this);
-
-            /**
-             * Release the lock
-             */
-            if ( $this->isLocked() ) $this->unlock();
-        }
-
-        /**
-         * |-------------------------------------------------------
-         * | Trigger Custom Events
-         * |-------------------------------------------------------
-         * 
-         * Custom event may be a class that inherit from the
-         * Event class or callback function.
-         */
-        else {
-            foreach ($this->dispatchesEvents as $listener) {
-                
-                if ($listener::__NAME__ === $name) {
-
-                    if ( is_string($handler) && class_exists($handler) ) {
-                        /** @var \Clicalmani\Database\Events\EventListener */
-                        $listener = new $handler;
-                        $listener->setTarget($this);
-                        $listener->handle($data);
-                    } elseif ( is_array($handler) ) {
-                        $observer = $handler[0];
-                        $method = $handler[1];
-                        $observer->$method($this);
-                    }
-                }
-            }
         }
     }
 
@@ -184,10 +133,10 @@ trait CaptureEvents
 
     public function muteEvents(?array $name = null) : static
     {
-        if ( isset($name) ) {
-            $this->query->set('muted_events', $name);
+        if ( !empty($name) ) {
+            $this->mutedEvents += $name;
         } else {
-            $this->query->set('prevent_events', true);
+            $this->eventsPrevented = true;
         }
 
         return $this;
@@ -195,8 +144,8 @@ trait CaptureEvents
 
     public function isEventMuted(string $name) : bool
     {
-        if ( $this->query->getParam('prevent_events') ) return true;
-        return in_array($name, $this->query->getParam('muted_events', []));
+        if ( $this->eventsPrevented ) return true;
+        return in_array($name, $this->mutedEvents);
     }
 
     protected function booted() : void
@@ -204,5 +153,25 @@ trait CaptureEvents
         /**
          * TODO
          */
+    }
+
+    /**
+     * @return \ReflectionMethod[]
+     */
+    private function extractPublicMethods(object $obj) : array
+    {
+        $reflection = new \ReflectionClass($obj);
+        return $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
+    }
+
+    private function getObserver(string $event) : ?array
+    {
+        foreach ($this->observers as $observer) {
+            $methods = array_map(fn(\ReflectionMethod $method) => $method->name, $this->extractPublicMethods($observer));
+            if (in_array($event, $methods)) {
+                return [$observer, $event];
+            }
+        }
+        return null;
     }
 }

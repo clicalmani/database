@@ -14,7 +14,6 @@ class ScopeDestroy implements ScopeInterface
         $this->keys = (array) $keys;
     }
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): bool
     {
         if (! count($this->keys) ) return false;

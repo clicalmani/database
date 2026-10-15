@@ -13,7 +13,6 @@ class ScopeWhereIn implements ScopeInterface
     )
     {}
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
         $query->whereIn($this->key, $this->values);

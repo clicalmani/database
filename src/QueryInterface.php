@@ -68,24 +68,24 @@ interface QueryInterface extends DBInterface
 	/**
 	 * Performs a delete request.
 	 * 
-	 * @return self
+	 * @return bool
 	 */
-	public function delete() : self;
+	public function delete() : bool;
 
 	/**
 	 * Perform a truncate request.
 	 * 
-	 * @return self true on success, false on failure
+	 * @return bool true on success, false on failure
 	 */
-	public function truncate() : self;
+	public function truncate() : bool;
 
 	/**
 	 * Perform an update request.
 	 * 
 	 * @param array $option [optional] New attribute values
-	 * @return self true on success, false on failure
+	 * @return int Affected rows
 	 */
-	public function update(?array $options = []) : self;
+	public function update(?array $options = []) : int;
 
 	/**
 	 * Increment a field value by a specified value.
@@ -93,9 +93,9 @@ interface QueryInterface extends DBInterface
 	 * @param string $field Field name
 	 * @param int $value [optional] Increment value. Default is 1
 	 * @param ?array $fields [optional] Additional fields to be updated
-	 * @return self true on success, false on failure
+	 * @return bool true on success, false on failure
 	 */
-	public function increment(string $field, int $value = 1, ?array $fields = []) : self;
+	public function increment(string $field, int $value = 1, ?array $fields = []) : bool;
 
 	/**
 	 * Decrement a field value by a specified value.
@@ -103,42 +103,20 @@ interface QueryInterface extends DBInterface
 	 * @param string $field Field name
 	 * @param int $value [optional] Decrement value. Default is 1
 	 * @param array $fields [optional] Additional fields to be updated
-	 * @return self true on success, false on failure
+	 * @return bool true on success, false on failure
 	 */
-	public function decrement(string $field, int $value = 1, array $fields = []) : self;
+	public function decrement(string $field, int $value = 1, array $fields = []) : bool;
 
 	/**
 	 * Insert new record to the selected database table. 
 	 * 
 	 * @param array $options [optional] New values to be inserted.
 	 * @param bool $update Update if record exists
-	 * @return self true on success, false on failure
+	 * @return Builders\AbstractInsertStatement
 	 */
-	public function insert(array $options = [], bool $update = false): self;
+	public function insert(array $options = []) : Builders\AbstractInsertStatement;
 
-	/**
-	 * Insert ignore query
-	 * 
-	 * @param array $options Insert options
-	 * @param bool $update [Optional] Whether to update existing records or ignore them
-	 * @return self
-	 */
-	public function insertIgnore(array $options = [], bool $update = false): self;
-
-	/**
-	 * Insert new record to the selected table or fail.
-	 * 
-	 * @return bool true on success, false on failure
-	 */
-	public function insertOrFail(array $options = []) : bool;
-
-	/**
-	 * Insert new record to the selected table and return the last inserted id.
-	 * 
-	 * @param array $options [optional] New values to be inserted.
-	 * @return int
-	 */
-	public function insertGetId(array $options = []) : int;
+	public function replace(array $options = []) : Builders\AbstractInsertStatement;
 
 	/**
 	 * Specify the query where condition. 
@@ -238,13 +216,60 @@ interface QueryInterface extends DBInterface
 	public function orWhereDoesntHave(string $relation, \Closure $callback) : self;
 
 	/**
-	 * Add a where in clause to the query
-	 * 
-	 * @param string $key Column name
-	 * @param array $values Array of values
+	 * Add a "where NOT IN" clause to the query.
+	 *
+	 * Generates a condition of the form "key NOT IN (?, ?, ...)" with one
+	 * placeholder per value. The values are passed as bindings, so they are
+	 * safely escaped by the PDO driver.
+	 *
+	 *     $query->whereNotIn('status', ['archived', 'deleted']);
+	 *     // ... WHERE status NOT IN ('archived', 'deleted')
+	 *
+	 * An empty array produces a condition that is always true ("1 = 1"),
+	 * because "NOT IN ()" is invalid SQL. This matches the intuitive
+	 * semantics: excluding nothing excludes nothing.
+	 *
+	 * @param string $key Column name (or expression) to test
+	 * @param array $values Values to exclude
+	 * @param string $boolean [Optional] Boolean operator to join with. Default 'AND'
+	 * @param bool $not [Optional] Whether to negate. Default true
 	 * @return self
 	 */
-	public function whereIn(string $key, array $values): self;
+	public function whereNotIn(string $key, array $values, string $boolean = 'AND', bool $not = true) : self;
+
+	/**
+	 * Add an "or where NOT IN" clause to the query.
+	 *
+	 * Shortcut for whereNotIn(..., 'OR').
+	 *
+	 * @param string $key Column name (or expression) to test
+	 * @param array $values Values to exclude
+	 * @return self
+	 */
+	public function orWhereNotIn(string $key, array $values) : self;
+
+	/**
+	 * Add a "where IN" clause to the query.
+	 *
+	 * An empty array produces a condition that is always false ("1 = 0"),
+	 * because "IN ()" is invalid SQL. This matches the intuitive semantics:
+	 * including nothing includes nothing.
+	 *
+	 * @param string $key Column name (or expression) to test
+	 * @param array $values Values to include
+	 * @param string $boolean [Optional] Boolean operator to join with. Default 'AND'
+	 * @return self
+	 */
+	public function whereIn(string $key, array $values, string $boolean = 'AND') : self;
+
+	/**
+	 * Add an "or where IN" clause to the query.
+	 *
+	 * @param string $key Column name (or expression) to test
+	 * @param array $values Values to include
+	 * @return self
+	 */
+	public function orWhereIn(string $key, array $values) : self;
 
 	/**
 	 * Specify the query having condition
@@ -257,10 +282,11 @@ interface QueryInterface extends DBInterface
 	/**
 	 * Orders the query result set.
 	 * 
-	 * @param string $order_by a SQL query order by statement
+	 * @param string|array $column
+	 * @param string|array $order ASC or DESC
 	 * @return self
 	 */
-	public function orderBy(string $order_by) : self;
+	public function orderBy(string|array $column, string|array $order = 'ASC') : self;
 
 	/**
 	 * Group the query result set by a specified parameter
@@ -312,12 +338,13 @@ interface QueryInterface extends DBInterface
 
 	/**
 	 * Limit the number of rows to be returned in a query result set.
-	 * 
-	 * @param int $offset [Optional] the starting index to fetch from. Default is 0
+	 *
 	 * @param int $limit [Optional] The number of result to be returned. Default is 1
 	 * @return self
 	 */
-	public function limit(int $offset = 0, int $limit = 1) : self;
+	public function limit(int $count = 1) : self;
+
+	public function skip(int $offset = 0) : self;
 
 	/**
 	 * Limit the number of rows to be returned in a query result set.
@@ -427,47 +454,83 @@ interface QueryInterface extends DBInterface
 	 */
 	public function firstOrFail() : mixed;
 
+	/**
+	 * Retrieve a single column value from the first matching row.
+	 *
+	 * @param string $field The column name to retrieve
+	 * @param mixed $default [Optional] Default value to return if no row is found
+	 * @return mixed
+	 */
 	public function value(string $field) : mixed;
 
 	/**
-	 * Count the number of rows in a query result set.
-	 * 
-	 * @param string $field [optional] The field to be counted. Default is '*'
+	 * Count the number of rows matching the current query.
+	 *
+	 * By default, counts all rows. Pass a column name to count non-null
+	 * values in that column, or use the $distinct flag to count unique
+	 * values (COUNT(DISTINCT column)).
+	 *
+	 *     $query->count();                      // COUNT(*)
+	 *     $query->count('email');               // COUNT(email) — ignore les NULL
+	 *     $query->count('user_id', distinct: true); // COUNT(DISTINCT user_id)
+	 *
+	 * @param string $field [Optional] Column to count. Default '*' (all rows)
+	 * @param bool $distinct [Optional] Whether to count distinct values. Default false
+	 * @param int $default [Optional] Value returned when no row matches. Default 0
 	 * @return int
 	 */
-	public function count(string $field = '*') : int;
+	public function count(string $field = '*', bool $distinct = false, int $default = 0) : int;
 
 	/**
-	 * Sum the values of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
+	 * Retrieve the sum of the given column across all matching rows.
+	 *
+	 * Returns the given $default (null by default) when no row matches,
+	 * which mirrors SQL's own behavior (SUM over an empty set is NULL).
+	 *
+	 * @param string $field Column to sum
+	 * @param mixed $default [Optional] Value returned when no row matches. Default null
+	 * @return mixed
 	 */
-	public function sum(string $field) : int;
+	public function sum(string $field, mixed $default = null) : mixed;
 
 	/**
-	 * Get the maximum value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
+	 * Retrieve the maximum value of the given column across all matching rows.
+	 *
+	 * The return type is preserved as-is from the database, so this works
+	 * for numeric, string, and date columns alike. Returns $default (null
+	 * by default) when no row matches.
+	 *
+	 * @param string $field Column to inspect
+	 * @param mixed $default [Optional] Value returned when no row matches. Default null
+	 * @return mixed
 	 */
-	public function max(string $field) : int;
+	public function max(string $field, mixed $default = null) : mixed;
 
 	/**
-	 * Get the minimum value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
+	 * Retrieve the minimum value of the given column across all matching rows.
+	 *
+	 * The return type is preserved as-is from the database, so this works
+	 * for numeric, string, and date columns alike. Returns $default (null
+	 * by default) when no row matches.
+	 *
+	 * @param string $field Column to inspect
+	 * @param mixed $default [Optional] Value returned when no row matches. Default null
+	 * @return mixed
 	 */
-	public function min(string $field) : int;
+	public function min(string $field, mixed $default = null) : mixed;
 
 	/**
-	 * Get the average value of a field in a query result set.
-	 * 
-	 * @param string $field The field to be summed
-	 * @return int
+	 * Retrieve the average of the given column across all matching rows.
+	 *
+	 * Always returns a float when a value is present, since averages are
+	 * inherently fractional. Returns $default (null by default) when no row
+	 * matches.
+	 *
+	 * @param string $field Column to average
+	 * @param mixed $default [Optional] Value returned when no row matches. Default null
+	 * @return mixed
 	 */
-	public function avg(string $field) : int;
+	public function avg(string $field, mixed $default = null) : mixed;
 
 	/**
 	 * Find a record by its id
@@ -476,16 +539,21 @@ interface QueryInterface extends DBInterface
 	 * @param string $column [optional] Column name. Default is 'id'
 	 * @return mixed
 	 */
-	public function find(int $id, string $column = 'id') : mixed;
+	public function find(int|string $id, ?string $column = 'id') : mixed;
 
 	/**
-	 * Chunk the results of the query.
-	 * 
-	 * @param int $size Chunk size
-	 * @param collable $callback Callback function
-	 * @return void
+	 * Chunk the results of the query by fetching a fixed number of rows at a time
+	 * and passing each chunk to the given callback.
+	 *
+	 * The callback receives the current chunk (a Collection) and the current page
+	 * number (starting at 1). If the callback returns false, chunking will stop.
+	 *
+	 * @param int $size Number of rows per chunk
+	 * @param callable $callback Callback receiving (Collection $chunk, int $page)
+	 * @param string|null $column [Optional] Column to order by for stable pagination
+	 * @return bool True if all chunks were processed, false if the callback stopped it
 	 */
-	public function chunk(int $size, callable $callback) : void;
+	public function chunk(int $size, callable $callback, ?string $column = null) : bool;
 
 	/**
 	 * Chunk the results of the query by id.
@@ -498,98 +566,178 @@ interface QueryInterface extends DBInterface
 	public function chunkById(int $size, callable $callback, ?string $column = 'id') : void;
 
 	/**
-	 * Paginate the query result set.
-	 * 
-	 * @param int $page Page number
-	 * @param int $size Page size
+	 * Paginate the query results.
+	 *
+	 * Returns a paginator object exposing the current page's items along with
+	 * metadata: total items, total pages, current page, per-page size, and
+	 * whether previous/next pages exist.
+	 *
+	 * The paginator is iterable and countable, so existing code that treats
+	 * the return value as a collection continues to work:
+	 *
+	 *     foreach ($query->paginate(1, 15) as $row) { ... }
+	 *     $query->paginate(1, 15)->count();
+	 *
+	 * @param int $page Current page (1-based)
+	 * @param int $size Number of items per page
+	 * @param string|null $column [Optional] Column to order by for stable pagination
+	 * @param bool $countTotal [Optional] Whether to compute the total row count. Default true
+	 * @return \Clicalmani\Core\Collection\Paginator
+	 */
+	public function paginate(int $page = 1, int $size = 15, ?string $column = 'id', bool $countTotal = true) : \Clicalmani\Core\Collection\Paginator;
+
+	/**
+	 * Paginate the query results without computing the total row count.
+	 *
+	 * Unlike paginate(), this method does not execute a COUNT(*) query,
+	 * making it significantly faster on large datasets. In exchange, the
+	 * paginator cannot tell you the total number of items or the last page
+	 * number. It can, however, tell you whether there are more pages by
+	 * checking if the current page is full.
+	 *
+	 * Returns a Paginator instance that is iterable and countable, so it can
+	 * be used as a drop-in replacement for the plain Collection previously
+	 * returned:
+	 *
+	 *     foreach ($query->simplePaginate(1, 15) as $row) { ... }
+	 *
+	 * @param int $page Current page (1-based)
+	 * @param int $size Number of items per page
+	 * @param string|null $column [Optional] Column to order by for stable pagination
+	 * @return \Clicalmani\Core\Collection\Paginator
+	 */
+	public function simplePaginate(int $page = 1, int $size = 15, ?string $column = 'id') : \Clicalmani\Core\Collection\Paginator;
+
+	/**
+	 * Lazily iterate over the result set, fetching rows in chunks to avoid
+	 * loading the entire dataset into memory at once.
+	 *
+	 * The generator yields one row at a time. Internally, rows are fetched
+	 * from the database in chunks of $chunk size. An ORDER BY clause is
+	 * required for stable pagination; if none is set, one is applied
+	 * automatically using the given column (defaults to the primary key
+	 * convention 'id').
+	 *
+	 * Example:
+	 *     foreach ($query->lazy(500) as $row) {
+	 *         // process $row
+	 *     }
+	 *
+	 * @param int $chunk [Optional] Number of rows to fetch per chunk. Default 1000
+	 * @param string|null $column [Optional] Column to order by for stable pagination
+	 * @return \Generator
+	 */
+	public function lazy() : \Generator;
+
+	/**
+	 * Pluck a single column's values from the result set.
+	 *
+	 * @param string $column The column to pluck
+	 * @param string|null $key [Optional] Column to use as the key for the returned array
 	 * @return \Clicalmani\Core\Collection\CollectionInterface
 	 */
-	public function paginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection;
+	public function pluck(string $field, ?string $key = null) : \Clicalmani\Core\Collection\CollectionInterface;
 
 	/**
-	 * Paginate the query result set without FOUND_ROWS.
-	 * 
-	 * @param int $page Page number
-	 * @param int $size Page size
-	 * @return \Clicalmani\Core\Collection\CollectionInterface
+	 * Lazily iterate over the result set ordered by the given column in ascending order.
+	 * Useful for processing large datasets without loading everything into memory at once.
+	 *
+	 * @param string $column The column to order by
+	 * @param int $chunk [Optional] Number of rows to fetch per chunk. Default 1000
+	 * @return \Generator
 	 */
-	public function simplePaginate(int $page, int $size) : \Clicalmani\Core\Collection\Collection;
+	public function lazyBy(string $column, int $chunk = 1000) : \Generator;
 
 	/**
-	 * Lazy load the query result set.
-	 * 
-	 * @return \Clicalmani\Core\Collection\CollectionInterface
+	 * Lazily iterate over the result set ordered by the given column in descending order.
+	 * Useful for processing large datasets without loading everything into memory at once.
+	 *
+	 * @param string $column The column to order by
+	 * @param int $chunk [Optional] Number of rows to fetch per chunk. Default 1000
+	 * @return \Generator
 	 */
-	public function lazy() : \Clicalmani\Core\Collection\Collection;
+	public function lazyByDesc(string $column, int $chunk = 1000) : \Generator;
 
 	/**
-	 * Get the query result set as a map.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Core\Collection\Collection\Map
-	 */
-	public function pluck(string $field, ?string $key = null) : Map;
-
-	/**
-	 * Lazy load the query result set by a specified field.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Core\Collection\Collection\Map
-	 */
-	public function lazyBy(string $field, ?string $key = null) : Map;
-
-	/**
-	 * Lazy load the query result set by a specified field in descending order.
-	 * 
-	 * @param string $field The field to be used as the map value
-	 * @param ?string $key [optional] The field to be used as the map key. Default is null
-	 * @return \Clicalmani\Core\Collection\Collection\Map
-	 */
-	public function lazyByDesc(string $field, ?string $key = null) : Map;
-
-	/**
-	 * Check if a record exists in the query result set.
-	 * 
+	 * Determine whether at least one row matches the current query.
+	 *
+	 * Uses SELECT 1 ... LIMIT 1 instead of COUNT(*) for performance: the
+	 * database stops scanning at the first matching row, so the cost is
+	 * O(1) regardless of how many rows match. On a table with millions of
+	 * rows, this is orders of magnitude faster than COUNT(*) > 0.
+	 *
+	 * The query is cloned, so the original instance remains reusable.
+	 *
+	 *     if (User::query()->where('email = ?', [$email])->exists()) {
+	 *         // ...
+	 *     }
+	 *
 	 * @return bool
 	 */
 	public function exists() : bool;
 
 	/**
-	 * Check if a record does not exist in the query result set.
-	 * 
+	 * Determine whether no row matches the current query.
+	 *
+	 * Strict inverse of exists(). Uses the same SELECT 1 ... LIMIT 1
+	 * strategy, so it's just as fast.
+	 *
+	 *     if (User::query()->where('email = ?', [$email])->doesntExist()) {
+	 *         // safe to create the user
+	 *     }
+	 *
 	 * @return bool
 	 */
 	public function doesntExist() : bool;
 
 	/**
-	 * Check if a record exists in the query result set.
-	 * 
-	 * @param bool $condition
-	 * @param callable $callback
-	 * @return self
+	 * Apply a callback to the query when the given condition is truthy.
+	 *
+	 * The callback receives the current query builder instance, allowing it
+	 * to chain any query method. Its return value is used if it returns
+	 * something other than null; otherwise, the original instance is returned
+	 * to preserve the fluent chain.
+	 *
+	 * If $default is provided and the condition is falsy, $default is invoked
+	 * instead. This avoids chaining a separate unless() call.
+	 *
+	 *     // Simple usage
+	 *     $query->when($isAdmin, fn($q) => $q->where('role = ?', ['admin']));
+	 *
+	 *     // With an else branch
+	 *     $query->when(
+	 *         $isAdmin,
+	 *         fn($q) => $q->where('role = ?', ['admin']),
+	 *         fn($q) => $q->where('role = ?', ['user']),
+	 *     );
+	 *
+	 *     // Truthy non-boolean conditions work too
+	 *     $query->when($search, fn($q) => $q->where('name LIKE ?', ["%$search%"]));
+	 *
+	 * @param mixed $condition Any truthy/falsy value
+	 * @param callable $callback Callback invoked when $condition is truthy
+	 * @param callable|null $default [Optional] Callback invoked when $condition is falsy
+	 * @return static
 	 */
-	public function when(bool $condition, callable $callback) : self;
+	public function when(mixed $condition, callable $callback, ?callable $default = null) : static;
 
 	/**
-	 * Check if a record does not exist in the query result set.
-	 * 
-	 * @param bool $condition
-	 * @param callable $callback
-	 * @return self
+	 * Apply a callback to the query when the given condition is falsy.
+	 *
+	 * Strict inverse of when(): the callback is invoked only when $condition
+	 * evaluates to false. Its return value is used if it returns a builder
+	 * instance; otherwise, the current instance is returned.
+	 *
+	 *     // Apply a filter only when the user is NOT an admin
+	 *     $query->unless($isAdmin, fn($q) => $q->where('role = ?', ['user']));
+	 *
+	 * @param mixed $condition Any truthy/falsy value
+	 * @param callable $callback Callback invoked when $condition is falsy
+	 * @param callable|null $default [Optional] Callback invoked when $condition is truthy
+	 * @return static
 	 */
-	public function unless(bool $condition, callable $callback) : self;
-
-	/**
-	 * Combine the result sets of two queries
-	 * 
-	 * @param \Clicalmani\Database\DBQuery $query
-	 * @param bool $all
-	 * @return self
-	 */
-	public function union(\Clicalmani\Database\DBQuery $query, bool $all = false) : self;
-
+	public function unless(mixed $condition, callable $callback, ?callable $default = null) : static;
+	
 	/**
 	 * Adds a sub-query in the where condition of a query.
 	 * @param string $relation The sub-query table

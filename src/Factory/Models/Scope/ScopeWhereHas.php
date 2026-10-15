@@ -19,8 +19,7 @@ class ScopeWhereHas implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): ModelInterface
     {
         $query->whereHas(
             instance($this->relation)->getTable()->name(), 

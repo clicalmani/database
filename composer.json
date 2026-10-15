@@ -9,7 +9,8 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Clicalmani\\Database\\": "src/"
+            "Clicalmani\\Database\\": "src/",
+            "Database\\Test": "src/tests/"
         }
     },
     "authors": [

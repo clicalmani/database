@@ -9,17 +9,15 @@ use Clicalmani\Core\Support\Facades\DB;
 class ScopeCreateOrFail implements ScopeInterface
 {
     public function __construct(
-        protected readonly array $attributes = [],
-        protected readonly bool $orUpdate = false
+        protected readonly array $attributes = []
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): ModelInterface|false
     {
         return DB::deadlock(function() use ($query, $model) {
             try {
-                return $model::class::create($this->attributes, $this->orUpdate);
+                return $model::class::create($this->attributes);
             } catch (\Throwable $e) {
                 return false;
             }

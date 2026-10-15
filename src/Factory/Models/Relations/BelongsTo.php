@@ -45,7 +45,7 @@ class BelongsTo extends Relationship
 
         $this->result = $this->parentClass::where("{$this->ownerKey} = ?", [$idToFind])
                             ->get($fields)
-                            ->first();
+                            ->first() ?? $this->parent;
         
         return $this->result;
     }
@@ -69,11 +69,12 @@ class BelongsTo extends Relationship
         $dictionary = [];
 
         foreach ($results as $row) {
-            $dictionary[$row->{$this->parent->getKey()->scalarName()}] = $row;
+            $key = (string) $this->getProperty($row, $this->parent->getKey()->scalarName());
+            $dictionary[$key] = $row;
         }
         
         foreach ($models as $model) {
-            $parentId = $model->{$this->foreignKey};
+            $parentId = $this->getProperty($model, $this->foreignKey);
             $parentRow = $dictionary[$parentId] ?? null;
             $model->setRelation($relation, $parentRow);
         }

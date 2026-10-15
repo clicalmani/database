@@ -10,7 +10,7 @@ trait StateChange
         if ( empty($manipulated) ) return false;
         
         if ( isset($attribute) ) {
-            return array_key_exists($attribute, array_merge($manipulated['in'], $manipulated['out']));
+            return array_key_exists($attribute, array_merge($manipulated['in'] ?? [], $manipulated['out'] ?? []));
         }
 
         return false;

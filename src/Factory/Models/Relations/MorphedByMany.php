@@ -95,7 +95,7 @@ class MorphedByMany extends Relationship
             // We retrieve the foreign key from the pivot if specified
             // otherwise we retrieve it from hydration
             $pivotData = $result->getPivot() ?? [];
-            $key = (string) ($pivotData[$this->foreignKey] ?? $result->{$this->foreignKey} ?? null);
+            $key = (string) ($pivotData[$this->foreignKey] ?? $this->getProperty($result, $this->foreignKey));
             
             if ($key) {
                 if (!isset($dictionary[$key])) {
@@ -106,7 +106,7 @@ class MorphedByMany extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()->scalarName()};
+            $key = (string) $this->getProperty($model, $this->model->getKey()->scalarName());
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

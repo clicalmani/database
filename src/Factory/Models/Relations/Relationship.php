@@ -73,7 +73,7 @@ abstract class Relationship implements \JsonSerializable
     {
         $keys = [];
         foreach ($models as $model) {
-            $k = $model->{$key};
+            $k = $this->getProperty($model, $key);
             if ($k) {
                 $keys[] = $k;
             }
@@ -110,6 +110,17 @@ abstract class Relationship implements \JsonSerializable
             $grouped[$type][] = $result;
         }
         return $grouped;
+    }
+
+    protected function getProperty(object $obj, string $property): mixed
+    {
+        $attrs = $obj->__elegant_cached_data__;
+
+        if (is_array($attrs) && array_key_exists($property, $attrs)) {
+            return $attrs[$property];
+        }
+        
+        return null;
     }
 
     public function __call($name, $arguments)

@@ -311,7 +311,7 @@ class AlterOption extends DataTypes\DataType
         return $this;
     }
 
-    function onUpdateNoAction()
+    public function onUpdateNoAction()
     {
         $this->data .= ' ON UPDATE NO ACTION';
         return $this;

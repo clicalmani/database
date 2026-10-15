@@ -69,7 +69,7 @@ class HasMany extends Relationship
          * @var Elegant
          */
         foreach ($results as $result) {
-            $key = (string) $result->{$this->foreignKey}; // Parent ID (e.g., department_id)
+            $key = (string) $this->getProperty($result, $this->foreignKey); // Parent ID (e.g., department_id)
             if (!isset($dictionary[$key])) {
                 $dictionary[$key] = [];
             }
@@ -77,10 +77,10 @@ class HasMany extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->localKey};
+            $key = (string) $this->getProperty($model, $this->localKey);
             
             if (isset($dictionary[$key])) {
-                $model->setRelation($relation, $dictionary[$key]);
+                $model->setRelation($relation, collect($dictionary[$key]));
             } else {
                 $model->setRelation($relation, collect());
             }

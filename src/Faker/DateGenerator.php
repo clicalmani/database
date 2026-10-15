@@ -75,51 +75,51 @@ trait DateGenerator
     /**
      * Month generator
      * 
-     * @return int
+     * @return string
      */
-    public static function month() : int
+    public static function month() : string
     {
-        return self::integer(1, 12);
+        return str_pad(self::integer(1, 12), 2, '0', STR_PAD_LEFT);
     }
 
     /**
      * Day generator
      * 
-     * @return int
+     * @return string
      */
-    public static function day() : int
+    public static function day() : string
     {
-        return self::integer(1, 31);
+        return str_pad(self::integer(1, 31), 2, '0', STR_PAD_LEFT);
     }
 
     /**
      * Hour generator
      * 
-     * @return int
+     * @return string
      */
-    public static function hour() : int
+    public static function hour() : string
     {
-        return self::integer(0, 23);
+        return str_pad(self::integer(0, 23), 2, '0', STR_PAD_LEFT);
     }
 
     /**
      * Minute generator
      * 
-     * @return int
+     * @return string
      */
-    public static function minute() : int
+    public static function minute() : string
     {
-        return self::integer(0, 59);
+        return str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT);
     }
 
     /**
      * Second generator
      * 
-     * @return int
+     * @return string
      */
-    public static function second() : int
+    public static function second() : string
     {
-        return self::integer(0, 59);
+        return str_pad(self::integer(0, 59), 2, '0', STR_PAD_LEFT);
     }
 
     /**

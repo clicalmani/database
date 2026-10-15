@@ -2,49 +2,48 @@
 namespace Clicalmani\Database;
 
 use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Database\Concerns\QuotesIdentifiers;
 
 /**
- * Class Delete
- * 
+ * Class Truncate
+ *
+ * TRUNCATE TABLE `table`;
+ *
+ * ⚠️ ATTENTION :
+ *  - TRUNCATE est un DDL implicite : il COMMIT la transaction en cours.
+ *    Il ne peut PAS être annulé par ROLLBACK.
+ *  - Il réinitialise AUTO_INCREMENT à 1.
+ *  - Il ne déclenche PAS les triggers ON DELETE.
+ *  - Il échoue si la table est référencée par une FOREIGN KEY
+ *    (sauf si FOREIGN_KEY_CHECKS=0).
+ *
+ * Pour vider sans réinitialiser AUTO_INCREMENT, préférer DELETE FROM.
+ *
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Truncate extends DBQueryBuilder implements \IteratorAggregate 
+class Truncate extends DBQueryBuilder implements \IteratorAggregate
 {
-	public function __construct(
-		protected $params = [], 
-		protected $options = []
-	) 
-	{ 
-		parent::__construct($params, $options);
-		
-		$this->sql = 'TRUNCATE TABLE ' . $this->params['table'];
-	}
+	use QuotesIdentifiers;
 	
-	/**
-	 * (non-PHPdoc)
-	 * @overriden
-	 * @return void
-	 */
-	public function query() : void 
-	{
-		/** @var \PDOStatement */
-	    $statement = DB::query($this->sql, $this->options, $this->params['options']);
+    public function __construct(
+        protected $params,
+        protected $options,
+        Contracts\QueryExecutorInterface $executor,
+        QueryType $type,
+    ) {
+        parent::__construct($params, $options, $executor, $type);
 
-		$this->dispatch('query');
-    	
-		$this->status     = $statement ? true: false;
-	    $this->error_code = DB::errno();
-	    $this->error_msg  = DB::error();
-	}
-	
-	/**
-	 * Get iterator
-	 * 
-	 * @return \Traversable
-	 */
-	public function getIterator() : \Traversable 
-	{
-		return new DBQueryIterator($this);
-	}
+        if (empty($this->params['table'])) {
+            throw new \InvalidArgumentException("Truncate: 'table' est requis.");
+        }
+
+        $this->sql = 'TRUNCATE TABLE '
+            . $this->quoteIdentifier(DB::getPrefix() . $this->params['table']);
+    }
+
+    public function getIterator(): \Traversable
+    {
+        return new DBQueryIterator($this);
+    }
 }

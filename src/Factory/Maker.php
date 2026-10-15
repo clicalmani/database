@@ -83,14 +83,7 @@ class Maker
      * 
      * @var int
      */
-    const ALTER_TABLE          = DBQuery::ALTER;   
-    
-    /**
-     * Show columns flag
-     * 
-     * @var int
-     */
-    const SHOW_COLUMNS         = DBQuery::SHOW_COLUMNS;
+    const ALTER_TABLE          = DBQuery::ALTER;
 
     protected static $current_alter_option;
 

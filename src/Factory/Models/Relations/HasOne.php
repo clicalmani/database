@@ -40,7 +40,7 @@ class HasOne extends Relationship
         // 1. Filter: SELECT * FROM profiles WHERE user_id = ?
         $this->query->where("{$this->foreignKey} = ?", [$this->model->{$this->localKey}]);
 
-        $this->result = $this->related->top(1)->get($fields)->first(); // Parent model (e.g., User)
+        $this->result = $this->related->top(1)->get($fields)->first() ?? $this->related; // Parent model (e.g., User)
 
         return $this->result;
     }
@@ -69,11 +69,12 @@ class HasOne extends Relationship
          * @var Elegant (e.g., Profile)
          */
         foreach ($results as $row) {
-            $dictionary[$row->{$this->foreignKey}] = $row; // [$profile->user_id => $profile]
+            $key = (string) $this->getProperty($row, $this->foreignKey); // [$profile->user_id => $profile]
+            $dictionary[$key] = $row; 
         }
 
         foreach ($models as $model) {
-            $parentId = $model->{$this->model->getKey()->scalarName()}; // e.g., $parentId = $user->id
+            $parentId = (string) $this->getProperty($model, $this->model->getKey()->scalarName()); // e.g., $parentId = $user->id
             $childRow = $dictionary[$parentId] ?? null;   // e.g., $dictionay[$user->id] = $profile
             $model->setRelation($relation, $childRow);    // e.g., $user->profile 
         }

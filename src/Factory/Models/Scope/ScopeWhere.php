@@ -14,8 +14,7 @@ final class ScopeWhere implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): ModelInterface
     {
         $query->where($this->condition, $this->options);
         return $model;

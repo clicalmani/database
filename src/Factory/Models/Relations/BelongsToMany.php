@@ -128,7 +128,7 @@ class BelongsToMany extends Relationship
         }
         
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()->scalarName()};
+            $key = (string) $this->getProperty($model, $this->model->getKey()->scalarName());
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, collect($dictionary[$key]));
@@ -140,10 +140,20 @@ class BelongsToMany extends Relationship
 
     /**
      * Define the pivot table columns to retrieve.
+     *
+     * @param string|array ...$columns One or more column names, or an array of column names
+     * @return self
      */
-    public function withPivot(array $columns): self
+    public function withPivot(string|array ...$columns): self
     {
-        $this->pivotColumns = array_unique(array_merge($this->pivotColumns, $columns));
+        if (count($columns) === 1 && is_array($columns[0])) {
+            $columns = $columns[0];
+        }
+        
+        $this->pivotColumns = array_unique(
+            array_merge($this->pivotColumns, $columns)
+        );
+        
         return $this;
     }
 
@@ -165,7 +175,9 @@ class BelongsToMany extends Relationship
             $insertData = array_merge($data, $attributes);
 
             try {
-                $success = DB::table($this->table)->insert($insertData)->exec()->status() === 'success';
+                $stmt = DB::table($this->table)->insert($insertData);
+                $stmt->query();
+                $success = (bool) $stmt->affectedRows();
             } catch (\Exception $e) {
                 $success = false;
             }
@@ -186,7 +198,7 @@ class BelongsToMany extends Relationship
                 $query->whereIn($this->relatedKey, (array)$id);
             }
             
-            return $query->delete()->exec()->status() === 'success';
+            return $query->delete();
         } catch (\Exception $e) {
             return false;
         }
@@ -205,12 +217,15 @@ class BelongsToMany extends Relationship
             'detached' => [],
             'updated'  => []
         ];
+
+        $current = [];
         
         foreach ($results as $row) {
-            $current[] = (int) $row->{$this->relatedKey};
+            $current[] = (int) $this->getProperty($row, $this->relatedKey);
         }
 
         $detach = array_diff($current, $ids);
+
         if (!empty($detach)) {
             $this->detach(array_values($detach));
             $changes['detached'] = array_values($detach);
@@ -223,5 +238,107 @@ class BelongsToMany extends Relationship
         }
 
         return $changes;
+    }
+
+    /**
+     * Synchronize the pivot table with a list of IDs without detaching existing ones.
+     * Only attaches new relationships.
+     *
+     * @param array $ids The IDs to attach
+     * @return array Array with 'attached' and 'updated' keys
+     */
+    public function syncWithoutDetaching(array $ids): array
+    {
+        $results = DB::table($this->table)
+            ->selectRaw($this->relatedKey)
+            ->where("{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()])
+            ->get();
+        
+        $changes = [
+            'attached' => [],
+            'updated'  => []
+        ];
+        
+        $current = [];
+        foreach ($results as $row) {
+            $current[] = (int) $this->getProperty($row, $this->relatedKey);
+        }
+        
+        // Only attach new IDs, never detach existing ones
+        $attach = array_diff($ids, $current);
+        if (!empty($attach)) {
+            $this->attach(array_values($attach));
+            $changes['attached'] = array_values($attach);
+        }
+        
+        return $changes;
+    }
+
+    /**
+     * Toggle the given IDs in the pivot table.
+     * Attaches IDs that are not currently attached and detaches those that are.
+     *
+     * @param array $ids The IDs to toggle
+     * @return array Array with 'attached' and 'detached' keys
+     */
+    public function toggle(array $ids): array
+    {
+        $results = DB::table($this->table)
+            ->selectRaw($this->relatedKey)
+            ->where("{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()])
+            ->get();
+        
+        $changes = [
+            'attached' => [],
+            'detached' => []
+        ];
+        
+        // IDs actuellement attachés
+        $current = [];
+        foreach ($results as $row) {
+            $current[] = (int) $this->getProperty($row, $this->relatedKey);
+        }
+        
+        // IDs à attacher : ceux demandés qui ne sont PAS encore attachés
+        $attach = array_diff($ids, $current);
+        
+        // IDs à détacher : ceux demandés qui SONT déjà attachés
+        $detach = array_intersect($ids, $current);
+        
+        if (!empty($attach)) {
+            $this->attach(array_values($attach));
+            $changes['attached'] = array_values($attach);
+        }
+        
+        if (!empty($detach)) {
+            $this->detach(array_values($detach));
+            $changes['detached'] = array_values($detach);
+        }
+        
+        return $changes;
+    }
+
+    /**
+     * Update an existing pivot record for the given related ID.
+     *
+     * @param mixed $id         The related model ID
+     * @param array $attributes The pivot attributes to update
+     * @return bool
+     */
+    public function updateExistingPivot(mixed $id, array $attributes): bool
+    {
+        if (empty($attributes)) {
+            return false;
+        }
+        
+        try {
+            $query = DB::table($this->table)
+                ->where("{$this->foreignKey} = ?", [$this->model->getKey()->scalarValue()])
+                ->where("{$this->relatedKey} = ?", [$id]);
+            
+            return $query->update($attributes);
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 }

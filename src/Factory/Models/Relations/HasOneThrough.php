@@ -54,7 +54,7 @@ class HasOneThrough extends Relationship
         $this->query->where("{$this->through->getTable()->alias()}.{$this->firstKey} = ?", [$this->model->{$this->localKey}]);
 
         // 4. Only one resut (HasONE)
-        $this->result = $this->farModel->top(1)->get($fields)->first();
+        $this->result = $this->farModel->top(1)->get($fields)->first() ?? $this->farModel;
 
         return $this->result;
     }
@@ -89,7 +89,7 @@ class HasOneThrough extends Relationship
             // We use through model key to establish the relationship
             // firstKey is on the through model (e.g., profiles.user_id)
             // We must retrieve it through the join
-            $key = (string) ($result->{$this->firstKey} ?? null); // e.g.,  [id => 1, user_id => 1] from hydration
+            $key = (string) $this->getProperty($result, $this->firstKey); // e.g.,  [id => 1, user_id => 1] from hydration
             
             if ($key) {
                 $dictionary[$key] = $result;
@@ -98,7 +98,7 @@ class HasOneThrough extends Relationship
 
         // Assign each parent model
         foreach ($models as $model) {
-            $key = (string) $model->{$this->localKey}; // e.g., user.id
+            $key = (string) $this->getProperty($model, $this->localKey); // e.g., user.id
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

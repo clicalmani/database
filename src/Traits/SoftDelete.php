@@ -3,36 +3,39 @@ namespace Clicalmani\Database\Traits;
 
 trait SoftDelete
 {
-    /**
-     * Include soft deleted records in the query results.
-     * 
-     * @return static
-     */
-    public function withTrashed() : static
+    protected ?string $deletedAtColumn = null;
+
+    public function usesSoftDeletes(): bool
     {
-        return tap($this, fn(self $instance) => $instance->query->set('recycle', 0));
+        return true;
     }
 
-    /**
-     * Include only soft deleted records in the query results.
-     * 
-     * @return static
-     */
-    public function onlyTrashed() : static
+    public function getDeletedAtColumn(): string
     {
-        return tap($this, fn(self $instance) => $instance->query->set('recycle', 2));
+        return $this->deletedAtColumn
+            ? $this->deletedAtColumn
+            : 'deleted_at';
     }
 
-    /**
-     * Restore a soft deleted record.
-     * 
-     * @return bool
-     */
-    public function restore() : bool
+    public function trashed(): bool
     {
-       $this->emit('restoring');
-       $success = $this->update(['deleted_at' => null]);
-       $this->emit('restored');
-       return $success;
+        return $this->{$this->getDeletedAtColumn()} !== null;
+    }
+
+    public function notTrashed(): bool
+    {
+        return !$this->trashed();
+    }
+
+    public function markAsTrashed(): static
+    {
+        $this->{$this->getDeletedAtColumn()} = date('Y-m-d H:i:s');
+        return $this;
+    }
+
+    public function markAsRestored(): static
+    {
+        $this->{$this->getDeletedAtColumn()} = null;
+        return $this;
     }
 }

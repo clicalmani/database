@@ -5,52 +5,36 @@ use Clicalmani\Core\Support\Facades\DB;
 
 /**
  * Class Unlock
- * 
+ *
+ * Libère les verrous de table de la session courante.
+ *
+ * ⚠️ IMPORTANT :
+ *  - UNLOCK TABLES libère TOUS les verrous détenus par la session.
+ *  - Il doit être exécuté en DEHORS de toute transaction (erreur MySQL sinon).
+ *  - Un UNLOCK sans LOCK préalable est un no-op silencieux (aucune erreur).
+ *  - Si 'enable_keys' est demandé, l'ALTER TABLE suit immédiatement
+ *    l'UNLOCK, dans cet ordre (libérer les verrous le plus tôt possible).
+ *
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Unlock extends DBQueryBuilder implements \IteratorAggregate 
+class Unlock extends Builders\AbstractLockStatement
 {
-	public function __construct(
-		protected $params = array(), 
-		protected $options = []
-	) 
-	{ 
-		parent::__construct($params, $options);
+    protected function buildStatements(): void
+    {
+        // 1. UNLOCK TABLES en premier (libère les verrous le plus tôt possible)
+        $this->statements[] = 'UNLOCK TABLES';
 
-		$this->sql = '';
-		
-		if ( isset($this->params['enable_keys']) ) $this->sql = 'ALTER TABLE ' . DB::getPrefix() . $this->params['table'] . ' ENABLE KEYS; ';
-		
-        $this->sql .= 'UNLOCK TABLES;';
-	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @overriden
-	 * @return void
-	 */
-	public function query() : void
-	{
-		$success = DB::execute($this->sql);
+        // 2. ALTER TABLE ... ENABLE KEYS ensuite (si demandé)
+        if (isset($this->params['enable_keys'])) {
+            if (empty($this->params['table'])) {
+                throw new \InvalidArgumentException(
+                    "Unlock: 'table' est requis quand 'enable_keys' est demandé."
+                );
+            }
 
-		$this->dispatch('query');
-		
-		$this->status     = $success;
-	    $this->error_code = DB::errno();
-	    $this->error_msg  = DB::error();
-		$this->insert_id  = DB::lastInsertId();
-
-		$statement = null;
-	}
-	
-	/**
-	 * Get iterator
-	 * 
-	 * @return \Traversable
-	 */
-	public function getIterator() : \Traversable
-	{
-		return new DBQueryIterator($this);
-	}
+            $table = $this->quoteIdentifier(DB::getPrefix() . $this->params['table']);
+            $this->statements[] = "ALTER TABLE {$table} ENABLE KEYS";
+        }
+    }
 }

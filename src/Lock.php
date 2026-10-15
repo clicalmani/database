@@ -5,54 +5,50 @@ use Clicalmani\Core\Support\Facades\DB;
 
 /**
  * Class Lock
- * 
+ *
+ * LOCK TABLES `table` [READ | READ LOCAL | WRITE | LOW_PRIORITY WRITE];
+ *
+ * Options :
+ *  - lock_type     : 'READ', 'READ LOCAL', 'WRITE', 'LOW_PRIORITY WRITE'
+ *  - disable_keys  : si vrai, exécute ALTER TABLE ... DISABLE KEYS AVANT le lock
+ *
+ * ⚠️ IMPORTANT :
+ *  - Un appel à LOCK TABLES libère implicitement tous les verrous précédents.
+ *  - Toujours terminer par UNLOCK TABLES explicite.
+ *  - Ne pas exécuter dans une transaction.
+ *
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Lock extends DBQueryBuilder implements \IteratorAggregate 
+class Lock extends Builders\AbstractLockStatement
 {
-	public function __construct(
-		protected $params = array(), 
-		protected $options = []
-	) 
-	{ 
-		parent::__construct($params, $options);
+    protected function buildStatements(): void
+    {
+        if (empty($this->params['table'])) {
+            throw new \InvalidArgumentException("Lock: 'table' est requis.");
+        }
 
-		$lock_type = $this->params['lock_type'] ?? 'WRITE';
-		
-		$this->sql = 'LOCK TABLES ' . DB::getPrefix() . $this->params['table'] . " $lock_type; ";
-		
-		if ( isset($this->params['disable_keys']) ) {
-			$this->sql .= 'ALTER TABLE ' . DB::getPrefix() . $this->params['table'] . ' DISABLE KEYS; ';
-		}
-	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @overriden
-	 * @return void
-	 */
-	public function query() : void
-	{
-		$success = DB::execute($this->sql);
+        $table    = $this->quoteIdentifier(DB::getPrefix() . $this->params['table']);
+        $lockType = $this->validateLockType($this->params['lock_type'] ?? null);
 
-		$this->dispatch('query');
-		
-		$this->status     = $success;
-	    $this->error_code = DB::errno();
-	    $this->error_msg  = DB::error();
-		$this->insert_id  = DB::lastInsertId();
+        // Ordre : DISABLE KEYS d'abord, puis LOCK
+        if (!empty($this->params['disable_keys'])) {
+            $this->statements[] = "ALTER TABLE {$table} DISABLE KEYS";
+        }
 
-		$statement = null;
-	}
-	
-	/**
-	 * Get iterator
-	 * 
-	 * @return \Traversable
-	 */
-	public function getIterator() : \Traversable
-	{
-		return new DBQueryIterator($this);
-	}
+        $this->statements[] = "LOCK TABLES {$table} {$lockType}";
+    }
+
+    protected function validateLockType(?string $type): string
+    {
+        $type = strtoupper(trim($type ?? 'WRITE'));
+
+        $allowed = ['READ', 'READ LOCAL', 'WRITE', 'LOW_PRIORITY WRITE'];
+
+        if (!in_array($type, $allowed, true)) {
+            throw new \InvalidArgumentException("Lock: type '$type' invalide.");
+        }
+
+        return $type;
+    }
 }

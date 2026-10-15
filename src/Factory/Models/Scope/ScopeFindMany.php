@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database\Factory\Models\Scope;
 
+use Clicalmani\Core\Collection\CollectionInterface;
 use Clicalmani\Database\Factory\Models\Key;
 use Clicalmani\Database\Factory\Models\ModelInterface;
 use Clicalmani\Database\Factory\Models\ScopeInterface;
@@ -14,8 +15,7 @@ class ScopeFindMany implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): CollectionInterface
     {
         $query->set('tables', [$model->getTable()->name()]);
         $key = $model->getKey();

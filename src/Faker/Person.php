@@ -14,7 +14,7 @@ trait Person
     private static function singleName()
     {
         $names = json_decode( file_get_contents( __DIR__ . '/data/names.json') ) ?? [];
-        return @ $names[self::integer(0, count($names) - 1)];
+        return $names[self::integer(0, count($names) - 1)] ?? '';
     }
     /**
      * Person name generator

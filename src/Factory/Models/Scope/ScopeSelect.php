@@ -12,12 +12,15 @@ class ScopeSelect implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): ModelInterface
     {
+        $query->set('tables', [$model->getTable()->withAlias()]);
+        
         if ($this->query instanceof \Closure) {
            with ($this->query)($query);
-        } else $query->set('fields', $this->query);
+        } else {
+            $query->set('fields', $this->query);
+        }
         return $model;
     }
 }

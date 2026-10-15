@@ -120,6 +120,8 @@ abstract class AbstractModel implements Joinable
      */
     protected $calc_found_rows = false;
 
+    protected string $softDeleteMode = 'default';
+
     /**
      * Event handlers
      * 
@@ -203,7 +205,7 @@ abstract class AbstractModel implements Joinable
      * @return static|null
      */
     protected abstract function resolveRouteBinding(mixed $value, ?string $field = null) : ?self;
-
+    
     /**
      * Emit event
      * 
@@ -224,6 +226,8 @@ abstract class AbstractModel implements Joinable
         $this->query = new DBQuery;
 
         $this->query->set('tables', [$this->table]);
+
+        if ($id) $this->query->where("{$this->getTable()->alias()}.{$this->getKey()->scalarName()} = ?", [$id]);
 
         if ( isset($this->connection) ) {
             $this->query->set('connection', $this->connection);
@@ -301,9 +305,9 @@ abstract class AbstractModel implements Joinable
      * 
      * @return bool
      */
-    public function isEmpty() : bool
+    public function exists() : bool
     {
-        return !($this->id && $this->primaryKey);
+        return $this->id && $this->primaryKey;
     }
 
     /**
@@ -458,7 +462,7 @@ abstract class AbstractModel implements Joinable
         
         if ( $joints ) {
             foreach ($joints as $joint) {
-                if (@ $joint['table'] == $table) {                            // Table already joint
+                if (@ $joint['table'] == $table) { // Table already joint
                     return $this;
                 }
             }
@@ -587,6 +591,11 @@ abstract class AbstractModel implements Joinable
      */
     public function __get(string $name) : mixed
     {
+        // ── Relationship hydrated data ──────────────────────────────────────────────────────
+        if ($name === '__elegant_cached_data__') {
+            return $this->attributes;
+        }
+
         // ── Relation Call ─────────────────────────────────
         // Relationship exists
         if ( array_key_exists($name, $this->relations) ) {
@@ -708,9 +717,9 @@ abstract class AbstractModel implements Joinable
     /**
      * @return bool
      */
-    protected function isSoftDeletable() : bool
+    public function usesSoftDeletes(): bool
     {
-        return !!@class_uses($this)[\Clicalmani\Database\Traits\SoftDelete::class];
+        return method_exists($this, 'trashed');
     }
 
     /**
@@ -722,6 +731,17 @@ abstract class AbstractModel implements Joinable
     public function attributeExists(string $name): bool
     {
         return $this->entityInstance->attributeExists($name);
+    }
+
+    public function setSoftDeleteMode(string $mode): self
+    {
+        $this->softDeleteMode = $mode;
+        return $this;
+    }
+
+    public function getSoftDeleteMode(): string
+    {
+        return $this->softDeleteMode;
     }
 
     protected function reset()

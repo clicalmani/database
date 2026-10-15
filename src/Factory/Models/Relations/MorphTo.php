@@ -38,7 +38,7 @@ class MorphTo extends Relationship
         }
 
         $this->query->where($this->parentModel->getKey()->scalarName() . " = ?", [$this->parentId]); // SELECT * FROM posts WHERE posts.id = 10 LIMIT 1
-        $this->result = $this->parentModel->top(1)->get($fields);
+        $this->result = $this->parentModel->top(1)->get($fields)->first();
 
         return $this->result;
     }
@@ -100,7 +100,7 @@ class MorphTo extends Relationship
         /** @var Elegant $result a model for each type e.g., Post, Video, ... */
         foreach ($results as $result) {
             $type = get_class($result);
-            $id = $result->{$result->getKey()->scalarName()};
+            $id = $this->getProperty($result, $result->getKey()->scalarName());
             
             if (!isset($dictionary[$type])) {
                 $dictionary[$type] = [];
@@ -130,7 +130,7 @@ class MorphTo extends Relationship
      */
     public function associate(ModelInterface $model): self
     {
-        $this->model->{$this->idKey} = $model->{$model->getKey()->scalarName()};
+        $this->model->{$this->idKey} = $this->getProperty($model, $model->getKey()->scalarName());
         $this->model->{$this->typeKey} = get_class($model);
         return $this;
     }

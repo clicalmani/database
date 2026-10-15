@@ -1,8 +1,10 @@
 <?php
 namespace Clicalmani\Database\SubQueries;
 
+use Clicalmani\Core\Support\Facades\DB;
 use Clicalmani\Database\BuilderInterface;
 use Clicalmani\Database\QueryInterface;
+use Clicalmani\Database\QueryType;
 use Clicalmani\Database\Select;
 
 class DBSubQuery
@@ -73,7 +75,9 @@ class DBSubQuery
 		$this->options = $this->query->getOptions(); // Backup the subquery options to merge them later with the main query options
 		$this->builder = new Select(
             $this->query->getParams(), 
-            array_merge($this->query->getOptions(), $this->options)
+            array_merge($this->query->getOptions(), $this->options),
+            DB::executor(),
+            QueryType::SELECT
         );
     }
 

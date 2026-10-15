@@ -14,7 +14,6 @@ class ScopeFindOrFail implements ScopeInterface
     )
     {}
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
         $query->set('tables', [$model->getTable()->name()]);

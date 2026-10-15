@@ -13,7 +13,6 @@ class ScopeWith implements ScopeInterface
     )
     {}
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
         if ($this->callback) call($this->callback, $query);

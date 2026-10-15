@@ -1,65 +1,42 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
-use Clicalmani\Database\DBQueryBuilder;
-use Clicalmani\Database\DBQueryIterator;
+use Clicalmani\Database\Builders\AbstractDdlStatement;
 
 /**
  * Class Alter
- * 
+ *
+ * ALTER TABLE `table` <operations>;
+ *
  * @package Clicalmani\Database
  * @author @clicalmani
  */
-class Alter extends DBQueryBuilder implements \IteratorAggregate 
+class Alter extends AbstractDdlStatement
 {
-	/**
-	 * Query parameters
-	 * 
-	 * @var ?array
-	 */
-	protected $params = [];
-
-	/**
-	 * Query options
-	 * 
-	 * @var ?array
-	 */
-	protected $options = [];
-
-	public function __construct($params = [], $options = []) 
+    protected function buildSql(): string
     {
-		$this->params = $params;
-		$this->options = $options;
-		parent::__construct($params, $options);
+        $definitions = $this->params['definition'] ?? [];
 		
-		$this->sql .= 'ALTER TABLE ' . $this->db->getPrefix() . $this->params['table'];
-		
-		if (isset($this->params['definition'])) {
-            $this->sql .= ' ' . join(',', $this->params['definition']) . ' ';
-		}
-	}
+        if (empty($definitions) || !is_array($definitions)) {
+            throw new \InvalidArgumentException(
+                "Alter: 'definition' doit être un tableau non vide d'opérations."
+            );
+        }
 
-	/**
-	 * (non-PHPdoc)
-	 * @override
-	 * @see \Clicalmani\Database\DBQueryBuilder::query()
-	 */
-	public function query() : void
-	{
-	    $result = $this->db->execute($this->sql);
-    		
-		$this->status     = $result ? true: false;
-	    $this->error_code = $this->db->errno();
-	    $this->error_msg  = $this->db->error();
-	}
-	
-	/**
-	 * Get iterator
-	 * 
-	 * @return \Traversable
-	 */
-	public function getIterator() : \Traversable
-	{
-		return new DBQueryIterator($this);
-	}
+        $clauses = array_map(
+            fn($d) => trim((string) $d),
+            $definitions
+        );
+
+        $clauses = array_filter($clauses, fn($c) => $c !== '');
+
+        if (empty($clauses)) {
+            throw new \InvalidArgumentException(
+                "Alter: aucune opération valide après normalisation."
+            );
+        }
+
+        return 'ALTER TABLE ' . $this->tableName()
+            . "\n    " . implode(",\n    ", $clauses);
+    }
 }

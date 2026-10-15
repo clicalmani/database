@@ -14,7 +14,6 @@ class ScopeWithExists implements ScopeInterface
     )
     {}
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
         /** @var class-string<self> */

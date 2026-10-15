@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database\Factory\Models\Relations;
 
+use Clicalmani\Core\Collection\Collection;
 use Clicalmani\Database\Factory\Models\Elegant;
 
 class MorphOne extends Relationship
@@ -40,7 +41,7 @@ class MorphOne extends Relationship
         $this->query->where("{$this->idKey} = ?", [$this->model->getKey()->scalarValue()]);
         $this->query->where("{$this->typeKey} = ?", [$this->model::class]);
 
-        $this->result = $this->related->top(1)->get($fields);
+        $this->result = $this->related->top(1)->get($fields)->first();
 
         return $this->result;
     }
@@ -71,12 +72,12 @@ class MorphOne extends Relationship
          * @var Elegant
          */
         foreach ($results as $result) {
-            $key = (string) $result->{$this->idKey};
+            $key = (string) $this->getProperty($result, $this->idKey);
             $dictionary[$key] = $result;
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()->scalarName()};
+            $key = (string) $this->getProperty($model, $this->model->getKey()->scalarName());
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

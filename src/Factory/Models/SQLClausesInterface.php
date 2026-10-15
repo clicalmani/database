@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory\Models;
 
+use Clicalmani\Database\Factory\Models\ModelInterface;
+
 interface SQLClausesInterface
 {
     /**
@@ -82,9 +84,9 @@ interface SQLClausesInterface
 	 * 
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
-	 * @return \Clicalmani\Database\Factory\Models\ModelInterface
+	 * @return ModelInterface
 	 */
-    public function orWhereHas(string $relation, \Closure $callback) : \Clicalmani\Database\Factory\Models\ModelInterface;
+    public function orWhereHas(string $relation, \Closure $callback) : ModelInterface;
 
     /**
 	 * Add an OR where clause to the query based on the non-existence of a related model.
@@ -93,52 +95,18 @@ interface SQLClausesInterface
 	 * 
 	 * @param string $relation The name of the related model
 	 * @param \Closure $callback A closure that defines the conditions for the related model
-	 * @return \Clicalmani\Database\Factory\Models\ModelInterface
+	 * @return ModelInterface
 	 */
-    public function orWhereDoesntHave(string $relation, \Closure $callback) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * SQL order by clause.
-     * 
-     * @param string $order
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function orderBy(string $order) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * SQL having clause.
-     * 
-     * @param string $criteria
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function having(string $criteria) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * Add the SQL GROUP BY operator the query.
-     * 
-     * @param string $criteria
-     * @param ?bool $with_rollup
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function groupBy(string $criteria, ?bool $with_rollup = false) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
+    public function orWhereDoesntHave(string $relation, \Closure $callback) : ModelInterface;
+    
     /**
      * Add the SQL FROM clause to DELETE query.
      * 
      * @param string $fields
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
+     * @return ModelInterface
      */
-    public function from(string $fields) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
-    /**
-     * Add the SQL LIMIT clause to the query.
-     * 
-     * @param ?int $offset
-     * @param ?int $row_count
-     * @return \Clicalmani\Database\Factory\Models\ModelInterface
-     */
-    public function limit(?int $offset = 0, ?int $row_count = 1) : \Clicalmani\Database\Factory\Models\ModelInterface;
-
+    public function from(string $fields) : ModelInterface;
+    
     /**
      * Execute the query and return the value of a specific column from the first result.
      * 

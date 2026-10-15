@@ -30,43 +30,18 @@ trait SQLClauses
 
     public function orWhereHas(string $relation, \Closure $callback) : self
     {
-        return $this->query->whereHas(instance($relation)->getTable()->name(), $callback, $boolean);
+        $this->query->whereHas(instance($relation)->getTable()->name(), $callback, 'OR');
+        return $this;
     }
 
     public function orWhereDoesntHave(string $relation, \Closure $callback) : self
     {
-        return $this->query->orWhereDoesntHave(instance($relation)->getTable()->name(), $callback, $boolean);
-    }
-    
-    public function orderBy(string $order) : static
-    {
-        $this->query->params['order_by'] = $order;
-        return $this;
-    }
-
-    public function having(string $criteria) : static
-    {
-        $this->query->having($criteria);
-        return $this;
-    }
-
-    public function groupBy(string $criteria, ?bool $with_rollup = false) : static
-    {
-        if ($with_rollup) $criteria .= ' WITH ROLLUP';
-        $this->query->groupBy($criteria);
-        return $this;
+        return $this->query->orWhereDoesntHave(instance($relation)->getTable()->name(), $callback, 'OR');
     }
 
     public function from(string $table) : static
     {
         $this->query->from($table);
-        return $this;
-    }
-
-    public function limit(?int $offset = 0, ?int $row_count = 1) : static
-    {
-        $this->query->set('offset', $offset);
-        $this->query->set('limit', $row_count);
         return $this;
     }
     

@@ -103,7 +103,7 @@ class MorphToMany extends Relationship
             // Retrieve morphKey from the pivot 
             // Otherwise retrieve it from the hydrated data
             $pivotData = $result->getPivot() ?? [];
-            $key = isset($pivotData[$this->morphKey]) ? $pivotData[$this->morphKey]: $result->{$this->morphKey};
+            $key = isset($pivotData[$this->morphKey]) ? $pivotData[$this->morphKey]: $this->getProperty($result, $this->morphKey);
             
             if ($key) {
                 if (!isset($dictionary[$key])) {
@@ -117,7 +117,7 @@ class MorphToMany extends Relationship
             $key = (string) $model->getKey()->scalarValue();
             
             if (isset($dictionary[$key])) {
-                $model->setRelation($relation, $dictionary[$key]);
+                $model->setRelation($relation, collect($dictionary[$key]));
             } else {
                 $model->setRelation($relation, collect());
             }
@@ -148,7 +148,9 @@ class MorphToMany extends Relationship
             $insertData = array_merge($data, $attributes);
 
             try {
-                $success = DB::table($this->table)->insert($insertData)->exec() === 'success';
+                $stmt = DB::table($this->table)->insert($insertData);
+                $stmt->query();
+                $success = (bool) $stmt->affectedRows();
             } catch (\Exception $e) {
                 $success = false;
             }
@@ -168,14 +170,13 @@ class MorphToMany extends Relationship
         $ids = is_array($id) ? $id : [$id];
 
         try {
-            return DB::table($this->table)->delete()
+            return DB::table($this->table)
                         ->where("{$this->morphKey} = ? AND {$this->morphType} = ?", [
                             $this->model->getKey()->scalarValue(),
                             $this->model::class
                         ])
                         ->whereIn($this->foreignKey, $ids)
-                        ->exec()
-                        ->status() === 'success';
+                        ->delete();
         } catch (\Exception $e) {
             return false;
         }
@@ -199,7 +200,7 @@ class MorphToMany extends Relationship
                     ])->get($this->foreignKey);
         
         foreach ($results as $row) {
-            $current[] = (int) $row->{$this->foreignKey};
+            $current[] = (int) $this->getProperty($row, $this->foreignKey);
         }
 
         $detach = array_diff($current, $ids);

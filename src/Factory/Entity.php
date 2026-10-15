@@ -165,7 +165,7 @@ abstract class Entity
      */
     public function getCachedAttributesValues(): array
     {
-        $this->loadAttributes();
+        // if (empty($this->attributeValues)) $this->loadAttributes();
         return $this->attributeValues;
     }
 
@@ -369,6 +369,7 @@ abstract class Entity
         $query = new DBQuery;
         $query->set('type', DBQuery::CREATE);
         $query->set('table', $table);
+        $query->set('not_exists', true);
 
         $definition = $this->buildColumnDefinitions();
 
@@ -385,7 +386,7 @@ abstract class Entity
 
         $query->set('definition', $definition);
 
-        $success = $this->build($query->exec(), $table, $exec, $dump_file);
+        $success = $this->build($query->exec(!$exec), $table, $exec, $dump_file);
 
         $this->runAlterHandler($alter, $table);
 
@@ -485,7 +486,7 @@ abstract class Entity
 
             $default_value = $property->getDefaultValue();
             if (null !== $default_value) $args['default'] = $default_value;
-
+            
             $args['nullable'] = $property->getType()->allowsNull();
 
             $type = new $class(...$args);
@@ -572,7 +573,7 @@ abstract class Entity
      */
     protected function loadAttributes(): void
     {
-        if ($this->model->isEmpty() || $this->attributesLoaded) {
+        if (!$this->model->exists() || $this->attributesLoaded) {
             return;
         }
         
@@ -584,13 +585,6 @@ abstract class Entity
 
         if ( !$query->getParam('where')) {
             $query->where(...$this->model->getKey()->toSqlCondition());
-        }
-
-        /**
-         * Evaluate and bypass active parameters if the model utilizes soft delete protocols.
-         */
-        if (!!@class_uses($this->model)[\Clicalmani\Database\Traits\SoftDelete::class]) {
-            $this->model->recycle();
         }
         
         $fields = [];
@@ -869,7 +863,7 @@ abstract class Entity
          */
         if (NULL === $dump_file) {
             echo $sql;
-            return null;
+            return true;
         }
 
         /** @var resource */

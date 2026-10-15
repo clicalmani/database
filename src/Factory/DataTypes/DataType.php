@@ -280,7 +280,7 @@ class DataType implements \JsonSerializable
 
     public function __toString()
     {
-        return $this->value;
+        return $this->value ?? '';
     }
 
     public function jsonSerialize(): mixed

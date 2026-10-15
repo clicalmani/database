@@ -25,8 +25,10 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
     use SQLCases;
     use Relationships;
     use CaptureEvents;
-    use SQLAggregate;
     use StateChange;
+
+    private array $mutedEvents = [];
+    private bool $eventsPrevented = false;
 
     public function __construct(array|string|null $id = null)
     {
@@ -104,6 +106,10 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
             $alias = $this->getTable()->alias();
             $select = $fields === '*' ? "$alias.*": $fields;
         }
+
+        if ($this->usesSoftDeletes()) {
+            $this->applySoftDeleteScope();
+        }
         
         $results = $this->exec($select)->map(function($row) use($model) {
             $row = (array) $row;
@@ -134,12 +140,13 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function delete() : bool
     {
-        if ( $this->isSoftDeletable() ) return $this->softDelete();
+        $unsaved = $this->getData();
 
-        if ( $this->isEmpty() ) {
-            $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable()->name());
-            throw new ModelException($error, ModelException::ERROR_3060);
+        if (array_key_exists('in', $unsaved) || array_key_exists('out', $unsaved)) {
+            throw new \Clicalmani\Core\Exceptions\ModelException("Can not delete a model with unsaved changes");
         }
+
+        if ( $this->usesSoftDeletes() ) return $this->softDelete();
 
         if ( empty($this->query->getParam('where')) ) {
             /**
@@ -157,7 +164,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         // Restore params
         $this->query->params = $params;
         
-        $success = $this->query->delete()->exec()->status() == 'success';
+        $success = $this->query->delete();
 
         // After delete boot
         $this->emit('deleted');
@@ -165,32 +172,33 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return $success;
     }
 
-    public function forceDelete() : bool
-    {
-        /**
-         * A delete operation must be set on a condition.
-         * We first check the query where parameter.
-         */
-        if (!empty($this->query->params['where'])) return $this->query->delete()->exec()->status() === 'success';
-
-        $error = sprintf("Can not update or delete records while on safe mode; on table %s", $this->getTable()->name());
-        throw new ModelException($error, ModelException::ERROR_3060);
-    }
-
     public function softDelete() : bool
     {
-        return  $this->update(['deleted_at' => now()]);
+        return  $this->query->update([$this->getDeletedAtColumn() => now()]);
     }
 
-    public function update(array $values = []) : bool
+    /**
+     * Restore a soft deleted record.
+     * 
+     * @return bool
+     */
+    public function restore() : bool
+    {
+       $this->emit('restoring');
+       $success = $this->query->update([$this->getDeletedAtColumn() => null]);
+       $this->emit('restored');
+       return $success;
+    }
+
+    public function update(array $values = []) : int
     {
         if (empty($values)) return false;
         
-        $criteria = !$this->isEmpty() ? $this->getKey()->toSqlCondition() : [$this->query->getParam('where'), $this->query->getOptions()];
+        $criteria = $this->exists() ? $this->getKey()->toSqlCondition() : [$this->query->getParam('where'), $this->query->getOptions()];
         
         if ( !empty( $criteria[0] ) && !empty( $criteria[1] ) ) {
 
-            if (FALSE === $this->isEmpty()) {
+            if ($this->exists()) {
                 $this->emit('updating');
 
                 /** @var array */
@@ -206,9 +214,14 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 		    $this->query->set('values', $values);
             $this->query->where(...$criteria);
             $this->query->set('ignore', $this->insert_ignore); // Set SQL IGNORE flag
-            
-            $success = $this->query->exec()->status() === 'success';
 
+            if ($this->usesSoftDeletes()) {
+                $this->applySoftDeleteScope();
+            }
+            
+            $stmt     = $this->query->exec();
+            $affected = $stmt->affectedRows();
+            
             $record = [];       // Updated attributes
 
             foreach ($fields as $index => $attr) {
@@ -235,37 +248,37 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
             // Restore state
             $this->query->set('type', DBQuery::SELECT);
             
-            if (FALSE === $this->isEmpty()) {
+            if ($this->exists()) {
                 $this->reset();
                 $this->emit('updated'); 
             }
             
-            return $success;
+            return $affected;
         } 
         
         throw new \Clicalmani\Core\Exceptions\ModelException("Can not bulk update or delete records when on safe mode");
     }
 
-    public function insert(array $fields = [], ?bool $update = false) : bool
+    public function insert(array $data = []) : bool
     {
-        if (empty($fields)) return false;
+        if (empty($data)) return false;
         
         // Before create boot
         $this->emit('creating');
 
-        // Update data
-        $data = $this->getData();
-        if (array_key_exists('in', $data)) $fields = [$data['in']];
+        $modified = $this->getData()['in'] ?? [];
+
+        if ($data !== $modified) $data = [$modified];
         
         $this->query->unset('tables');
-        $this->query->set('type', (FALSE === $update) ? DBQuery::INSERT: DBQuery::REPLACE);
+        $this->query->set('type', DBQuery::INSERT);
         $this->query->set('table', $this->getTable()->name());
         $this->query->set('ignore', $this->insert_ignore); // Set SQL IGNORE flag
 
         $keys = [];
         $values = [];
 
-        foreach ($fields as $field) {
+        foreach ($data as $field) {
             $this->discardGuardedAttributes($field);
             if (empty($keys)) $keys = array_keys($field);
             
@@ -285,7 +298,26 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         $this->query->set('fields', $keys);
         $this->query->set('values', $values);
         
-        $success = $this->query->exec()->status() === 'success';
+        /** @var \Clicalmani\Database\Builders\AbstractInsertStatement */
+        $statement = $this->query->exec();
+
+        if (method_exists($this, 'onDuplicateKeyUpdate')) {
+            $update = $this->onDuplicateKeyUpdate();
+
+            if (!is_array($update)) {
+                throw new \Clicalmani\Core\Exceptions\ModelException("The onDuplicateKeyUpdate() method must return an array"); 
+            }
+
+            if (isset($update['columns'], $update['alias']) && is_array($update['columns'])) {
+                $statement->onDuplicateKeyUpdate($update['columns'])
+                    ->usingAlias($update['alias']);
+            } else {
+                $statement->onDuplicateKeyUpdate($update);
+            }
+        }
+
+        $statement->query();
+        $success = $statement->affectedRows() > 0;
 
         $values = end($values);
 
@@ -311,13 +343,17 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function save(bool $update = false) : bool
     {
+        if ($this->usesSoftDeletes() && $this->trashed() && $this->exists()) {
+            throw new \RuntimeException(
+                'Failed to save model, the record is soft deleted. Please restore the record before saving.'
+            );
+        }
+
         try {
             $this->emit('saving');
         
             $success = false;
             $data = $this->getData();
-            
-            $this->lock();
             
             if ( @ $data['out'] ) {
                 /**
@@ -332,8 +368,6 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
             } else {
                 $success = true;
             }
-
-            $this->unlock();
 
             // Reset back to select parameters 
             $this->query->set('type', DBQuery::SELECT);
@@ -351,12 +385,12 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function saveQuietly() : bool
     {
-        return $this->muteEvents()->save();
+        return $this->muteEvents(['saving', 'saved'])->save();
     }
 
     public function lastInsertId(array $record = []) : mixed
     {
-        $last_insert_id = DB::insertId();
+        $last_insert_id = DB::lastInsertId();
 
         $key = $this->getKey();
         
@@ -365,14 +399,6 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         }
 
         return $last_insert_id;
-    }
-
-    public function first() : ?self
-    {
-        if ($row = $this->exec()->first()) {
-            return static::find($this->getKey()->fromResult((array)$row));
-        } 
-        return null;
     }
 
     public function firstOr(callable $callback) : mixed
@@ -393,13 +419,13 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function swap() : void
     {
-        $columns = \Clicalmani\Database\Factory\Schema::getColumnListing($this->getTable()->name());
+        $entity = $this->getEntity();
         $request = \Clicalmani\Core\Http\Request::current();
         
-        foreach ($columns as $column) {
-            foreach (array_keys($request->all()) as $attribute) {
-                if ($column == $attribute) {
-                    $this->{$attribute} = $request->{$attribute};
+        foreach ($entity->getAttributes() as $attribute) {
+            foreach (array_keys($request->all()) as $param) {
+                if ($attribute->name == $param) {
+                    $this->{$param} = $request->{$param};
                     break;
                 }
             }
@@ -408,7 +434,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function top(int $row_count) : self
     {
-        return $this->limit(0, $row_count);
+        return $this->skip(0)->limit($row_count);
     }
 
     public function refresh() : self
@@ -435,8 +461,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function registerObserver(\Clicalmani\Database\Events\EventObserverInterface $observer): void
     {
-        $reflection = new \ReflectionClass($observer);
-        $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
+        $methods = $this->extractPublicMethods($observer);
         
         foreach ($methods as $method) {
             if ( $this->isEvent($method->name) ) {
@@ -447,9 +472,11 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
                     );
                 }
 
-                $this->observers[$method->name] = [$observer, $method->name];
+                // $this->observers[$method->name] = [$observer, $method->name];
             }
         }
+
+        $this->observers[] = $observer;
     }
 
     public function emit(string $event, mixed $data = null): void
@@ -493,11 +520,19 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
     public function fill(array $attributes) : self
     {
+        if (empty($attributes)) {
+            $data = $this->getData();
+            if (!array_key_exists('in', $data)) return false;
+            $attributes = $data['in'];
+        }
+
         $this->discardGuardedAttributes($attributes);
 
         foreach ($attributes as $key => $value) {
             $this->{$key} = $value;
         }
+
+        $this->save();
 
         return $this;
     }
@@ -507,28 +542,10 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return $this->query->firstValue($field);
     }
 
-    public function union(self $model, bool $all = false) : self
-    {
-        $this->query->union($model->getQuery(), $all);
-        return $this;
-    }
-
     public static function getConnection(): \PDO
     {
         return static::getInstance()->query->getPdo();
     }
-
-    /**
-     * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
-     *
-     * @param ?string $value
-     * @return self
-     */
-    public function marker(?string $value = ':'): self
-	{
-		$this->query->set('marker', $value);
-		return $this;
-	}
 
     public function __toString() : string
     {
@@ -645,6 +662,27 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return $this;
     }
 
+    public function load(string ...$relations) : CollectionInterface
+	{
+		$collection = $this->exec();
+
+		return $collection->load(...$relations);
+	}
+
+    public function loadWithConstraints(array $relations) : CollectionInterface
+	{
+		$collection = $this->exec()->result();
+
+		return $collection->loadWithConstraints($relations);
+	}
+
+    public function loadMissing(string ...$relations) : CollectionInterface
+	{
+		$collection = $this->exec()->result();
+
+		return $collection->loadMissing(...$relations);
+	}
+
     /**
      * Get a relationship
      */
@@ -669,6 +707,9 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 	public function hydrate(array $data): self
     {
         if ($data) {
+            // ── Stored data ──────────────────────────────────────────────────────
+            $this->{'__elegant_cached_data__'} = $data;
+
             $pivotData = [];
             foreach ($data as $key => $value) {
                 if (strpos($key, 'pivot_') === 0) {
@@ -744,7 +785,7 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
         $tables = explode('_', $pivotModel->getTable()->name());
 
-        if ( count($table) !== 2 ) {
+        if ( count($tables) !== 2 ) {
             return $this;
         }
 
@@ -760,5 +801,23 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         }
 
         return $this->setPivot($data);
+    }
+
+    private function applySoftDeleteScope() : void
+    {
+        $column = $this->getDeletedAtColumn();
+
+        $scopeCondition = match ($this->softDeleteMode) {
+            'with'    => null,                        
+            'only'    => "{$column} IS NOT NULL",
+            default   => "{$column} IS NULL",
+        };
+
+        if ($scopeCondition) {
+            $where = $this->query->params['where'] ?? '';
+            $where = $where === '' ? $scopeCondition : "({$where}) AND {$scopeCondition}";
+
+            $this->query->params['where'] = $where;
+        }
     }
 }

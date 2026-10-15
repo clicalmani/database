@@ -14,7 +14,6 @@ class ScopeWhereDoesntHave implements ScopeInterface
     )
     {}
 
-    #[Override]
     public function apply(QueryInterface $query, ModelInterface $model): mixed
     {
         $query->whereDoesntHave(

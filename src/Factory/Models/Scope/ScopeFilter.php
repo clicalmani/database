@@ -1,6 +1,7 @@
 <?php
 namespace Clicalmani\Database\Factory\Models\Scope;
 
+use Clicalmani\Core\Collection\CollectionInterface;
 use Clicalmani\Database\Factory\Models\Key;
 use Clicalmani\Database\Factory\Models\ModelInterface;
 use Clicalmani\Database\Factory\Models\ScopeInterface;
@@ -14,8 +15,7 @@ class ScopeFilter implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): CollectionInterface
     {
         /**
          * |---------------------------------------------------
@@ -40,11 +40,15 @@ class ScopeFilter implements ScopeInterface
             );
             
             if (isset($this->options['order_by'])) {
-                $obj->orderBy($this->options['order_by']);
+                $obj->orderBy(...explode(' ', $this->options['order_by']));
             }
 
             if (isset($this->options['limit'])) {
-                $obj->limit($this->options['offset'] ?? 0, $this->options['limit']);
+                if (isset($this->options['offset'])) {
+                    $obj->skip($this->options['offset']);
+                }
+                
+                $obj->limit($this->options['limit']);
             }
             
             return $obj->get();

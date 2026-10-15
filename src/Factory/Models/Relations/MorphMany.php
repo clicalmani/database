@@ -69,7 +69,7 @@ class MorphMany extends Relationship
          * @var Elegant
          */
         foreach ($results as $result) {
-            $key = (string) $result->{$this->idKey};
+            $key = (string) $this->getProperty($result, $this->idKey);
             if (!isset($dictionary[$key])) {
                 $dictionary[$key] = [];
             }
@@ -77,7 +77,7 @@ class MorphMany extends Relationship
         }
 
         foreach ($models as $model) {
-            $key = (string) $model->{$this->model->getKey()->scalarName()};
+            $key = (string) $this->getProperty($model, $this->model->getKey()->scalarName());
             
             if (isset($dictionary[$key])) {
                 $model->setRelation($relation, $dictionary[$key]);

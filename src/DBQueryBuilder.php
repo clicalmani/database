@@ -3,6 +3,7 @@ namespace Clicalmani\Database;
 
 use Clicalmani\Core\Collection\Collection;
 use Clicalmani\Core\Support\Facades\DB;
+use Clicalmani\Database\Concerns\SqlBinder;
 
 /**
  * Class Database Query Builder
@@ -121,6 +122,10 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 */
 	protected $cumulative_time_listeners = [];
 
+	protected ?\PDOStatement $statement = null;
+
+	protected bool $statementExecuted = false;
+
 	/**
 	 * Constructor
 	 * 
@@ -128,14 +133,15 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 * @param array $option [Optional]
 	 */
 	public function __construct(
-		protected $params = [],
-		protected $options = []
+		protected $params,
+		protected $options,
+		protected Contracts\QueryExecutorInterface $executor,
+        protected QueryType $type
 	)
 	{
 		$this->params = $params; 
 		
 		$default = array(
-			'offset'   => 0, 
 			'limit'    => null,
 			'num_rows' => 1000,
 			'recycle'  => 0,
@@ -156,7 +162,130 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 * 
 	 * @return void
 	 */
-	public abstract function query() : void;
+	public function query(bool $runDry = false): void
+    {
+        try {
+			$start = microtime(true);
+
+			[$this->sql, $this->options] = SqlBinder::resolve($this->sql, $this->options);
+			
+			if ($runDry) return;
+			
+            $this->doQuery();
+
+			$duration = (microtime(true) - $start) * 1000;
+
+			$query = new Query(
+				sql:        $this->getSQL(),
+				bindings:   $this->options,
+				duration:   $duration,
+				profile:    [],
+				connection: 'default',
+			);
+
+			event($query);
+
+			$threshold = config('database.slow_query_threshold', 500);
+
+			if ($threshold > 0 && $duration > $threshold) {
+				event(new Events\SlowQuery(
+					sql:        $query->sql,
+					bindings:   $query->bindings,
+					duration:   $duration,
+					profile:    [],
+					connection: $query->connection,
+				));
+			}
+        } catch (\PDOException $e) {
+            $this->status     = false;
+            $this->error_code = $this->executor->errno();
+            $this->error_msg  = $e->getMessage();
+            $this->onError($e);
+            throw $e;
+        } finally {
+            $this->dispatch('query');
+        }
+    }
+
+	protected function doQuery(): void
+	{
+		// Cas 1 : requête "prepared" (INSERT, UPDATE, DELETE avec binding custom)
+		if ($this->type->usesPreparedStatement()) {
+			$prepared = $this->executor->prepare($this->sql, $this->params['options'], $this->options);
+			$this->bindStatement($prepared);
+			
+			if (!$this->statementExecuted) {
+				$this->status = $prepared->execute();
+			} else {
+				$this->status = true; // déjà exécuté par bindStatement()
+			}
+			
+			$this->statement = $prepared->unwrap();
+		}
+		// Cas 2 : requête "simple" (SELECT, TRUNCATE, etc.)
+		elseif ($this->type->producesStatement()) {
+			$this->statement = $this->executor->query(
+				$this->sql,
+				$this->options,
+				$this->params['options'] ?? []
+			);
+			$this->status = $this->statement !== null;
+		}
+		// Cas 3 : requête "execute" pur (TRUNCATE, UNLOCK, DDL)
+		else {
+			$this->status = $this->executor->execute($this->sql, $this->params['options'] ?? []);
+		}
+
+		$this->error_code = $this->executor->errno();
+		$this->error_msg  = $this->executor->error();
+
+		$this->afterExecute();
+		$this->hydrateResult();
+	}
+
+	/**
+	 * Hook : bind les paramètres sur un prepared statement.
+	 * Par défaut : no-op.
+	 */
+	protected function bindStatement(Contracts\PreparedStatementInterface $stmt): void
+	{
+		// no-op
+	}
+
+	protected function executeStatement(): ?\PDOStatement
+    {
+        if (!$this->type->producesStatement()) {
+            $this->status = $this->executor->execute($this->sql);
+            return null;
+        }
+
+        return $this->executor->query(
+            $this->sql,
+            $this->options,
+            $this->params['options'] ?? []
+        );
+    }
+
+	protected function afterExecute(): void
+    {
+        $this->num_rows  = $this->executor->numRows($this->statement);
+        $this->insert_id = $this->executor->lastInsertId();
+        $this->row_count = 0;
+
+        if ($this->type->supportsFoundRows() && isset($this->params['calc'])) {
+            $this->row_count = $this->executor->foundRows();
+        }
+    }
+
+	protected function hydrateResult(): void
+    {
+        // no-op par défaut
+    }
+
+    protected function onError(\PDOException $e): void
+    {
+        // no-op
+    }
 	
 	/**
 	 * Execute a SQL statement
@@ -165,25 +294,7 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 */
 	public function execSQL(string $sql) : int|false
 	{
-		return $this->db->execute($this->bindVars($sql));
-	}
-	
-	/**
-	 * Bind vars
-	 * 
-	 * @return string
-	 */
-	public static function bindVars(string $query) : string
-	{
-		$bindings = array(
-			'%PREFIX%'=> DB::getPrefix()
-		);
-		
-		foreach ($bindings as $key => $value) {
-			$query = str_replace($key, $value, $query);
-		}
-
-		return $query;
+		return $this->db->execute($sql);
 	}
 	
 	/**
@@ -259,7 +370,7 @@ abstract class DBQueryBuilder implements BuilderInterface
 	 * @return string 
 	 */
 	public function getSQL() : string { 
-		return self::bindVars($this->sql); 
+		return $this->sql; 
 	}
 	
 	/**
@@ -286,43 +397,6 @@ abstract class DBQueryBuilder implements BuilderInterface
 			if (true == $alias AND $alias) $table = $table . ' ' . $alias;
 			
 			$ret[] = $table;
-		}
-
-		return $ret;
-	}
-
-	/**
-	 * Adds joint in the SQL statement
-	 * 
-	 * @param array $joint
-	 * @return string
-	 */
-	protected function addJoint(array $join) : string
-	{
-		$ret = '';
-
-		if ( isset($join['type']) ) {
-			$ret .= ' ' . self::JOIN_TYPES[strtolower($join['type'])];
-		}
-
-		if ( isset($join['table']) ) {
-			$ret .= ' ' . join(',', $this->sanitizeTables([$join['table']]));
-		}
-
-		if ( isset($join['sub_query']) ) {
-			$ret .= ' (' . $join['sub_query'] . ')';
-
-			if ( isset($join['alias']) ) {
-				$ret .= ' ' . $join['alias'];
-			}
-		}
-
-		if ( isset($join['criteria']) ) {
-			$ret .= ' ' . $join['criteria'];
-		}
-
-		if ( isset($join['condition']) ) {
-			$ret .= ' ' . $join['condition'];
 		}
 
 		return $ret;
@@ -391,13 +465,22 @@ abstract class DBQueryBuilder implements BuilderInterface
 
 	protected function dispatch(string $event) : void
 	{
-		if ($this->cumulative_time_listeners) {
-
-			$profile = DB::fetchAll(DB::query('SHOW PROFILE', [], ['fetch' => \PDO::FETCH_ASSOC]));
-
-			foreach ($this->cumulative_time_listeners[$event] as $listener) {
-				$listener(new Query($this->getSQL(), $this->options, $profile));
-			}
-		}
+		// no-op
 	}
+
+	protected function serverVersion(): mixed
+	{
+		static $version = null;
+
+		if ($version === null) {
+			$version = DB::getPdo()->getAttribute(\PDO::ATTR_SERVER_VERSION) ?? '0.0.0';
+		}
+
+		return $version;
+	}
+
+	protected function isRawExpression(mixed $value): bool
+    {
+        return $value instanceof \Clicalmani\Database\Concerns\Raw;
+    }
 }

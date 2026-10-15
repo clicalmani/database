@@ -12,8 +12,7 @@ class ScopeQuery implements ScopeInterface
     )
     {}
 
-    #[Override]
-    public function apply(QueryInterface $query, ModelInterface $model): mixed
+    public function apply(QueryInterface $query, ModelInterface $model): QueryInterface
     {
         if ($this->select instanceof \Closure) {
            with ($this->select)($query);

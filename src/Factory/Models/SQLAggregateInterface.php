@@ -15,17 +15,17 @@ interface SQLAggregateInterface
      * Get the average of a field in the query result
      * 
      * @param string $field Field to average
-     * @return float
+     * @return mixed
      */
-    public function avg(string $field) : float;
+    public function avg(string $field, mixed $default = null) : mixed;
 
     /**
      * Get the sum of a field in the query result
      * 
      * @param string $field Field to sum
-     * @return float
+     * @return mixed
      */
-    public function sum(string $field) : float;
+    public function sum(string $field, mixed $default = null) : mixed;
 
     /**
      * Get the minimum value of a field in the query result

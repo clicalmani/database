@@ -4,7 +4,7 @@ namespace Clicalmani\Database\Factory\Models;
 use Clicalmani\Core\Collection\Collection;
 use Clicalmani\Core\Collection\CollectionInterface;
 
-interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinable, SQLAggregateInterface, EventInterface, StateChangeInterface
+interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinable, EventInterface, StateChangeInterface
 {
     /**
      * Get the query results.
@@ -35,10 +35,10 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * Update model
      * 
      * @param array $value Attributs values key pairs
-     * @return bool True on success, false on failure
+     * @return int Affected rows
      * @throws \Clicalmani\Core\Exceptions\ModelException
      */
-    public function update(array $values = []) : bool;
+    public function update(array $values = []) : int;
 
     /**
      * Insert one or more rows in the table.
@@ -47,7 +47,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return bool True on success, false on failure
      * @throws \Clicalmani\Core\Exceptions\ModelException
      */
-    public function insert(array $fields = [], ?bool $replace = false) : bool;
+    public function insert(array $fields = []) : bool;
 
     /**
      * Save changes
@@ -71,14 +71,7 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return mixed
      */
     public function lastInsertId(array $record = []) : mixed;
-
-    /**
-     * Returns the first value in the selected result
-     * 
-     * @return ?self
-     */
-    public function first() : ?self;
-
+    
     /**
      * Returns the first value in the selected result or fail.
      * 
@@ -187,35 +180,80 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
      * @return Table
      */
     public function getTable() : Table;
-
-    /**
-     * Force delete the model when multiple rows must be affected.
-     * 
-     * @return bool True on success, false on failure
-     */
-    public function forceDelete() : bool;
-
-    /**
-	 * Combine the result sets of two queries
-	 * 
-	 * @param \Clicalmani\Database\Factory\Models\Elegant $model
-	 * @param bool $all
-	 * @return self
-	 */
-    public function union(\Clicalmani\Database\Factory\Models\Elegant $model, bool $all = false) : self;
-
+    
     /**
      * Get the model connection
      * 
      * @return \PDO
      */
     public static function getConnection(): \PDO;
+    
+    /**
+	 * Eager load relationships on an already-fetched collection.
+	 *
+	 * Unlike with(), which declares relations to load eagerly *before* the
+	 * query runs, load() operates on a collection that has already been
+	 * fetched. This is useful when you realize after the fact that a
+	 * relation is needed, or when the decision to load depends on the
+	 * result set itself.
+	 *
+	 *     $users = User::query()->get();
+	 *
+	 *     // Later, decide to load orders
+	 *     $users->load('orders');
+	 *
+	 *     // Or load conditionally
+	 *     if ($request->get('with_orders')) {
+	 *         $users->load('orders.items');
+	 *     }
+	 *
+	 * The method mutates the collection in place and returns it, so it can
+	 * be chained:
+	 *
+	 *     $users = User::query()->get()->load('orders', 'profile');
+	 *
+	 * Relation names can use dot notation to load nested relations:
+	 *
+	 *     $users->load('orders.items.product');
+	 *
+	 * @param string ...$relations One or more relation names to load
+	 * @return CollectionInterface
+	 */
+    public function load(string ...$relations) : CollectionInterface;
 
     /**
-     * Marker for prepared statements. It is used to set the marker for prepared statements in the query.
-     *
-     * @param ?string $value
-     * @return self
-     */
-    public function marker(?string $value = ':'): self;
+	 * Eager load relationships on an already-fetched collection, using
+	 * per-relation closures to customize the relation query.
+	 *
+	 * Each closure receives the relation's query builder, allowing you to
+	 * add constraints, ordering, or field selection:
+	 *
+	 *     $users->load([
+	 *         'orders' => fn($q) => $q->where('status = ?', ['paid']),
+	 *         'profile',
+	 *         'posts.comments' => fn($q) => $q->orderBy('created_at', 'DESC'),
+	 *     ]);
+	 *
+	 * Dot notation is supported: the closure applies to the deepest segment
+	 * of the path.
+	 *
+	 * @param array $relations Map of relation name => constraint closure
+	 * @return CollectionInterface
+	 */
+    public function loadWithConstraints(array $relations) : CollectionInterface;
+
+    /**
+	 * Load missing relationships on an already-fetched collection, skipping
+	 * relations that have already been loaded.
+	 *
+	 * Useful when you're not sure whether a relation was already eager loaded
+	 * and want to avoid redundant queries:
+	 *
+	 *     $users = User::query()->with('profile')->get();
+	 *     $users->loadMissing('profile', 'orders'); // 'profile' skipped, 'orders' loaded
+	 *
+	 * @param string ...$relations One or more relation names to load
+	 * @return CollectionInterface
+	 */
+    public function loadMissing(string ...$relations) : CollectionInterface;
 }

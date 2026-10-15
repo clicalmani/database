@@ -1,7 +1,16 @@
 <?php
 namespace Clicalmani\Database;
 
+use Clicalmani\Core\Collection\CollectionInterface;
 use Clicalmani\Core\Support\Facades\Log;
+use Clicalmani\Database\Concerns\IsolationLevel;
+use Clicalmani\Database\Concerns\IsolationScope;
+use Clicalmani\Database\Concerns\Raw;
+use Clicalmani\Database\Concerns\SqlBinder;
+use Clicalmani\Database\Contracts\ConnectionManager;
+use Clicalmani\Database\Contracts\QueryExecutorInterface;
+use Clicalmani\Database\Execution\PdoQueryExecutor;
+use Clicalmani\Database\Listeners\QueryListenerRegistry;
 use PDO;
 use PDOStatement;
 
@@ -18,170 +27,60 @@ use PDOStatement;
 abstract class DB implements DBInterface
 {
 	/**
-	 * Permit dirty reads
-	 * 
-	 * @var int
-	 */
-	const TRANSACTION_DIRTY_READS = 0x0;
-
-	/**
-	 * Permit non repeatable reads
-	 * 
-	 * @var int
-	 */
-	const TRANSACTION_NON_REPEATABLE_READS = 0x0;
-
-	/**
-	 * Permit phantom reads
-	 * 
-	 * @var int
-	 */
-	const TRANSACTION_PHANTOM_READS = 0x1;
-
-	/**
 	 * Stores database instance.
 	 * 
 	 * @var QueryInterface
 	 */
-	private static $instance;
+	private $instance;
 
-	/**
-	 * Stores PDO instance
-	 * 
-	 * @var \PDO
-	 */
-	private static $pdo;
+	private ?ConnectionManager $manager = null;
 
-	/**
-	 * Database tables prefix
-	 * 
-	 * @var string
-	 */
-	private static string $prefix = '';
+    private ?QueryExecutorInterface $executor = null;
 
-	/**
-	 * Toggle query log
-	 * When enabled, all the queries will be logged.
-	 * 
-	 * @var bool
-	 */
-	private static bool $logQuery = false;
+	private array $queryLog = [];
 
-	/**
-	 * Database config
-	 * 
-	 * @var array
-	 */
-	private static array $db_config = [];
+	private bool $queryLogEnabled = false;
+
+	private int $queryLogLimit = 1000;
+
+	private $queryLogStop = null;
 
 	/**
 	 * Stores the current database connection
 	 * 
-	 * @var array
+	 * @var ?ConnectionManager
 	 */
-	private static array $connection = [];
+	protected ?ConnectionManager $connection = null;
 
 	private int $transactionLevel = 0;
+
+	private ?QueryListenerRegistry $listenerRegistry = null;
+
+	protected function config(): array
+    {
+        return app()->config->database();
+    }
+
+	protected function manager(): ConnectionManager
+    {
+		if ($this->manager) return $this->manager;
+        $this->manager = new ConnectionManager;
+        $this->manager->configure($this->config());
+		return $this->manager;
+    }
+
+	public function executor(): QueryExecutorInterface
+    {
+        return $this->executor ??= new PdoQueryExecutor(
+            $this->manager(),
+            $this->listenerRegistry(),
+        );
+    }
 	
-	public function setConnection(string $driver = '') : void
-	{
-		/** @var array<string|array> */
-		static::$db_config = app()->config->database();
-		
-		if ( ! is_array(static::$db_config) ) {
-			throw new \Exception('Database configuration not set.');
-		}
-
-		if ( ! isset(static::$db_config['default']) ) {
-			die('Database default connection not set');
-		}
-
-		if ( ! isset(static::$db_config['connections']) ) {
-			die('Database connections not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]) ) {
-			die('Database default connection not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['driver']) ) {
-			die('Database default connection driver not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['host']) ) {
-			die('Database default connection host not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['port']) ) {
-			die('Database default connection port not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['database']) ) {
-			die('Database default connection database not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['username']) ) {
-			die('Database default connection username not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['password']) ) {
-			die('Database default connection password not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['charset']) ) {
-			die('Database default connection charset not set');
-		}
-
-		if ( ! isset(static::$db_config['connections'][static::$db_config['default']]['collation']) ) {
-			die('Database default connection collation not set');
-		}
-
-		if ( empty($driver) ) {
-			static::$connection = static::$db_config['connections'][static::$db_config['default']];
-		} else {
-
-			// Verify the connection driver parameter
-			if ( ! isset(static::$db_config['connections'][$driver]) ) {
-				die('Database connection not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['driver']) ) {
-				die('Database connection driver not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['host']) ) {
-				die('Database connection host not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['port']) ) {
-				die('Database connection port not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['database']) ) {
-				die('Database connection database not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['username']) ) {
-				die('Database connection username not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['password']) ) {
-				die('Database connection password not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['charset']) ) {
-				die('Database connection charset not set');
-			}
-
-			if ( ! isset(static::$db_config['connections'][$driver]['collation']) ) {
-				die('Database connection collation not set');
-			}
-
-			static::$connection = static::$db_config['connections'][$driver];
-		}
-	}
-	
-	public function getPrefix() : string { return static::$prefix ?? env('DB_TABLE_PREFIX'); }
+	public function getPrefix(): string
+    {
+        return env('DB_TABLE_PREFIX', '');
+    }
 	
 	/**
 	 * Returns the current database instance.
@@ -189,64 +88,32 @@ abstract class DB implements DBInterface
 	 */
 	public function getInstance() : QueryInterface
 	{
-	    if ( ! static::$instance ) {
-			self::getPdo();
-			self::$instance = new DBQuery;
-		}
-
-		return self::$instance;
+		return $this->instance ??= new DBQuery(
+			DBQuery::SELECT,
+			[], [], $this->executor()
+		);
 	}
 
 	/**
 	 * Returns the current pdo instance.
 	 * @return \PDO
 	 */
-	public function getPdo() : \PDO
-	{
-		if ( static::$pdo ) return static::$pdo;
-
-		if ( ! static::$connection || isConsoleMode() ) {
-			self::setConnection();
-		}
-		
-		try {
-			static::$pdo = new PDO(
-				static::$connection['driver'] . ':host=' . static::$connection['host'] . ':' . static::$connection['port'] . ';dbname=' . static::$connection['database'],
-				static::$connection['username'],
-				static::$connection['password'],
-				[
-					PDO::ATTR_PERSISTENT => true,
-					PDO::ATTR_EMULATE_PREPARES => false
-				]
-			);
-
-			/**
-			 * Set default collation and character set
-			 */
-			static::$pdo->query('SET NAMES ' . static::$connection['charset']);
-			static::$pdo->query('SELECT CONCAT("ALTER TABLE ", tbl.TABLE_SCHEMA, ".", tbl.TABLE_NAME, " CONVERT TO CHARACTER SET ' . static::$connection['charset'] . ' COLLATION ' . static::$connection['collation'] . ';") FROM information_schema.TABLES tbl WHERE tbl.TABLE_SCHEMA = "' . static::$connection['database'] . '"');
-			
-			static::$prefix = static::$connection['prefix'];
-
-			if ( app()->getTimeTracker() ) {
-				static::$pdo->query('SET PROFILING=1');
-			}
-
-			return static::$pdo;
-		} catch(\PDOException $e) {
-			die($e->getMessage());
-		}
-	}
+	public function getPdo(): \PDO
+    {
+        return $this->manager()->pdo();
+    }
 
 	/**
 	 * Set a PDO instance to be use for the next query.
 	 * 
 	 * @param \PDO $pdo A PDO object
 	 */
-	public function setPdo(\PDO $pdo) : void
-	{
-		static::$pdo = $pdo;
-	}
+	public function setPdo(\PDO $pdo): void
+    {
+        $this->manager()->setPdo($pdo);
+        $this->executor = null; // force la recréation
+		$this->instance = null;
+    }
 	
 	/**
 	 * Execute a statement request on the database.
@@ -256,21 +123,67 @@ abstract class DB implements DBInterface
 	 * @param ?array $flags Option flags
 	 * @return \PDOStatement
 	 */
-	public function query(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
+	public function query(string $sql, ?array $options = [], ?array $flags = []): ?\PDOStatement
+    {
+        return $this->executor()->query($sql, $options, $flags);
+    }
+
+	public function raw(string $expression): Raw
 	{
-		$statement = static::prepare(DBQueryBuilder::bindVars($sql), $flags);
-		$statement->execute($options);
-		return $statement;
-	} 
+		return new Raw($expression);
+	}
 
 	/**
 	 * Enable query log
 	 * Statement generated SQL code will be logged starting from where the call is made.
 	 * @return void
 	 */
-	public function enableQueryLog() : void
+	public function enableQueryLog(int $limit = 1000): void
+    {
+        if ($this->queryLogEnabled) {
+            return; // déjà activé
+        }
+
+        $this->queryLogEnabled = true;
+        $this->queryLogLimit = $limit;
+        $this->queryLog = [];
+
+        // Enregistre UN listener qui alimente le buffer
+        $this->queryLogStop = static::listen(function (
+            string $sql,
+            array $bindings,
+            float $timeMs
+        ) {
+            $this->queryLog[] = [
+                'sql'      => $sql,
+                'bindings' => $bindings,
+                'time_ms'  => $timeMs,
+            ];
+
+            // Tronque si on dépasse la limite (buffer circulaire)
+            if (count($this->queryLog) > $this->queryLogLimit) {
+                array_shift($this->queryLog);
+            }
+        });
+    }
+
+	public function disableQueryLog(): void
+    {
+        if ($this->queryLogStop !== null) {
+            ($this->queryLogStop)();
+            $this->queryLogStop = null;
+        }
+        $this->queryLogEnabled = false;
+    }
+
+	public function flushQueryLog(): void
 	{
-		static::$logQuery = true;
+		$this->queryLog = [];
+	}
+
+	public function getQueryLog(): array
+	{
+		return $this->queryLog;
 	}
 
 	/**
@@ -279,10 +192,10 @@ abstract class DB implements DBInterface
 	 * @param string $sql
 	 * @return int|false
 	 */
-	public function execute(string $sql) : int|false
-	{
-		return static::$pdo->exec($sql);
-	}
+	public function execute(string $sql, array $params = []): bool
+    {
+        return $this->executor()->execute($sql, $params);
+    }
 
 	/**
 	 * Fetch rows
@@ -341,7 +254,7 @@ abstract class DB implements DBInterface
 	 */
 	public function foundRows() : int
 	{
-		return @ static::query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
+		return $this->getPdo()->query('SELECT FOUND_ROWS()')?->fetch(PDO::FETCH_NUM)[0] ?? 0;
 	}
 
 	/**
@@ -351,42 +264,40 @@ abstract class DB implements DBInterface
 	 * @param ?array $options
 	 * @return \PDOStatement
 	 */
-	public function prepare(string $sql, ?array $options = []) : PDOStatement
-	{
-		if (!static::$pdo) self::getPdo();
-		
-		if ( static::$logQuery ) {
-			Log::debug($sql);
-		}
-		
-		return self::$pdo->prepare(DBQueryBuilder::bindVars($sql), $options);
-	}
+	public function prepare(string $sql, array $options = []): Contracts\PreparedStatementInterface
+    {
+        return $this->executor()->prepare($sql, $options);
+    }
 	
 	/**
 	 * Retrieve the error message
 	 * 
 	 * @return array
 	 */
-	public function error() : array { return static::$pdo->errorInfo(); }
+	public function error(): string
+    {
+        return $this->executor()->error();
+    }
 	
 	/**
 	 * Retrieve the error code
 	 * 
 	 * @return string
 	 */
-	public function errno() : string { return static::$pdo->errorCode(); }
+	public function errno(): int
+    {
+        return $this->executor()->errno();
+    }
 	
-	/**
-	 * @deprecated
-	 */
-	public function insertId() : string|false { return static::$pdo->lastInsertId(); }
-
 	/**
 	 * Retrieve the last insert id
 	 * 
 	 * @return string|false
 	 */
-	public function lastInsertId() : string|false { return static::$pdo->lastInsertId(); }
+	public function lastInsertId(): int|string|null
+    {
+        return $this->executor()->lastInsertId();
+    }
 
 	/**
 	 * Free a statement
@@ -407,41 +318,42 @@ abstract class DB implements DBInterface
 	 */
 	public function transaction(?\Closure $callback = null) : mixed
 	{
-		$pdo = static::$pdo ?? static::getPdo();
+		$pdo = $this->getPdo();
 
-		if ( ! isset($callback) ) {
-			if ( ! $pdo->inTransaction() ) $pdo->beginTransaction();
+		if ($callback === null) {
+			if (!$pdo->inTransaction()) $pdo->beginTransaction();
 			return $pdo;
 		}
 
-		if ( is_callable($callback) ) {
+		$nested = $pdo->inTransaction();
+		$savepoint = 'trans_sp_' . (++$this->transactionLevel);
 
-			$nested = $pdo->inTransaction();
-			$savepoint = 'trans_sp_' . (++$this->transactionLevel);
+		try {
+			$nested ? $pdo->exec("SAVEPOINT $savepoint") : $pdo->beginTransaction();
 
-			try {
-				$nested ? $pdo->exec("SAVEPOINT $savepoint") : $pdo->beginTransaction();
+			$result = $callback();
 
-				$success = $callback();
-
-				if ( $success ) {
-					$nested ? $pdo->exec("RELEASE SAVEPOINT $savepoint") : self::commit();
-					$this->transactionLevel--;
-					return $success;
-				}
-
-				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : self::rollback();
-				$this->transactionLevel--;
-				return $success;
-
-			} catch (\Exception $e) {
-				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : self::rollback();
-				$this->transactionLevel--;
-				throw $e;
+			if ($result !== false) {
+				$nested ? $pdo->exec("RELEASE SAVEPOINT $savepoint") : $pdo->commit();
+			} else {
+				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : $pdo->rollBack();
 			}
-		}
 
-		return null;
+			return $result;
+		} catch (\Throwable $e) {
+			if ($pdo->inTransaction()) {
+				$nested ? $pdo->exec("ROLLBACK TO SAVEPOINT $savepoint") : $pdo->rollBack();
+			}
+			throw $e;
+		} finally {
+			$this->transactionLevel--;
+		}
+	}
+
+	public function transactionWith(IsolationLevel $level, \Closure $callback) : mixed
+	{
+		$this->isolateTransaction($level);
+		return $this->transaction($callback);
 	}
 
 	/**
@@ -453,7 +365,7 @@ abstract class DB implements DBInterface
 	 */
 	public function beginTransaction(?\Closure $callback = null) : mixed
 	{
-		return static::transaction($callback);
+		return $this->transaction($callback);
 	}
 
 	/**
@@ -468,7 +380,7 @@ abstract class DB implements DBInterface
 	{
 		while ($attemps--) {
 			try {
-				return static::transaction($callback);
+				return $this->transaction($callback);
 			} catch (\PDOException $e) {
 				$isRealDeadlock = $e->getCode() === '40001' 
 					|| str_contains($e->getMessage(), 'Deadlock found');
@@ -488,21 +400,27 @@ abstract class DB implements DBInterface
 	 * 
 	 * @return bool
 	 */
-	public function commit() : bool { return !!static::$pdo?->commit(); }
+	public function commit() : bool { 
+		if ($this->inTransaction()) return !!$this->getPdo()?->commit(); 
+		return false;
+	}
 
 	/**
 	 * Rollback back statements
 	 * 
 	 * @return bool
 	 */
-	public function rollback() : bool { return !!static::$pdo?->rollback(); }
+	public function rollback() : bool { 
+		if ($this->inTransaction()) return !!$this->getPdo()?->rollback(); 
+		return false;
+	}
 
 	/**
 	 * Verify if a transaction is already running.
 	 * 
 	 * @return bool
 	 */
-	public function inTransaction() : bool { return !!static::$pdo?->inTransaction(); }
+	public function inTransaction() : bool { return !!$this->getPdo()?->inTransaction(); }
 
 	/**
 	 * Savepoint statement: Create a savepoint to rollback to.
@@ -510,7 +428,7 @@ abstract class DB implements DBInterface
 	 * @param string $name The savepoint name
 	 * @return \PDOStatement
 	 */
-	public function savePoint(string $name) : \PDOStatement { return static::statement("SAVEPOINT $name"); }
+	public function savePoint(string $name) : \PDOStatement { return $this->statement("SAVEPOINT $name"); }
 
 	/**
 	 * Rollback to save point
@@ -518,85 +436,210 @@ abstract class DB implements DBInterface
 	 * @param string $savePoint 
 	 * @see savePoint
 	 */
-	public function rollbackTo(string $savepoint) : \PDOStatement { return static::statement("ROLLBACK TO SAVEPOINT $savepoint"); }
+	public function rollbackTo(string $savepoint) : \PDOStatement { return $this->statement("ROLLBACK TO SAVEPOINT $savepoint"); }
 	
 	/**
-	 * Prevent transaction anomalies
-	 * 
-	 * @param int $isolationLevel Specify which isolation level to use
-	 * 	Here are the four possible transaction isolation levels
-	 * 		- READ UNCOMMITED Allow dirty, nonrepeatable, and phantom reads.
-	 * 		- READ COMMITED Allow nonrepeatable and phantom reads.
-	 * 		- REPEATABLE READ Allow phantom reads only.
-	 * 		- SERIALIZABLE full transaction isolation.
-	 * @param ?string $scope Specify the isolation scope: global isolation (GLOBAL) or session isolation (SESSION)
-	 * @return \PDOStatement
+	 * Définit le niveau d'isolation d'une transaction.
+	 *
+	 * ⚠️ MySQL : SET TRANSACTION ISOLATION LEVEL sans GLOBAL/SESSION ne
+	 * s'applique qu'à la PROCHAINE transaction. Utilisez SESSION pour un
+	 * changement persistant dans la session courante.
+	 *
+	 * ⚠️ Doit être appelé AVANT beginTransaction() quand le scope est vide.
+	 *
+	 * @param IsolationLevel $level Niveau d'isolation désiré
+	 * @param IsolationScope $scope Portée (défaut : prochaine transaction)
+	 *
+	 * @throws \RuntimeException Si une transaction est en cours avec scope vide
+	 * @throws \PDOException En cas d'erreur SQL
 	 */
-	public function isolateTransaction(int $isolationLevel, ?string $scope = '') : \PDOStatement
-	{
-		$query = "SET TRANSACTION ISOLATION LEVEL $scope";
+	public function isolateTransaction(
+		IsolationLevel $level,
+		IsolationScope $scope = IsolationScope::NEXT_TRANSACTION,
+	): void {
+		$pdo = $this->getPdo();
 
-		return match ($isolationLevel) {
-			self::TRANSACTION_DIRTY_READS|self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ UNCOMMITED'),
-			self::TRANSACTION_NON_REPEATABLE_READS|self::TRANSACTION_PHANTOM_READS => static::$pdo->query($query . ' READ COMMITED'),
-			self::TRANSACTION_NON_REPEATABLE_READS => static::$pdo->query($query . ' REPEATABLE READ'),
-			default => static::$pdo->query($query . ' SERIALIZABLE')
-		};
+		if ($scope === IsolationScope::NEXT_TRANSACTION && $pdo->inTransaction()) {
+			throw new \RuntimeException(
+				"SET TRANSACTION ISOLATION LEVEL doit être appelé AVANT beginTransaction()."
+			);
+		}
+
+		$sql = 'SET ';
+
+		if ($scope !== IsolationScope::NEXT_TRANSACTION) {
+			$sql .= $scope->value . ' ';
+		}
+
+		$sql .= 'TRANSACTION ISOLATION LEVEL ' . $level->value;
+		
+		$result = $pdo->exec($sql);
+
+		if ($result === false) {
+			$error = $pdo->errorInfo();
+			throw new \PDOException(sprintf(
+				"Échec de définition du niveau d'isolation : [%s] %s",
+				$error[0] ?? '?',
+				$error[2] ?? 'unknown error'
+			));
+		}
 	}
 	
-	public function close() : void { static::$pdo = null; }
+	public function close() : void { $this->executor = null; $this->instance = null; }
 
-	public function table(array|string $tables) : QueryInterface
+	public function table(array|string $tables): QueryInterface
 	{
-		$builder = new DBQuery;
-		$builder->set('query', DBQuery::SELECT);
-		
-		if ( is_string( $tables ) ) {
-			$builder->set('tables', [$tables]);
-		} elseif ( is_array($tables) ) {
-			$builder->set('tables', $tables);
-		}
-		
-		return $builder;
+		$instance = new DBQuery(DBQuery::SELECT, [], [], $this->executor());
+
+		$instance->set('tables', is_string($tables) ? [$tables] : $tables);
+
+		return $instance;
 	}
 
-	public function select(string $sql, ?array $options = [], ?array $flags = []) : array
+	public function select(string $sql, ?array $options = [], ?array $flags = []) : CollectionInterface
 	{
-		$statement = self::statement($sql, $options, $flags);
-		return $statement->fetchAll(...$flags);
+		$statement = $this->statement($sql, $options, $flags);
+		return collect($statement->fetchAll(...$flags));
 	}
 
-	public function selectOne(string $sql, ?array $options = [], ?array $flags = []) : array
+	public function selectOne(string $sql, ?array $options = [], ?array $flags = []) : mixed
 	{
-		$statement = self::statement($sql, $options, $flags);
-		return $statement->fetch(...$flags);
+		$statement = $this->statement($sql, $options, $flags);
+		$row = $statement->fetch();
+		return $row ?: null;
 	}
 
 	public function statement(string $sql, ?array $options = [], ?array $flags = []) : PDOStatement
 	{
-		$statement = static::getPdo()->prepare($sql, ...$flags);
+		$statement = $this->prepare($sql, $flags);
 		$statement->execute($options);
-		return $statement;
+		return $statement->unwrap();
 	}
 
 	public function unprepared(string $sql) : PDOStatement
 	{
-		return static::$pdo->query($sql);
+		return $this->getPdo()->query($sql);
 	}
 
-	public function connection(string $driver = '') : QueryInterface
+	public function connection(?string $driver = null): QueryInterface
+    {
+        if ($driver !== null) {
+            $this->connection = null; // force la recréation
+            $this->manager()->configure($this->config()); // recharge
+            $this->connection = new ConnectionManager;
+            $this->connection->configure($this->config());
+        }
+
+        return new DBQuery(
+			DBQuery::SELECT,
+			[], [], $this->executor()
+		);
+    }
+
+	public function swap(\PDO|QueryExecutorInterface|string $connection): mixed
+    {
+		$this->instance = null;
+
+        // Cas 1 : executor custom (fake de test)
+        if ($connection instanceof QueryExecutorInterface) {
+            $previous = $this->executor;
+            $this->executor = $connection;
+            return $previous;
+        }
+
+        // Cas 2 : PDO ou nom de connexion → on swappe la connexion
+        $previous = $this->manager()->pdo();
+
+        $pdo = match (true) {
+            $connection instanceof \PDO => $connection,
+            is_string($connection)       => $this->manager()->forConnection($connection),
+            default                      => throw new \InvalidArgumentException(
+                "DB::swap() attend un \\PDO, un QueryExecutorInterface ou un nom de connexion."
+            ),
+        };
+
+        $this->manager()->swap($pdo);
+        $this->executor = null; // force la recréation avec la nouvelle connexion
+
+        return $previous;
+    }
+
+	public function restore(): void
+    {
+        $this->manager()->restore();
+		$this->instance = null;
+        $this->executor = null;
+    }
+
+	public function withConnection(
+        \PDO|QueryExecutorInterface|string $connection,
+        callable $callback,
+    ): mixed {
+        $this->swap($connection);
+
+        try {
+            return $callback();
+        } finally {
+            $this->restore();
+        }
+    }
+
+	public function reset(): void
+    {
+        $this->connection = null;
+        $this->executor   = null;
+		$this->instance   = null;
+        $this->listenerRegistry = null;
+    }
+
+	/**
+	 * Enregistre un listener appelé à chaque requête SQL exécutée.
+	 *
+	 * @param callable $listener function(string $sql, array $bindings, float $timeMs): void
+	 * @return callable Callable de désinscription : appelez-le pour retirer le listener.
+	 */
+	public static function listen(callable $listener): callable
 	{
-		if ( ! empty($driver) ) {
-			self::close();
-			self::setConnection($driver);
-			self::getPdo();
+		return static::listenerRegistry()->register($listener);
+	}
+
+	/**
+	 * Exécute $callback en capturant toutes les requêtes SQL émises.
+	 *
+	 * @param callable $callback    Code à exécuter
+	 * @param callable|null $onDone function(array $queries): void — reçoit la liste des requêtes
+	 * @return mixed Le retour de $callback
+	 */
+	public static function captureQueries(callable $callback, ?callable $onDone = null): mixed
+	{
+		$queries = [];
+
+		$stop = static::listen(function (string $sql, array $bindings, float $timeMs) use (&$queries) {
+			$queries[] = [
+				'sql'      => $sql,
+				'bindings' => $bindings,
+				'time_ms'  => $timeMs,
+			];
+		});
+		
+		try {
+			return $callback();
+		} finally {
+			$stop();
+
+			if ($onDone !== null) {
+				$onDone($queries);
+			}
 		}
-
-		return static::$instance = new DBQuery;
 	}
 
-	public function listen(string $event, callable $callback) : void
+	public function getDriverName(): mixed
 	{
-		( new \Clicalmani\Database\Events\QueryTimeTracker )->listen($event, $callback);
+		return $this->manager()->pdo()->getAttribute(PDO::ATTR_DRIVER_NAME);
 	}
+
+	protected static function listenerRegistry(): QueryListenerRegistry
+    {
+        return QueryListenerRegistry::getInstance();
+    }
 }
