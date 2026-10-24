@@ -53,7 +53,11 @@ class Sequence implements \Countable
     
     public function __invoke() : mixed
     {
-        return tap(nocall( $this->sequence[$this->index % $this->count] ), fn() => $this->index = $this->index + 1);
+        try {
+            return tap(nocall( $this->sequence[$this->index % $this->count] ), fn() => $this->index = $this->index + 1);
+        } catch (\DivisionByZeroError $e) {
+            return null;
+        }
     }
 
     /**

@@ -273,9 +273,9 @@ abstract class Entity
             $value = $this->validateProperty($name, $value);
             $this->assignTypedProperty($name, $value);
         } catch (\ReflectionException $e) {
-            Log::error($e->getMessage(), E_ERROR, __CLASS__, __LINE__);
+            Log::error($e->getMessage(), $e->getTrace(), E_ERROR, __CLASS__, __LINE__);
         } catch (\Exception $e) {
-            Log::error($e->getMessage(), E_ERROR, __CLASS__, __LINE__);
+            Log::error($e->getMessage(), $e->getTrace(), E_ERROR, __CLASS__, __LINE__);
         }
 
         $this->trackRecordChange($name);
@@ -353,6 +353,11 @@ abstract class Entity
     public function attributeExists(string $name): bool
     {
         return !!(new Collection($this->getAttributes()))->find(fn(Attribute $attribute) => $attribute->name === $name);
+    }
+
+    public function hasAttribute(string $name): bool
+    {
+        return $this->attributeExists($name);
     }
 
     /**

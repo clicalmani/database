@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
+use Clicalmani\Database\Factory\Models\ModelInterface;
+
 /**
  * Class Factory
  * 
@@ -143,6 +145,15 @@ class Factory implements FactoryInterface
         if ($this->model) {
             with(new $this->model)->insert($seeds);
         }
+    }
+
+    public function create(): ?ModelInterface
+    {
+        if ($this->model) {
+            return $this->model::create($this->override());
+        }
+
+        return null;
     }
 
     /**

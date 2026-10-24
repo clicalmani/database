@@ -10,7 +10,7 @@
     "autoload": {
         "psr-4": {
             "Clicalmani\\Database\\": "src/",
-            "Database\\Test": "src/tests/"
+            "Database\\Test\\": "tests/"
         }
     },
     "authors": [

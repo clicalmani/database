@@ -23,4 +23,9 @@ trait HasFactory
         
         return $factoryClass::new();
     }
+
+    public static function factory() : \Clicalmani\Database\Factory\FactoryInterface
+    {
+        return self::seed();
+    }
 }

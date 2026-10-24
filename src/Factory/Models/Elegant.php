@@ -542,11 +542,6 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         return $this->query->firstValue($field);
     }
 
-    public static function getConnection(): \PDO
-    {
-        return static::getInstance()->query->getPdo();
-    }
-
     public function __toString() : string
     {
         return json_encode( $this );

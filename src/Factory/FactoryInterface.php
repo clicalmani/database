@@ -1,6 +1,8 @@
 <?php
 namespace Clicalmani\Database\Factory;
 
+use Clicalmani\Database\Factory\Models\ModelInterface;
+
 interface FactoryInterface
 {
     /**
@@ -48,4 +50,6 @@ interface FactoryInterface
      * @return void
      */
     public function make($attributes = []) : void;
+
+    public function create(): ?ModelInterface;
 }

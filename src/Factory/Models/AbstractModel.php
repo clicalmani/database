@@ -506,19 +506,6 @@ abstract class AbstractModel implements Joinable
     }
 
     /**
-     * Set model connection
-     * 
-     * @param string $connection
-     * @return static
-     */
-    public function setConnection(string $connection) : static
-    {
-        $this->connection = $connection;
-        $this->query->set('connection', $connection);
-        return $this;
-    }
-
-    /**
      * Enable or disable auto-cast
      * 
      * @param ?bool $state

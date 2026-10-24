@@ -182,13 +182,6 @@ interface ModelInterface extends SQLClausesInterface, SQLCasesInterface, Joinabl
     public function getTable() : Table;
     
     /**
-     * Get the model connection
-     * 
-     * @return \PDO
-     */
-    public static function getConnection(): \PDO;
-    
-    /**
 	 * Eager load relationships on an already-fetched collection.
 	 *
 	 * Unlike with(), which declares relations to load eagerly *before* the
