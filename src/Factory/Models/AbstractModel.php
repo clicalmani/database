@@ -619,7 +619,8 @@ abstract class AbstractModel implements Joinable
             $value = $attribute->value;
             
             // ── Auto-Cast ──────────────────────────────────────────────────────
-            if ($value) {
+            // A falsy value (0, '', false, '0') is still a hydrated value.
+            if ($value !== null) {
                 /** @var class-string<\Clicalmani\Database\Factory\DataTypes\DataType> */
                 $type = $entity->getPropertyType($name);
                 (new $type)->cast($value);
@@ -689,7 +690,21 @@ abstract class AbstractModel implements Joinable
      */
     public function __isset(string $name) : bool
     {
-        return isset($this->{$name});
+        // ── Hydrated Relation ─────────────────────────────────────────────
+        if (array_key_exists($name, $this->relations)) {
+            return $this->relations[$name] !== null;
+        }
+
+        // ── Additional Data ───────────────────────────────────────────────
+        // Name is not a table column, it only lives in the attributes bag.
+        if (!$this->attributeExists($name)) {
+            return isset($this->attributes[$name]);
+        }
+
+        // ── Column Attribute ──────────────────────────────────────────────
+        // Read through __get(). Calling isset() here would recurse back into
+        // this method and PHP's magic method guard would answer false.
+        return $this->{$name} !== null;
     }
 
     /**
@@ -698,7 +713,7 @@ abstract class AbstractModel implements Joinable
      */
     public function __unset(string $name) : void
     {
-        unset($this->{$name});
+        unset($this->relations[$name], $this->attributes[$name]);
     }
 
     /**

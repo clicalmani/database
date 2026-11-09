@@ -6,12 +6,34 @@
         "php": ">=8.0",
         "joshtronic/php-loremipsum": "^2.1.0"
     },
+    "repositories": [
+        { "type": "path", "url": "../foundation" },
+        { "type": "path", "url": "../routing" },
+        { "type": "path", "url": "../console" },
+        { "type": "path", "url": "../psr" },
+        { "type": "path", "url": "../validation" }
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "clicalmani/foundation": "@dev",
+        "clicalmani/routing": "@dev",
+        "clicalmani/console": "@dev",
+        "clicalmani/psr": "@dev",
+        "clicalmani/validation": "@dev"
+    },
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Clicalmani\\Database\\": "src/",
+            "Clicalmani\\Database\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
             "Database\\Test\\": "tests/"
         }
+    },
+    "scripts": {
+        "test": "phpunit"
     },
     "authors": [
         {
