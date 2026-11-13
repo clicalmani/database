@@ -920,4 +920,28 @@ abstract class Entity
     {
         $this->setProperty($name, $value);
     }
+
+    public function __serialize(): array
+    {
+        return [
+            $this->resolvingHooks,
+            $this->new_records,
+            $this->updated_records,
+            $this->attributesLoaded,
+            $this->attributeValues,
+            $this->customAttributes,
+        ];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        [
+            $this->resolvingHooks,
+            $this->new_records,
+            $this->updated_records,
+            $this->attributesLoaded,
+            $this->attributeValues,
+            $this->customAttributes,
+        ] = $data;
+    }
 }

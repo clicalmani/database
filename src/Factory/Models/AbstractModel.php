@@ -751,4 +751,21 @@ abstract class AbstractModel implements Joinable
         $entity = $this->getEntity();
         $entity->setCachedAttributesValues([]);
     }
+
+    public function __serialize(): array
+    {
+        return array_map(fn(string $prop) => $this->{$prop}, [
+            'insert_ignore', 'distinct', 'calc_found_rows', 'softDeleteMode', 
+            'with', 'relations', 'pivot', 'connection',
+        ]) + [serialize($this->query), serialize($this->entityInstance)];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        [$this->insert_ignore, $this->distinct, $this->calc_found_rows, $this->softDeleteMode, 
+            $this->with, $this->relations, $this->pivot, $this->connection, $query, $entity
+        ] = $data;
+        $this->query = unserialize($query);
+        $this->entityInstance = unserialize($entity);
+    }
 }

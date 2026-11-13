@@ -642,4 +642,14 @@ abstract class DB implements DBInterface
     {
         return QueryListenerRegistry::getInstance();
     }
+
+	public function __serialize(): array
+	{
+		return [];
+	}
+
+	public function __unserialize(array $data): void
+	{
+		;
+	}
 }

@@ -1243,4 +1243,15 @@ class DBQuery extends DB implements QueryInterface
 		unset($this->params['tables']);
 		$this->params['table'] = $table->name();
 	}
+
+	public function __serialize(): array
+	{
+		return [$this->backup, $this->query, $this->params, $this->options];
+	}
+
+	public function __unserialize(array $data): void
+	{
+		[$this->backup, $this->query, $this->params, $this->options] = $data;
+		parent::getInstance();
+	}
 }

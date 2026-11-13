@@ -603,19 +603,6 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
         }
     }
 
-    public function __serialize()
-    {
-        return serialize([
-            'id' => $this->id
-        ]);
-    }
-
-    public function __unserialize(array $data)
-    {
-        // $payload = unserialize($data);
-        parent::__construct($data['id']);
-    }
-
     public function getBuilder()
     {
         return $this->query->getBuilder();
@@ -814,5 +801,16 @@ class Elegant extends AbstractModel implements ModelInterface, \JsonSerializable
 
             $this->query->params['where'] = $where;
         }
+    }
+
+    public function __serialize(): array
+    {
+        return [$this->id, $this->mutedEvents, $this->eventsPrevented];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        [$this->id, $this->mutedEvents, $this->eventsPrevented] = $data;
+        parent::__construct($this->id);
     }
 }
